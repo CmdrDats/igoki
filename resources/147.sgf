@@ -1,0 +1,31 @@
+(;
+GM[1]
+SZ[19]
+AW[dd][ci][dk][dl][dn][dp][gp][ip][lp]
+AB[fq][fp][fo][fm][ek][ej][in][pq][pd]
+LB[ln:A][ir:D][np:B][po:C]
+C[Problem 147. Black to play.  
+
+The white stones at the bottom are weak, so Black must find a good way to attack them. Note that Black gave White territory on the left in order to get a thick  position in the center. ]
+(;B[ln]
+TE[2]
+C[Correct Answer.  
+
+Black should play a large-scale move by capping at 1. ]
+(;W[dr]
+LB[gq:A]
+C[White 2 is a good move because it prepares for White A, which threatens to link up or help her group at the center bottom to make eyes. <= ]
+)
+(;W[nq]
+C[If White 2 here, ... ]
+;B[po]
+C[... Black 3 has a good feel to it. <= ]
+))
+(;B[np]
+C[Failure.  
+
+Black 1 is very bad because ... ]
+;W[ln]
+C[... it drives White into the center, compromising Black's thickness there. <= ]
+)
+)

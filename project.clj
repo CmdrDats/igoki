@@ -6,6 +6,5 @@
   :dependencies
   [[org.clojure/clojure "1.7.0"]
    [nu.pattern/opencv "2.4.9-7"]
-   [clj-kdtree "1.2.0" :exclusions [org.clojure/clojure]]]
-  :main badukpro.core
-  )
+   [quil "2.2.6"]]
+  :main igoki.core)
