@@ -7,7 +7,7 @@
     [quil.core :as q])
   (:import (java.awt Toolkit)
            (javax.swing JOptionPane JFileChooser)
-           (java.io FileFilter)
+           (java.io FileFilter File)
            (processing.core PImage)
            (java.util Date)
            (java.text SimpleDateFormat)))
@@ -245,6 +245,7 @@
     (ui/shadow-text "<V> Back to camera diff view" tx 125)
     (ui/shadow-text "<C> Calibrate board" tx 150)
     (ui/shadow-text "<E> Export SGF" tx 175)
+    (ui/shadow-text "<L> Load SGF" tx 200)
 
     (q/fill 220 179 92)
     (q/rect 0 0 (q/height) (q/height))
@@ -352,6 +353,13 @@
 (defn export-sgf [ctx]
   (ui/save-dialog #(spit % (sgf/sgf (:kifu @ctx)))))
 
+(defn load-sgf [ctx]
+  (ui/load-dialog
+    (fn [^File f]
+      (println "Opening sgf: " (.getAbsolutePath f))
+      (swap! ctx assoc :kifu
+             (reconstruct (assoc (sgf/read-sgf (.getAbsolutePath f)) :movenumber 1))))))
+
 (defmethod ui/key-pressed :kifu [ctx]
   #_(.showSaveDialog (JFileChooser.) (:sketch @ctx))
 
@@ -361,6 +369,7 @@
     86 (ui/transition ctx :view)
     82 (reset-kifu ctx)
     69 (export-sgf ctx)
+    76 (load-sgf ctx)
     37 (swap! ctx #(-> %
                        (update-in [:kifu :movenumber] (fnil dec 1))
                        (update-in [:kifu] reconstruct)))

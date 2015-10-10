@@ -395,5 +395,5 @@
     node))
 
 (defn construct-board [moves path movenumber]
-  (let [nodelist (take movenumber (current-branch-node-list path moves))]
+  (let [nodelist (take (inc (or movenumber 0)) (current-branch-node-list path moves))]
     (reduce step-node {:size [19 19] :player-turn :black :movenumber 0 :moveoffset 0} nodelist)))

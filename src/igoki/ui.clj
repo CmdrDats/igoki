@@ -130,4 +130,15 @@
           (success-fn (.getSelectedFile chooser)))
         (finally (.dispose frame))))))
 
+(defn load-dialog [success-fn]
+  (SwingUtilities/invokeLater
+    #(let [frame (JFrame. "Load")
+           chooser (JFileChooser.)]
+      (try
+        (.setAlwaysOnTop frame true)
+        (when
+          (= JFileChooser/APPROVE_OPTION (.showOpenDialog chooser frame))
+          (success-fn (.getSelectedFile chooser)))
+        (finally (.dispose frame))))))
+
 #_(start (transition ctx :goban))
