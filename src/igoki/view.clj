@@ -6,8 +6,6 @@
            (org.opencv.calib3d Calib3d)
            (org.opencv.imgproc Imgproc)))
 
-;; TODO: Allow grid corners to be stretched with mouse instead of just shifted - better for perspective handling.
-
 (def block-size 35.0)
 
 (defn target-points [size]

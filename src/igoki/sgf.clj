@@ -1,9 +1,6 @@
 (ns igoki.sgf
   (:require [clojure.set :as set]))
 
-;; TODO: Handle passes in board reconstruction (update :player-turn on empty or invalid W or B position)
-
-
 ;; According to http://www.red-bean.com/sgf/properties.html
 (def property-lookup
   {
@@ -101,56 +98,14 @@
 (defn convert-sgf-coord [[x y :as s]]
   [(- (int x) 97) (- (int y) 97)])
 
+(defn inpath [branch-path]
+  (concat [:branches] (mapcat (fn [i] [i :branches]) (mapcat identity branch-path))))
 
-(defn current-branch-node-list [[p & ps :as path] moves]
-  (cond
-    (empty? (filter vector? moves)) moves
-    :else
-    (concat
-      (remove vector? moves)
-      (if p
-        (current-branch-node-list ps (nth moves (or p 0)))
-        (current-branch-node-list ps (first (filter vector? moves)))))))
-
-
-(defn branch-at [moves movecount]
-  (cond
-    (zero? movecount) moves
-    (> (count (remove vector? moves)) movecount)
-    (vec (concat (subvec moves 0 movecount) [(subvec moves movecount)]))
-    :else moves))
-
-(defn branch-path [[p & ps :as path] moves movecount]
-  (let [newcount (- movecount (count (remove vector? moves)))]
-    (cond
-      (nil? moves) [[] []]
-      (or (nil? p) (zero? newcount) (neg? newcount))
-      (let [branched (branch-at moves movecount)]
-        [[(count branched)] (conj branched [])])
-      (zero? newcount)
-      [path moves]
-      :else
-      (let [[bp branched] (branch-path ps (nth moves p) (- movecount (count (remove vector? moves))))]
-        [(concat [(first path)] bp) (assoc moves p branched)]))))
-
-(defn branch [{:keys [current-branch-path moves] :as game}]
-  (let [[newpath branched] (branch-path current-branch-path moves (count (current-branch-node-list current-branch-path moves)))]
-    (assoc game :current-branch-path newpath :moves branched))
-
-  #_(cond
-    ;; Root node
-    (nil? (:moves game))
-    (assoc game :moves {} :current-branch-path [])
-    :else
-    (let [current-path (get-in (:moves game) (:current-branch-path game) [])]
-      (->
-        game
-        (update-in (concat [:moves] (:current-branch-path game)) conj [])
-        (update :current-branch-path #(conj % (count current-path)))))))
-
-(defn unbranch [game]
-  #_(println "Unbranching")
-  (update game :current-branch-path #(vec (butlast %))))
+(defn current-branch-node-list [path rootnode]
+  (reductions
+    (fn [node p]
+      (get (:branches node) p))
+    rootnode (mapcat identity path)))
 
 (defn accumulate-action [{:keys [action text node] :as state}]
   (let [a (get property-lookup action action)]
@@ -166,54 +121,76 @@
     (assoc (dissoc state :mode) :action (str c))
     (update state :action str c)))
 
-(defn collect-node [game node]
+(defn collect-node [game node branch-path & [branch?]]
   (if (empty? node)
-    game
-    (update-in game (concat [:moves] (:current-branch-path game)) conj node)))
+    [game (if branch? (conj branch-path []) branch-path)]
+    [(update-in game (inpath branch-path) (fnil conj []) node)
+     (let [newpoint (count (get-in game (inpath branch-path)))]
+       (cond->
+         branch-path
+         true (update (dec (count branch-path)) conj newpoint)
+         branch? (conj [])))]))
 
 (defn read-sgf [filename]
   (let [f (slurp filename)
-        initial-state {:mode nil :action "" :node {}}]
-    (loop [game {:moves nil}
+        new-node {:branches []}
+        initial-state {:mode nil :action "" :node nil}]
+    (loop [[game branch-path :as g] [new-node []]
            state initial-state
            [c & o] f]
       (cond
-        (nil? c) game
-        (and (= c \\) (= (:mode state) :collect-text)) (recur game state o) ;; Escape character in text.
-        (= c \]) (recur game (accumulate-action state) o)
-        (= (:mode state) :collect-text) (recur game (collect-text state c) o)
-        (= c \() (recur (-> game (collect-node (:node state)) branch) initial-state o)
-        (= c \)) (recur (-> game (collect-node (:node state)) unbranch) initial-state o)
-        (= c \[) (recur game (assoc state :mode :collect-text :text "") o)
-        (= c \;) (recur (-> game (collect-node (:node state)) ) initial-state o)
-        (Character/isUpperCase ^char c) (recur game (collect-action state c) o)
+        (nil? c)
+        ;; TODO: This picks the first branch in an sgf as the root, might need to show a list
+        ;; of games instead if the SGF actually has multiple root branches.
+        (first (:branches game))
+
+        (and (= c \\) (= (:mode state) :collect-text))
+        (recur g state o) ;; Escape character in text.
+
+        (= c \])
+        (recur g (accumulate-action state) o)
+
+        (= (:mode state) :collect-text)
+        (recur g (collect-text state c) o)
+
+        (= c \[)
+        (recur g (assoc state :mode :collect-text :text "") o)
+
+        (Character/isUpperCase ^char c)
+        (recur g (collect-action state c) o)
+
+        (= c \;)
+        (do
+          (recur (collect-node game (:node state) branch-path) initial-state o))
+
+        (= c \()
+        (recur (collect-node game (:node state) branch-path true) initial-state o)
+
+        (= c \))
+        (let [[g np] (collect-node game (:node state) branch-path)]
+          (recur [g (vec (butlast np))] initial-state o))
         :else
-        (recur game state o)
+        (recur g state o)
         ))))
 
 (defn node-to-sgf [node]
-  (apply
-    str
-    ";"
-    (mapcat
-      (fn [[k v]]
-        (str
-          (get reverse-property-lookup k k)
-          "[" (apply str (interpose "][" v)) "]"))
-      node)))
-
-(defn sgf-move-tree [moves]
-  (cond
-    (vector? moves)
+  (let [nodestr
+        (apply str
+               (mapcat
+                 (fn [[k v]]
+                   (str
+                     (get reverse-property-lookup k k)
+                     "[" (apply str (interpose "][" v)) "]"))
+                 (dissoc node :branches)))]
     (str
-      "("
-      (apply str (map sgf-move-tree moves))
-      ")")
-    (map? moves) (node-to-sgf moves)
-    :else ""))
+      ";" nodestr
+      (cond
+        (nil? (:branches node)) ""
+        (> (count (:branches node)) 1) (str "(" (apply str (interpose ")(" (map node-to-sgf (:branches node)))) ")")
+        :else (node-to-sgf (first (:branches node)))))))
 
-(defn sgf [game]
-  (sgf-move-tree (:moves game)))
+(defn sgf [root]
+  (str "(" (node-to-sgf root) ")"))
 
 
 ;; == Board construction ==
@@ -237,7 +214,8 @@
       :else k)))
 
 (defmethod step-action :default [b k v]
-  (println "Unhandled property: " k))
+  (println "Unhandled property: " k)
+  b)
 
 ;; Annotations and metadata guck
 (defn rectangle-point-list [v]
@@ -376,6 +354,8 @@
 (defmethod step-action :white [b k v]
   (move b :white v))
 
+(defmethod step-action :branches [b k v]
+  b)
 
 ;; Tying it all together.
 
@@ -394,6 +374,6 @@
       :value-to-white)
     node))
 
-(defn construct-board [moves path movenumber]
-  (let [nodelist (take (inc (or movenumber 0)) (current-branch-node-list path moves))]
+(defn construct-board [rootnode path]
+  (let [nodelist (current-branch-node-list path rootnode)]
     (reduce step-node {:size [19 19] :player-turn :black :movenumber 0 :moveoffset 0} nodelist)))

@@ -12,25 +12,6 @@
            (java.util Date)
            (java.text SimpleDateFormat)))
 
-;; TODO: Pause mode - don't record anything until unpaused
-;; TODO: Disallow ko's from being played
-;; TODO: fix moving back and forward in history - mark board 'dirty' so that the players can see the diff.
-;; TODO: make 'dirty' state visible.
-;; TODO: update game state with invalid board information
-;; TODO: Move undo needs to deal with branching
-
-;; TODO: Branch mode, lock down kifu so that you can explore branches
-;; TODO: Walk kifu with left + right arrows (implicit locking/branching)
-;; TODO: Record branches
-
-;; Some other thoughts :
-;;
-;; Online Go integration
-;;  - Record games between known players (possibly ranked live games?)
-;;  - Upload kifu in realtime to OGS
-;;  - Load games from OGS with guided step-by-step setup, resume correspondence game that way?
-
-
 (defn board-diff [b1 b2]
   (remove
     nil?
@@ -61,20 +42,23 @@
             (update :kifu assoc :submit {:move move :latch 3 :board board})
             (update :camera assoc :read-delay 150))))))
 
-(defn reconstruct [{:keys [moves] :as game}]
-  (let [constructed (sgf/construct-board (:moves game) (:current-branch-path game) (:movenumber game))]
+(defn reconstruct [{:keys [moves current-branch-path movenumber] :as game}]
+  (let [visiblepath (vec (take movenumber (mapcat identity current-branch-path)))
+        constructed (sgf/construct-board moves [visiblepath])]
     (assoc game
       :constructed constructed
       :kifu-board (simple-board-view constructed))))
 
-(defn play-move [{:keys [moves] :as game} [x y o n :as move]]
+(defn play-move [{:keys [moves current-branch-path movenumber] :as game} [x y o n :as move]]
   (println "Play move:" move)
-  (let [updatedgame
+  (let [visiblepath (vec (take movenumber (mapcat identity current-branch-path)))
+        [node path] (sgf/collect-node moves {(if (= n :b) :black :white) [(sgf/convert-coord x y)]} [visiblepath])
+        updatedgame
         (->
           game
-          (sgf/collect-node {(if (= n :b) :black :white) [(sgf/convert-coord x y)]})
-          (assoc :dirty false)
+          (assoc :moves node :dirty false :current-branch-path path)
           (update :movenumber (fnil inc 0)))]
+    (println node " ---- " path)
     (reconstruct updatedgame)))
 
 
@@ -83,8 +67,7 @@
   (println "Board updated.")
   (let [{{:keys [kifu-board constructed dirty] :as game} :kifu} @ctx
         nodes (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
-        moves (filter #(or (:black %) (:white %)) nodes)
-        lastmove (last moves)
+        lastmove (last nodes)
         [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)
         [[_ _ o n :as move] :as added] (remove (fn [[_ _ o n]] (and (not (nil? o))) (nil? n)) diff)
         {sim-board :kifu-board} (if (= 1 (count added)) (play-move game move))]
@@ -102,18 +85,15 @@
         lastmove
         (= (count diff) 1)
         (nil? mn) (not (nil? mo))
+        (first (or (:black lastmove) (:white lastmove)))
         (= (take 2 mv) (sgf/convert-sgf-coord (first (or (:black lastmove) (:white lastmove))))))
       (do
-        (println "Last move undone - this is currently very broken.")
         (swap!
           ctx
           (fn [c]
             (-> c
-                (update-in (concat [:kifu :moves] (:current-branch-path game)) #(vec (butlast %)))
-                (update :kifu reconstruct))))
-        #_(swap! ctx update :kifu assoc
-               :kifu-board board
-               :moves (vec (butlast moves))))
+                (update-in [:kifu :current-branch-path] #(update % (dec (count %)) (comp vec butlast)))
+                (update :kifu reconstruct)))))
 
       (not= (count added) 1)
       (println "Not exactly one stone added, invalid move")
@@ -159,7 +139,6 @@
         (swap! ctx update :camera dissoc :read-delay)))))
 
 (defn add-initial-points [node board]
-  ;; TODO: Implement this as a list of add-black and add-white actions
   (let [initial
         (for [[y row] (map-indexed vector board)
               [x v] (map-indexed vector row)
@@ -173,29 +152,22 @@
       white (assoc :add-white (map (fn [[_ x y]] (sgf/convert-coord x y)) white)))))
 
 (defn reset-kifu [ctx]
-  (let [board (-> @ctx :board)
-        construct
-        (fn [{:keys [moves] :as kifu}]
-          (let [constructed (sgf/construct-board moves [] (count moves))]
-            (assoc
-              kifu
-              :constructed constructed
-              :kifu-board (simple-board-view constructed))))]
+  (let [board (-> @ctx :board)]
     (swap! ctx assoc :kifu
            (->
-             {:moves nil :movenumber 1}
-             (sgf/branch)
-             (sgf/collect-node
-               (add-initial-points
-                 {:player-start ["B"]
-                  :application  ["Igoki"]
-                  :file-format  ["4"]
-                  :gametype     ["1"]
-                  :size         [(-> @ctx :goban :size)]
-                  :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
-                  :komi         ["5.5"]}
-                 board))
-             construct))))
+             {:moves               (add-initial-points
+                                     {:branches     []
+                                      :player-start ["B"]
+                                      :application  ["Igoki"]
+                                      :file-format  ["4"]
+                                      :gametype     ["1"]
+                                      :size         [(-> @ctx :goban :size)]
+                                      :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
+                                      :komi         ["5.5"]}
+                                     board)
+              :movenumber          1
+              :current-branch-path [[]]}
+             reconstruct))))
 
 (defmethod ui/construct :kifu [ctx]
   (if-not (-> @ctx :kifu)
@@ -222,16 +194,16 @@
   (q/rect 0 0 (q/width) (q/height))
 
   ;; Draw the board
-  (let [{{:keys [submit kifu-board] :as game} :kifu
-         {:keys [^PImage pimg]}               :camera
-         board                                :board
-         {:keys [size]}                       :goban} @ctx
+  (let [{{:keys [submit kifu-board constructed movenumber] :as game} :kifu
+         {:keys [^PImage pimg]}                                      :camera
+         board                                                       :board
+         {:keys [size]}                                              :goban} @ctx
         cellsize (/ (q/height) (+ size 2))
         grid-start (+ cellsize (/ cellsize 2))
         tx (+ (q/height) (/ cellsize 2))
-        actionlist (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
-        movelist (take (dec (:movenumber game)) (filter #(or (:black %) (:white %)) actionlist))
-        lastmove (last movelist)]
+        visiblepath (take movenumber (mapcat identity (:current-branch-path game)))
+        actionlist (sgf/current-branch-node-list [visiblepath] (:moves game))
+        lastmove (last actionlist)]
     (when pimg
       (q/image-mode :corners)
       (q/image pimg
@@ -240,12 +212,13 @@
                (q/width) (q/height)))
 
     (ui/shadow-text "Recording Kifu..." tx 25)
-    (ui/shadow-text (str "Move " (:movenumber game) "/" (inc (count movelist)) ", " (if (:black lastmove) "White" "Black") " to play") tx 50)
+    (ui/shadow-text (str "Move " (:movenumber game)  ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 50)
     (ui/shadow-text "<R> Reset Kifu" tx 100)
     (ui/shadow-text "<V> Back to camera diff view" tx 125)
     (ui/shadow-text "<C> Calibrate board" tx 150)
     (ui/shadow-text "<E> Export SGF" tx 175)
     (ui/shadow-text "<L> Load SGF" tx 200)
+    (ui/shadow-text "<M> Toggle show branches" tx 225)
 
     (q/fill 220 179 92)
     (q/rect 0 0 (q/height) (q/height))
@@ -255,6 +228,7 @@
 
     (q/fill 0)
 
+    ;; Draw the grid
     (q/text-font (q/create-font "Helvetica" 20))
     (doseq [x (range size)]
       (let [coord (+ grid-start (* x cellsize))
@@ -273,14 +247,15 @@
         (q/line coord grid-start coord extent)
         (q/line grid-start coord extent coord)))
 
+    ;; Draw star points
     (doseq [[x y] (star-points size)]
-
       (q/stroke-weight 1)
       (q/stroke 0 32)
       (q/fill 0)
       (q/ellipse (+ grid-start (* x cellsize) 0.5)
                  (+ grid-start (* y cellsize) 0.5) 6 6))
 
+    ;; Draw camera board (shadow)
     (doseq [[y row] (map-indexed vector board)
             [x d] (map-indexed vector row)]
       (when d
@@ -291,7 +266,8 @@
                    (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))))
 
     (q/text-size 12)
-    (doseq [[p {:keys [stone movenumber]}] (-> game :constructed :board)]
+    ;; Draw the constructed sgf board stones
+    (doseq [[p {:keys [stone movenumber]}] (:board constructed)]
       (let [[x y] (sgf/convert-sgf-coord p)]
         (when stone
           (q/stroke-weight 1)
@@ -319,6 +295,7 @@
             (q/text-align :center :center)
             (q/text (str movenum) (+ grid-start (* x cellsize)) (- (+ grid-start (* y cellsize)) 1))))))
 
+    ;; Mark the last move
     (when lastmove
       (let [{:keys [black white]} lastmove]
         (doseq [m (or black white)]
@@ -327,8 +304,20 @@
             (q/stroke-weight 3)
             (q/fill 0 0)
             (q/ellipse (+ grid-start (* x cellsize))
+                       (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2)))))
+
+      ;; Mark next branches
+      (when (:show-branches game)
+        (doseq [{:keys [black white]} (:branches lastmove)
+                m (or black white)]
+          (let [[x y] (sgf/convert-sgf-coord m)]
+            (q/stroke (if white 255 0))
+            (q/stroke-weight 3)
+            (q/fill 0 0)
+            (q/ellipse (+ grid-start (* x cellsize))
                        (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2))))))
 
+    ;; If in the process of submitting, mark that stone.
     (when submit
       (let [[x y _ d] (:move submit)]
         (q/stroke-weight 1)
@@ -340,25 +329,28 @@
         (q/text-align :center :center)
         (q/text "?" (+ grid-start (* x cellsize)) (+ grid-start (* y cellsize)))))
 
-    (when (and board kifu-board))
-    (doseq [[x y d _]
-
-            (board-diff kifu-board board)]
-      (q/stroke-weight 3)
-      (q/stroke 255 0 0)
-      (q/fill 0 0)
-      (q/ellipse (+ grid-start (* x cellsize))
-                 (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3)))))
+    ;; Highlight differences between constructed and camera board (visual syncing)
+    (when (and board kifu-board)
+      (doseq [[x y d _]
+              (board-diff kifu-board board)]
+        (q/stroke-weight 3)
+        (q/stroke 255 0 0)
+        (q/fill 0 0)
+        (q/ellipse (+ grid-start (* x cellsize))
+                   (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))))))
 
 (defn export-sgf [ctx]
-  (ui/save-dialog #(spit % (sgf/sgf (:kifu @ctx)))))
+  (ui/save-dialog #(spit % (sgf/sgf (-> @ctx :kifu :moves)))))
 
 (defn load-sgf [ctx]
   (ui/load-dialog
     (fn [^File f]
       (println "Opening sgf: " (.getAbsolutePath f))
       (swap! ctx assoc :kifu
-             (reconstruct (assoc (sgf/read-sgf (.getAbsolutePath f)) :movenumber 1))))))
+             (reconstruct {:moves (sgf/read-sgf (.getAbsolutePath f)) :movenumber 0 :current-branch-path []})))))
+
+(defn toggle-branches [ctx]
+  (swap! ctx update-in [:kifu :show-branches] not))
 
 (defmethod ui/key-pressed :kifu [ctx]
   #_(.showSaveDialog (JFileChooser.) (:sketch @ctx))
@@ -370,10 +362,13 @@
     82 (reset-kifu ctx)
     69 (export-sgf ctx)
     76 (load-sgf ctx)
+    77 (toggle-branches ctx)
     37 (swap! ctx #(-> %
                        (update-in [:kifu :movenumber] (fnil dec 1))
+                       (update-in [:kifu :current-branch-path 0] conj 0)
                        (update-in [:kifu] reconstruct)))
     39 (swap! ctx #(-> %
                        (update-in [:kifu :movenumber] (fnil inc 1))
                        (update-in [:kifu] reconstruct)))
     (println "Key code not handled: " (q/key-code))))
+

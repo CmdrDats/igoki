@@ -7,9 +7,6 @@
   (:import (processing.core PImage)
            (javax.swing JFileChooser)))
 
-;; TODO: Implement simulation mode (separate window for 'camera' input), to dev without a camera setup.
-;; TODO: Replace grid with simply the size text in the middle, since the grid is misleading.
-
 (defn start-simulation [ctx]
   (sim/stop)
   (ui/stop-read-loop ctx)
