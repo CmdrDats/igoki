@@ -2,12 +2,20 @@
   (:require
     [igoki.util :as util]
     [igoki.ui :as ui]
-    [quil.core :as q])
+    [quil.core :as q]
+    [igoki.simulated :as sim])
   (:import (processing.core PImage)
            (javax.swing JFileChooser)))
 
 ;; TODO: Implement simulation mode (separate window for 'camera' input), to dev without a camera setup.
 ;; TODO: Replace grid with simply the size text in the middle, since the grid is misleading.
+
+(defn start-simulation [ctx]
+  (sim/stop)
+  (ui/stop-read-loop ctx)
+  (sim/start-simulation ctx))
+
+
 
 (defmethod ui/construct :goban [ctx]
   (when-not (:goban @ctx)
@@ -31,7 +39,7 @@
       (let [{{:keys [size edges points]} :goban} @ctx
             points (map (partial convert-point c) points)
             edges (map #(map (partial convert-point c) %) edges)
-            pn ["A19" "S19" "S1" "A1"]
+            pn ["A19" "T19" "T1" "A1"]
             d (dec size)
             [e1 e2 e3 e4] edges]
         (q/image c 0 0 (q/width) (q/height))
@@ -41,6 +49,7 @@
         (ui/shadow-text "<Tab> Cycle 9x9, 13x13 and 19x19. " 10 50)
         (ui/shadow-text "<Enter> Confirm Calibration" 10 75)
         (ui/shadow-text "<1..5> Camera Sources" 10 100)
+        (ui/shadow-text "<S> Camera Sim" 10 125)
 
         (q/stroke 78 64 255 128)
         (q/stroke-weight 1)
@@ -101,10 +110,11 @@
       ctx update-in [:goban :size]
       (fn [s]
         (case s 19 9 9 13 19)))
-    49 (ui/switch-read-loop ctx 0)
-    50 (ui/switch-read-loop ctx 1)
-    51 (ui/switch-read-loop ctx 2)
-    52 (ui/switch-read-loop ctx 3)
-    53 (ui/switch-read-loop ctx 4)
+    49 (do (sim/stop) (ui/switch-read-loop ctx 0))
+    50 (do (sim/stop) (ui/switch-read-loop ctx 1))
+    51 (do (sim/stop) (ui/switch-read-loop ctx 2))
+    52 (do (sim/stop) (ui/switch-read-loop ctx 3))
+    53 (do (sim/stop) (ui/switch-read-loop ctx 4))
+    83 (start-simulation ctx)
     (println "Unhandled key-down: " (q/key-code))))
 

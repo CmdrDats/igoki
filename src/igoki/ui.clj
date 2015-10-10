@@ -6,9 +6,9 @@
            (javax.swing SwingUtilities JFrame JFileChooser)
            (org.opencv.video Video)))
 
-(defn setup []
+(defn setup [ctx]
   (q/smooth)
-  (q/frame-rate 5)
+  (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
   (q/background 200))
 
 (defn shadow-text [^String s x y]
@@ -57,9 +57,9 @@
         (q/sketch
           :renderer :java2d
           :title "Goban panel"
-          :setup setup
+          :setup (partial setup ctx)
           :draw (partial #'draw ctx)
-          :size [1280 720]
+          :size (or (-> @ctx :sketchconfig :size) [1280 720])
           :resizable true
           :mouse-dragged (partial #'mouse-dragged ctx)
           :mouse-pressed (partial #'mouse-pressed ctx)
@@ -94,7 +94,6 @@
       (Thread.
         ^Runnable
         (fn []
-
           (when-not (.isOpened video)
             (println "Error: Camera not opened"))
           (when-not (-> @ctx :camera :stopped)

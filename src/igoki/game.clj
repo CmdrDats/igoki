@@ -230,11 +230,14 @@
         grid-start (+ cellsize (/ cellsize 2))
         tx (+ (q/height) (/ cellsize 2))
         actionlist (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
-        movelist (take (:movenumber game) (filter #(or (:black %) (:white %)) actionlist))
+        movelist (take (dec (:movenumber game)) (filter #(or (:black %) (:white %)) actionlist))
         lastmove (last movelist)]
     (when pimg
       (q/image-mode :corners)
-      (q/image pimg (q/height) (* (q/height) (/ (.height pimg) (.width pimg))) (q/width) (q/height)))
+      (q/image pimg
+               (q/height)
+               (- (q/height) (* (- (q/width) (q/height)) (/ (.height pimg) (.width pimg))))
+               (q/width) (q/height)))
 
     (ui/shadow-text "Recording Kifu..." tx 25)
     (ui/shadow-text (str "Move " (:movenumber game) "/" (inc (count movelist)) ", " (if (:black lastmove) "White" "Black") " to play") tx 50)
@@ -254,11 +257,12 @@
     (q/text-font (q/create-font "Helvetica" 20))
     (doseq [x (range size)]
       (let [coord (+ grid-start (* x cellsize))
-            extent (+ grid-start (* cellsize (dec size)))]
+            extent (+ grid-start (* cellsize (dec size)))
+            x-offset (if (> x ) 66 65)]
         (q/text-align :center :bottom)
-        (q/text (str (char (+ 65 x))) coord (- grid-start (/ cellsize 2)))
+        (q/text (str (char (+ x-offset x))) coord (- grid-start (/ cellsize 2)))
         (q/text-align :center :top)
-        (q/text (str (char (+ 65 x))) coord (+ extent (/ cellsize 2)))
+        (q/text (str (char (+ x-offset x))) coord (+ extent (/ cellsize 2)))
 
         (q/text-align :right :center)
         (q/text (str (- size x)) (- grid-start (/ cellsize 2)) coord)
@@ -357,6 +361,10 @@
     86 (ui/transition ctx :view)
     82 (reset-kifu ctx)
     69 (export-sgf ctx)
-    37 (swap! ctx update-in [:kifu :movenumber] (fnil dec 1))
-    39 (swap! ctx update-in [:kifu :movenumber] (fnil inc 0))
+    37 (swap! ctx #(-> %
+                       (update-in [:kifu :movenumber] (fnil dec 1))
+                       (update-in [:kifu] reconstruct)))
+    39 (swap! ctx #(-> %
+                       (update-in [:kifu :movenumber] (fnil inc 1))
+                       (update-in [:kifu] reconstruct)))
     (println "Key code not handled: " (q/key-code))))
