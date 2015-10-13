@@ -40,7 +40,11 @@ There is still much to do in the way of features, but the major feature shortlis
    
 ## Usage
 
-Clone this repo and run `lein run`, it will start up the frame and guide you through calibration.
+This project is written in clojure and there is (currently) no binary for it, so you need to install
+leiningen via [leiningen.org].
+
+Once Leiningen is installed, clone this repo and run `lein run`, 
+it will start up the frame and guide you through calibration.
 
 Alternatively, if you are doing development on this project, fire up a `lein repl` and `(start)` 
 to get started.

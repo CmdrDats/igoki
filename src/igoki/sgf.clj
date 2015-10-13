@@ -121,15 +121,33 @@
     (assoc (dissoc state :mode) :action (str c))
     (update state :action str c)))
 
+(defn find-existing-branch [branches {:keys [black white]}]
+  (->>
+    (map-indexed vector branches)
+    (filter (fn [[_ n]] (or (and black (= (:black n) black))
+                            (and white (= (:white n) white)))))
+    first))
+
 (defn collect-node [game node branch-path & [branch?]]
-  (if (empty? node)
-    [game (if branch? (conj branch-path []) branch-path)]
-    [(update-in game (inpath branch-path) (fnil conj []) node)
-     (let [newpoint (count (get-in game (inpath branch-path)))]
+  (let [branches (get-in game (inpath branch-path))
+        [idx branch] (find-existing-branch branches node)]
+    (cond
+      (empty? node)
+      [game (if branch? (conj branch-path []) branch-path)]
+
+      idx
+      [(update-in game (conj (inpath branch-path) idx) merge node)
        (cond->
-         branch-path
-         true (update (dec (count branch-path)) conj newpoint)
-         branch? (conj [])))]))
+         branch-path true (update (dec (count branch-path)) conj idx)
+         branch? (conj []))]
+
+      :else
+      [(update-in game (inpath branch-path) (fnil conj []) node)
+       (let [newpoint (count (get-in game (inpath branch-path)))]
+         (cond->
+           branch-path
+           true (update (dec (count branch-path)) conj newpoint)
+           branch? (conj [])))])))
 
 (defn read-sgf [filename]
   (let [f (slurp filename)
