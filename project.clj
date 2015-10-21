@@ -6,5 +6,7 @@
   :dependencies
   [[org.clojure/clojure "1.7.0"]
    [nu.pattern/opencv "2.4.9-7"]
-   [quil "2.2.6"]]
+   [quil "2.2.6"]
+   [clj-http "2.0.0"]
+   [cheshire "5.5.0"]]
   :main igoki.core)
