@@ -35,7 +35,7 @@
 
 
 (defn camera-updated [wk ctx _ {:keys [raw]}]
-  (println "Camera updated")
+  #_(println "Camera updated")
   (swap! ctx assoc :board (read-board ctx)))
 
 (defn update-reference [ctx & [force]]

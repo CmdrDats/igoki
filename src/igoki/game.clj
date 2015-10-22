@@ -4,10 +4,10 @@
     [igoki.view :as view]
     [igoki.util :as util]
     [igoki.sgf :as sgf]
+    [igoki.inferrence :as inferrence]
     [quil.core :as q])
   (:import (java.awt Toolkit)
-           (javax.swing JOptionPane JFileChooser)
-           (java.io FileFilter File)
+           (java.io File)
            (processing.core PImage)
            (java.util Date)
            (java.text SimpleDateFormat)))
@@ -24,55 +24,26 @@
           (map-indexed vector b1row) b2row))
       (map-indexed vector b1) b2)))
 
-(defn simple-board-view [{:keys [board size]}]
-  (let [[width height] size]
-    (for [y (range height)]
-      (for [x (range width)]
-        (case (get-in board [(sgf/convert-coord x y) :stone])
-          :white :w :black :b nil)))))
+(defonce captured-boardlist (atom []))
 
 (defn submit-move
-  [ctx move]
+  [ctx]
   (let [board (:board @ctx)]
-    (println "Move at: " move ", debouncing")
+    (println "Change detected, debouncing")
     (swap!
       ctx
       (fn [c]
         (-> c
-            (update :kifu assoc :submit {:move move :latch 3 :board board})
-            (update :camera assoc :read-delay 150))))))
-
-(defn reconstruct [{:keys [moves current-branch-path movenumber] :as game}]
-  (let [visiblepath (vec (take movenumber (mapcat identity current-branch-path)))
-        constructed (sgf/construct-board moves [visiblepath])]
-    (assoc game
-      :constructed constructed
-      :kifu-board (simple-board-view constructed))))
-
-(defn play-move [{:keys [moves current-branch-path movenumber] :as game} [x y o n :as move]]
-  (println "Play move:" move)
-  (let [visiblepath (vec (take movenumber (mapcat identity current-branch-path)))
-        [node path] (sgf/collect-node moves {(if (= n :b) :black :white) [(sgf/convert-coord x y)]} [visiblepath])
-        updatedgame
-        (->
-          game
-          (assoc :moves node :dirty false :current-branch-path path)
-          (update :movenumber (fnil inc 0)))]
-    (println node " ---- " path)
-    (reconstruct updatedgame)))
-
-
+            (update :kifu assoc :submit {:latch 3 :board board})
+            (update :camera assoc :read-delay 25))))))
 
 (defn board-updated [_ ctx _ board]
   (println "Board updated.")
-  (let [{{:keys [kifu-board constructed dirty] :as game} :kifu} @ctx
+  (swap! captured-boardlist conj board)
+  (let [{{:keys [kifu-board dirty] :as game} :kifu} @ctx
         nodes (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
         lastmove (last nodes)
-        [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)
-        [[_ _ o n :as move] :as added] (remove (fn [[_ _ o n]] (and (not (nil? o))) (nil? n)) diff)
-        {sim-board :kifu-board} (if (= 1 (count added)) (play-move game move))]
-    (println "Diff:" diff)
-    (println "Added:" (vec added))
+        [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)]
     (cond
       (and (empty? diff) dirty)
       (do
@@ -93,27 +64,17 @@
           (fn [c]
             (-> c
                 (update-in [:kifu :current-branch-path] #(update % (dec (count %)) (comp vec butlast)))
-                (update :kifu reconstruct)))))
-
-      (not= (count added) 1)
-      (println "Not exactly one stone added, invalid move")
-      (not= (:player-turn constructed) ({:b :black :w :white} n))
-      (println "Not the correct next player colour")
-      (not= sim-board board)
-      (do
-        (println "Board in incorrect state for the proposed next move, ignoring")
-        (println sim-board))
-      (or (not (nil? o)) (nil? n))
-      (println "Can't move to existing location?")
+                (update :kifu inferrence/reconstruct)))))
       :else
-      (submit-move ctx move))))
+      (submit-move ctx))))
 
 
 
 (defn camera-updated [wk ctx old new]
   (view/camera-updated wk ctx old new)
-  (let [{{{:keys [latch board move] :as submit} :submit} :kifu
-         cboard :board} @ctx]
+  (let [{{{:keys [latch board] :as submit} :submit :as game} :kifu
+         cboard :board} @ctx
+        updatelist @captured-boardlist]
     (cond
       (nil? submit) nil
       (not= cboard board)
@@ -131,11 +92,12 @@
       (do
         (println "Debounce success - move submitted")
         (.beep (Toolkit/getDefaultToolkit))
-        (swap!
-          ctx update :kifu
-          #(-> %
-               (play-move move )
-               (dissoc :submit)))
+        (let [new (inferrence/infer-moves game (butlast updatelist) (last updatelist))]
+          (if new
+            (do
+              (reset! captured-boardlist [])
+              (swap! ctx assoc :kifu (dissoc new :submit)))
+            (swap! ctx update :kifu dissoc :submit)))
         (swap! ctx update :camera dissoc :read-delay)))))
 
 (defn add-initial-points [node board]
@@ -167,7 +129,7 @@
                                      board)
               :movenumber          1
               :current-branch-path [[]]}
-             reconstruct))))
+             inferrence/reconstruct))))
 
 (defmethod ui/construct :kifu [ctx]
   (if-not (-> @ctx :kifu)
@@ -319,7 +281,7 @@
 
     ;; If in the process of submitting, mark that stone.
     (when submit
-      (let [[x y _ d] (:move submit)]
+      #_(let [[x y _ d] (:move submit)]
         (q/stroke-weight 1)
         (q/stroke 0 128)
         (q/fill (if (= d :w) 255 0) 128)
@@ -331,7 +293,7 @@
 
     ;; Highlight differences between constructed and camera board (visual syncing)
     (when (and board kifu-board)
-      (doseq [[x y d _]
+      (doseq [[x y _ _]
               (board-diff kifu-board board)]
         (q/stroke-weight 3)
         (q/stroke 255 0 0)
@@ -347,7 +309,7 @@
     (fn [^File f]
       (println "Opening sgf: " (.getAbsolutePath f))
       (swap! ctx assoc :kifu
-             (reconstruct {:moves (sgf/read-sgf (.getAbsolutePath f)) :movenumber 0 :current-branch-path []})))))
+             (inferrence/reconstruct {:moves (sgf/read-sgf (.getAbsolutePath f)) :movenumber 0 :current-branch-path []})))))
 
 (defn toggle-branches [ctx]
   (swap! ctx update-in [:kifu :show-branches] not))
@@ -366,9 +328,9 @@
     37 (swap! ctx #(-> %
                        (update-in [:kifu :movenumber] (fnil dec 1))
                        (update-in [:kifu :current-branch-path 0] conj 0)
-                       (update-in [:kifu] reconstruct)))
+                       (update-in [:kifu] inferrence/reconstruct)))
     39 (swap! ctx #(-> %
                        (update-in [:kifu :movenumber] (fnil inc 1))
-                       (update-in [:kifu] reconstruct)))
+                       (update-in [:kifu] inferrence/reconstruct)))
     (println "Key code not handled: " (q/key-code))))
 
