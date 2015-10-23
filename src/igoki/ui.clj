@@ -8,7 +8,7 @@
 
 (defn setup [ctx]
   (q/smooth)
-  (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
+  (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 20))
   (q/background 200))
 
 (defn shadow-text [^String s x y]
