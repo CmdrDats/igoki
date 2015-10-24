@@ -11,12 +11,12 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  ![Initial Screen](resources/screen0.jpg)
  
- Then you manually click on the four corners, starting with what you perceive as top-left (A19) - I
- usually poke my finger on the board so that I don't have to do mental gymnastics
+ Then you manually click on the four corners, starting with what you perceive as top-left (A19) and going clockwise
+  - I usually poke my finger on the board so that I don't have to do mental gymnastics.
  
  ![Corners Selected](resources/screen1.jpg)
  
- Notice that the light grid is slightly off. Don't mind that, [Issue #12](igoki/issues/42) will clear that up a bit -
+ Notice that the light grid is slightly off. Don't mind that, [Issue #12](https://github.com/CmdrDats/igoki/issues/12) will clear that up a bit -
  It's only to show you the size, not where it will pick up the points. That's the next step. Hit `enter`
  and you should see
  
@@ -29,7 +29,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  ![Diff Calibrated](resources/screen3.jpg)
  
  Because my view is quite top-down, it all works out easily, but you'll have to adjust the sampling a
- bit to compensate if you have a lower perspective view of your board (thanks 3D). Issues #26 and #10
+ bit to compensate if you have a lower perspective view of your board (thanks 3D). Issues [#26](https://github.com/CmdrDats/igoki/issues/26) and [#10](https://github.com/CmdrDats/igoki/issues/10)
  will make this slightly better.
  
  Remove the stones and hit `K` to start your game!
@@ -39,7 +39,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  Here you see the interpreted board (empty at the moment) and the camera view - you can head back to
  the diff or calibration view if things are a bit messed up, just don't reset the diff in the middle of your game!
  
- (Coords start at B.. sorry, I'll fix that in Issue #42)
+ (Coords start at B.. sorry, I'll fix that in [Issue #42](https://github.com/CmdrDats/igoki/issues/42))
  
  After a few moves
  
@@ -67,7 +67,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  When you are reviewing an SGF and explore other branches, igoki will automatically record those branches
  and you can export that straight into another SGF. Being able to comment and apply markup to the
- game will likely only happen after Issue #41 is resolved.
+ game will likely only happen after [Issue #41]((https://github.com/CmdrDats/igoki/issues/41) is resolved.
  
  ---
  
