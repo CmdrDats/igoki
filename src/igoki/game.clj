@@ -127,7 +127,7 @@
                                       :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
                                       :komi         ["5.5"]}
                                      board)
-              :movenumber          1
+              :movenumber          0
               :current-branch-path [[]]}
              inferrence/reconstruct))))
 
@@ -174,7 +174,7 @@
                (q/width) (q/height)))
 
     (ui/shadow-text "Recording Kifu..." tx 25)
-    (ui/shadow-text (str "Move " (:movenumber game)  ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 50)
+    (ui/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 50)
     (ui/shadow-text "<R> Reset Kifu" tx 100)
     (ui/shadow-text "<V> Back to camera diff view" tx 125)
     (ui/shadow-text "<C> Calibrate board" tx 150)
@@ -314,6 +314,26 @@
 (defn toggle-branches [ctx]
   (swap! ctx update-in [:kifu :show-branches] not))
 
+(defn move-backward [ctx]
+  (-> ctx
+      (update-in [:kifu :movenumber] (fnil (comp (partial max 0) dec) 1) )
+      (assoc-in [:kifu :dirty] true)
+      (update-in [:kifu] inferrence/reconstruct)))
+
+(defn move-forward [ctx]
+  (let [{:keys [movenumber current-branch-path moves]} (:kifu ctx)
+        path (vec (take movenumber (mapcat identity current-branch-path)))
+        {:keys [branches] :as node} (last (sgf/current-branch-node-list [path] moves))
+        new-branch-path (if (<= (count path) movenumber) [(conj path 0)] current-branch-path)]
+    ctx
+    (if (zero? (count branches))
+      ctx
+      (-> ctx
+          (update-in [:kifu :movenumber] (fnil inc 1))
+          (assoc-in [:kifu :dirty] true)
+          (assoc-in [:kifu :current-branch-path] new-branch-path)
+          (update-in [:kifu] inferrence/reconstruct)))))
+
 (defmethod ui/key-pressed :kifu [ctx]
   #_(.showSaveDialog (JFileChooser.) (:sketch @ctx))
 
@@ -325,12 +345,7 @@
     69 (export-sgf ctx)
     76 (load-sgf ctx)
     77 (toggle-branches ctx)
-    37 (swap! ctx #(-> %
-                       (update-in [:kifu :movenumber] (fnil dec 1))
-                       (update-in [:kifu :current-branch-path 0] conj 0)
-                       (update-in [:kifu] inferrence/reconstruct)))
-    39 (swap! ctx #(-> %
-                       (update-in [:kifu :movenumber] (fnil inc 1))
-                       (update-in [:kifu] inferrence/reconstruct)))
+    37 (swap! ctx move-backward)
+    39 (swap! ctx move-forward)
     (println "Key code not handled: " (q/key-code))))
 
