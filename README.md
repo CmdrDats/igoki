@@ -12,7 +12,8 @@ Bridge the gap between playing Go on a physical board and digitally.
  ![Initial Screen](resources/screen0.jpg)
  
  Then you manually click on the four corners, starting with what you perceive as top-left (A19) and going clockwise
-  - I usually poke my finger on the board so that I don't have to do mental gymnastics.
+ 
+ I usually poke my finger on the board so that I don't have to do mental gymnastics.
  
  ![Corners Selected](resources/screen1.jpg)
  
