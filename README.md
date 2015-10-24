@@ -67,7 +67,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  When you are reviewing an SGF and explore other branches, igoki will automatically record those branches
  and you can export that straight into another SGF. Being able to comment and apply markup to the
- game will likely only happen after [Issue #41]((https://github.com/CmdrDats/igoki/issues/41) is resolved.
+ game will likely only happen after [Issue #41](https://github.com/CmdrDats/igoki/issues/41) is resolved.
  
  ---
  
