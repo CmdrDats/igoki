@@ -16,7 +16,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  ![Corners Selected](resources/screen1.jpg)
  
- Notice that the light grid is slightly off. Don't mind that, Issue igoki#12 will clear that up a bit -
+ Notice that the light grid is slightly off. Don't mind that, [Issue #12](igoki/issues/42) will clear that up a bit -
  It's only to show you the size, not where it will pick up the points. That's the next step. Hit `enter`
  and you should see
  
