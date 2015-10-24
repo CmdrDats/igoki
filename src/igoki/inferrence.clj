@@ -27,8 +27,10 @@
           (update :movenumber (fnil inc 0)))]
     (reconstruct updatedgame)))
 
-(defn print-board [board]
-  (println (apply str (interpose "\n" (map #(apply str (map (fn [i] (str " " (if i (name i) "."))) %)) board)))))
+(defn print-boards [& boards]
+  (println
+    (apply str (interpose "\n" (apply map #(apply str
+                                                  (interpose " | " (for [m %&] (apply str (map (fn [i] (str " " (if i (name i) "."))) m))))) boards)))))
 
 (defn walk-boards [cellfn & boards]
   (apply map
@@ -98,5 +100,5 @@
           game
           moves)]
     (println moves)
-    (print-board (:kifu-board inferred))
+    (print-boards (:kifu-board game) (:kifu-board inferred) final-position)
     (if (= (:kifu-board inferred) final-position) inferred)))
