@@ -195,7 +195,7 @@
     (doseq [x (range size)]
       (let [coord (+ grid-start (* x cellsize))
             extent (+ grid-start (* cellsize (dec size)))
-            x-offset (if (> x ) 66 65)]
+            x-offset (if (> x 7) 66 65)]
         (q/text-align :center :bottom)
         (q/text (str (char (+ x-offset x))) coord (- grid-start (/ cellsize 2)))
         (q/text-align :center :top)
