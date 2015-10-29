@@ -1,5 +1,7 @@
 (ns igoki.sgf
-  (:require [clojure.set :as set]))
+  (:require
+    [igoki.util :as util]
+    [clojure.set :as set]))
 
 ;; According to http://www.red-bean.com/sgf/properties.html
 (def property-lookup
@@ -136,13 +138,13 @@
       [game (if branch? (conj branch-path []) branch-path)]
 
       idx
-      [(update-in game (conj (inpath branch-path) idx) merge node)
+      [(util/iupdate-in game (conj (inpath branch-path) idx) merge node)
        (cond->
          branch-path true (update (dec (count branch-path)) conj idx)
          branch? (conj []))]
 
       :else
-      [(update-in game (inpath branch-path) (fnil conj []) node)
+      [(util/iupdate-in game (inpath branch-path) (fnil conj []) node)
        (let [newpoint (count (get-in game (inpath branch-path)))]
          (cond->
            branch-path

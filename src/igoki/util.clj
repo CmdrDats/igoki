@@ -120,3 +120,14 @@
      (let [ss (filter identity (map seq (conj colls c2 c1)))]
        (concat (map first ss)
                (apply interleave-all (map rest ss)))))))
+
+(defn iupdate-in
+  "update-in using loop/recur so that it doesn't blow the stack"
+  [m ks f & args]
+  (loop [oks ks
+         a (get-in m ks)
+         s (apply f a args)]
+    (if oks
+      (let [r (butlast oks)]
+        (recur r (get-in m oks) (assoc (get-in m r) (last oks) s)))
+      s)))

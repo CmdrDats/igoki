@@ -148,6 +148,15 @@
     (for [x (range 3) y (range 3)]
       [(+ 3 (* x 6)) (+ 3 (* y 6))])))
 
+;; In hundreds..
+(def move-colours
+  {0 {:white [0 0 0] :black [255 255 255]}
+   1 {:white [255 64 64] :black [255 96 96]}
+   2 {:white [0 150 0] :black [64 255 64]}
+   3 {:white [32 32 255] :black [128 128 255]}
+   4 {:white [255 255 0] :black [255 255 0]}
+   5 {:white [0 255 255] :black [0 255 255]}
+   6 {:white [255 0 255] :black [255 0 255]}})
 
 (defmethod ui/draw :kifu [ctx]
   (q/stroke-weight 1)
@@ -229,7 +238,7 @@
 
     (q/text-size 12)
     ;; Draw the constructed sgf board stones
-    (doseq [[p {:keys [stone movenumber]}] (:board constructed)]
+    (doseq [[p {:keys [stone] mn :movenumber}] (:board constructed)]
       (let [[x y] (sgf/convert-sgf-coord p)]
         (when stone
           (q/stroke-weight 1)
@@ -240,7 +249,7 @@
 
           (q/fill (if (= stone :white) 0 255)))
 
-        (when (and (not stone) movenumber)
+        (when (and (not stone) mn)
           (q/stroke-weight 0)
           (q/stroke 220 179 92)
           (q/fill 220 179 92)
@@ -249,9 +258,13 @@
 
           (q/fill 0))
 
-        (when movenumber
-          (let [movenum (mod (inc movenumber) 100)]
-            (when (>= (inc movenumber) 100)
+        (when (and mn (< (- movenumber mn) 40))
+          (let [movediff (- movenumber mn)
+                movenum (mod (inc mn) 100)
+                movecol (get-in move-colours [(int (/ mn 100)) (or stone :black)] [0 0 0])
+                movecol (if (> movediff 20) (conj movecol (- 255 (* 255 (/ (- movediff 20) 20)))) movecol)]
+            (apply q/fill movecol)
+            #_(when (>= (inc movenumber) 100)
               (q/fill 255 0 0))
             (q/text-size 12)
             (q/text-align :center :center)
