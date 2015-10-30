@@ -2,15 +2,41 @@
   (:require
     [igoki.util :as util]
     [igoki.ui :as ui]
+    [igoki.view :as view]
     [quil.core :as q]
     [igoki.simulated :as sim])
   (:import (processing.core PImage)
-           (javax.swing JFileChooser)))
+           (javax.swing JFileChooser)
+           (org.opencv.core Mat MatOfPoint2f Core)))
 
 (defn start-simulation [ctx]
   (sim/stop)
   (ui/stop-read-loop ctx)
   (sim/start-simulation ctx))
+
+(defn reverse-transform [ctx]
+  (when (= 4 (count (-> @ctx :goban :edges)))
+    (view/update-reference ctx)
+    (let [context @ctx
+          homography (-> context :view :homography)
+          size (-> context :goban :size)
+          d (dec size)
+          [topleft topright bottomright bottomleft] (view/target-points size)]
+
+      (when homography
+        (let [ref (Mat.)
+              pts
+              (util/vec->mat
+                (MatOfPoint2f.)
+                (mapcat
+                  (fn [t]
+                    [(util/point-along-line [topleft topright] (/ t (dec size)))
+                     (util/point-along-line [bottomleft bottomright] (/ t (dec size)))
+                     (util/point-along-line [topleft bottomleft] (/ t (dec size)))
+                     (util/point-along-line [topright bottomright] (/ t (dec size)))])
+                  (range 0 size)))]
+          (Core/perspectiveTransform pts ref (.inv (-> @ui/ctx :view :homography)))
+          (swap! ctx assoc-in [:goban :lines] (partition-all 4 (:data (util/write-mat ref)))))))))
 
 
 
@@ -33,12 +59,11 @@
       (nil? c)
       (ui/shadow-text "Could not acquire image?" 10 25)
       :else
-      (let [{{:keys [size edges points]} :goban} @ctx
+      (let [{{:keys [size edges points lines]} :goban} @ctx
             points (map (partial convert-point c) points)
             edges (map #(map (partial convert-point c) %) edges)
             pn ["A19" "T19" "T1" "A1"]
-            d (dec size)
-            [e1 e2 e3 e4] edges]
+            d (dec size)]
         (q/image c 0 0 (q/width) (q/height))
 
         (ui/shadow-text "Please select the corners of the board" 10 25)
@@ -48,17 +73,20 @@
         (ui/shadow-text "<1..5> Camera Sources" 10 100)
         (ui/shadow-text "<S> Camera Sim" 10 125)
 
-        (q/stroke 78 64 255 128)
+        (q/stroke 255 255 255 128)
         (q/stroke-weight 1)
-        (when e4
-          (doseq [t (range 1 d)]
-            (q/line
-              (util/point-along-line e1 (/ t d))
-              (util/point-along-line (util/flipped-line e3) (/ t d)))
-            (q/line
-              (util/point-along-line e2 (/ t d))
-              (util/point-along-line (util/flipped-line e4) (/ t d)))))
 
+        (when lines
+          (doseq [[p1 p2 p3 p4] lines]
+            (q/line (convert-point c [p1 p2]) (convert-point c [p3 p4])))
+          (ui/shadow-text
+            (str size "x" size)
+            (/ (reduce + (map first points)) 4)
+            (/ (reduce + (map second points)) 4)
+            :center :bottom)
+          )
+
+        (q/stroke 78 64 255 128)
         (q/stroke-weight 2)
         (doseq [[p1 p2] edges]
           (q/line p1 p2))
@@ -92,10 +120,14 @@
             (if (> (count (:points goban)) 3)
               (update-closest-point goban p)
               (update goban :points (comp vec conj) p))))
-        [px py]))))
+        [px py])
+      (reverse-transform ctx))))
 
 (defmethod ui/mouse-pressed :goban [ctx]
   (ui/mouse-dragged ctx))
+
+(defmethod ui/mouse-released :goban [ctx]
+  (reverse-transform ctx))
 
 (defmethod ui/key-pressed :goban [ctx]
   (case
@@ -103,10 +135,12 @@
     10
     (ui/transition ctx :view)
     9
-    (swap!
-      ctx update-in [:goban :size]
-      (fn [s]
-        (case s 19 9 9 13 19)))
+    (do
+      (swap!
+        ctx update-in [:goban :size]
+        (fn [s]
+          (case s 19 9 9 13 19)))
+      (reverse-transform ctx))
     49 (do (sim/stop) (ui/switch-read-loop ctx 0))
     50 (do (sim/stop) (ui/switch-read-loop ctx 1))
     51 (do (sim/stop) (ui/switch-read-loop ctx 2))

@@ -8,11 +8,11 @@
 
 (defn setup [ctx]
   (q/smooth)
-  (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 20))
+  (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 10))
   (q/background 200))
 
-(defn shadow-text [^String s x y]
-  (q/text-align :left :bottom)
+(defn shadow-text [^String s x y & [align-horiz align-vert]]
+  (q/text-align (or align-horiz :left) (or align-vert :bottom))
   (q/fill 0 196)
   (q/text-size 20)
   (q/text s (inc x) (inc y))
@@ -20,8 +20,6 @@
   (q/fill 255)
   (q/text-size 20)
   (q/text s x y))
-
-
 
 (defn state [ctx] (:state @ctx))
 
@@ -43,6 +41,10 @@
 (defmulti mouse-pressed state)
 (defmethod mouse-pressed :default [ctx])
 
+(defmulti mouse-released state)
+(defmethod mouse-released :default [ctx])
+
+
 (defmulti key-pressed state)
 (defmethod key-pressed :default [ctx])
 
@@ -60,9 +62,10 @@
           :setup (partial setup ctx)
           :draw (partial #'draw ctx)
           :size (or (-> @ctx :sketchconfig :size) [1280 720])
-          :resizable true
+          :features [:resizable]
           :mouse-dragged (partial #'mouse-dragged ctx)
           :mouse-pressed (partial #'mouse-pressed ctx)
+          :mouse-released (partial #'mouse-released ctx)
           :key-pressed (partial #'key-pressed ctx))]
     (swap! ctx assoc :sketch sketch)))
 
