@@ -12,21 +12,26 @@
   (let [extent (* block-size size)]
     [[block-size block-size] [extent block-size] [extent extent] [block-size extent]]))
 
+(defn ref-size [size]
+  (Size. (* block-size (inc size)) (* block-size (inc size))))
+
 (defn read-board [ctx]
   (let [{{:keys [homography shift reference]} :view {:keys [raw]} :camera {:keys [size]} :goban} @ctx
         [sx sy] shift
         flattened (Mat.)]
 
-    (Imgproc/warpPerspective raw flattened homography (.size raw))
+    (Imgproc/warpPerspective raw flattened homography (ref-size size) )
     (Core/absdiff ^Mat flattened ^Mat reference flattened)
     (partition
       size
       (for [y (range size) x (range size)]
         (let [p (Point. (+ (* block-size (inc x)) sx) (+ (* block-size (inc y)) sy))
+              _ (println "p: " p)
               roi (Rect. p (Size. 14 14))
               m (Mat. flattened roi)
               a (Core/mean m)
               [w1 w2 b :as d] (seq (.-val a))]
+          (println "Got it.")
           (if (> (apply max d) 50)
             (cond
               (> w1 b) :w
@@ -47,7 +52,7 @@
         homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)
         ref (Mat.)]
     (when homography
-      (Imgproc/warpPerspective raw ref homography (.size raw)))
+      (Imgproc/warpPerspective raw ref homography (ref-size size)))
     (swap! ctx assoc :view
            {:homography homography
             :shift      (if force [-7 -7] (or shift [-7 -7]))
@@ -77,7 +82,7 @@
       (do
         (let [[sx sy] shift
               flattened (Mat.)]
-          (Imgproc/warpPerspective raw flattened homography (.size raw))
+          (Imgproc/warpPerspective raw flattened homography (ref-size size))
           (Core/absdiff ^Mat flattened ^Mat reference flattened)
 
           (doseq [[y row] (map-indexed vector board)

@@ -1,7 +1,7 @@
 (ns igoki.ui
   (:require [quil.core :as q]
             [igoki.util :as util])
-  (:import (org.opencv.highgui VideoCapture)
+  (:import (org.opencv.highgui VideoCapture Highgui)
            (org.opencv.core Mat)
            (javax.swing SwingUtilities JFrame JFileChooser)
            (org.opencv.video Video)))
@@ -82,6 +82,13 @@
       :raw frame
       :pimg (util/mat-to-pimage frame))
     (.release video)))
+
+(defn read-file [ctx fname]
+  (let [frame (Highgui/imread (str "resources/" fname))]
+    (swap!
+      ctx update :camera assoc
+      :raw frame
+      :pimg (util/mat-to-pimage frame))))
 
 (defn stop-read-loop [ctx]
   (if-let [video ^VideoCapture (-> @ctx :camera :video)]
