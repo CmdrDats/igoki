@@ -111,7 +111,8 @@
     (cond->
       node
       black (assoc :add-black (map (fn [[_ x y]] (sgf/convert-coord x y)) black))
-      white (assoc :add-white (map (fn [[_ x y]] (sgf/convert-coord x y)) white)))))
+      white (assoc :add-white (map (fn [[_ x y]] (sgf/convert-coord x y)) white))
+      (> (count black) (count white)) (assoc :player-start ["W"]))))
 
 (defn reset-kifu [ctx]
   (let [board (-> @ctx :board)]

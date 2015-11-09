@@ -116,9 +116,10 @@
                   :pimg (util/mat-to-pimage frame)))
               (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
               (catch Exception e
-                (println "Camera loop stopped, exception thrown")
-                (stop-read-loop ctx)
-                (throw e)))
+                (println "exception thrown")
+                (.printStackTrace e)
+                #_(stop-read-loop ctx)
+                #_(throw e)))
             (recur))
           ))
       (.setDaemon true)

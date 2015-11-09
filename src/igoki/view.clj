@@ -26,12 +26,10 @@
       size
       (for [y (range size) x (range size)]
         (let [p (Point. (+ (* block-size (inc x)) sx) (+ (* block-size (inc y)) sy))
-              _ (println "p: " p)
               roi (Rect. p (Size. 14 14))
               m (Mat. flattened roi)
               a (Core/mean m)
               [w1 w2 b :as d] (seq (.-val a))]
-          (println "Got it.")
           (if (> (apply max d) 50)
             (cond
               (> w1 b) :w
