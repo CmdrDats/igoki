@@ -1,7 +1,10 @@
 (ns igoki.util
+  (:require [clojure.java.io :as io])
   (:import (org.opencv.core Mat Size CvType Point)
            (java.awt.image BufferedImage DataBufferByte)
-           (processing.core PImage PConstants)))
+           (processing.core PImage PConstants)
+           (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
+           (java.io InputStream ByteArrayInputStream)))
 
 (defn mat-to-buffered-image [^Mat frame]
   (let [type (case (.channels frame)
@@ -131,3 +134,14 @@
       (let [r (butlast oks)]
         (recur r (get-in m oks) (assoc (get-in m r) (last oks) s)))
       s)))
+
+
+(defn zip-add-file [zipname destname ^InputStream input]
+  (let [f (TFile. ^String zipname ^String destname (TArchiveDetector.".zip"))]
+    (TFile/cp input f)))
+
+(defn zip-add-file-string [zipname destname ^String input]
+  (zip-add-file zipname destname (ByteArrayInputStream. (.getBytes input))))
+
+
+

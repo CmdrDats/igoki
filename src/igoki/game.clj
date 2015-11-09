@@ -5,12 +5,14 @@
     [igoki.util :as util]
     [igoki.sgf :as sgf]
     [igoki.inferrence :as inferrence]
-    [quil.core :as q])
+    [quil.core :as q] )
   (:import (java.awt Toolkit)
-           (java.io File)
+           (java.io File ByteArrayInputStream)
            (processing.core PImage)
-           (java.util Date)
-           (java.text SimpleDateFormat)))
+           (java.util Date UUID)
+           (java.text SimpleDateFormat)
+           (org.opencv.highgui Highgui)
+           (org.opencv.core MatOfByte)))
 
 (defn board-diff [b1 b2]
   (remove
@@ -72,8 +74,10 @@
 
 (defn camera-updated [wk ctx old new]
   (view/camera-updated wk ctx old new)
-  (let [{{{:keys [latch board] :as submit} :submit :as game} :kifu
-         cboard :board} @ctx
+  (let [{{{:keys [latch board] :as submit} :submit
+          :keys [filename camidx] :as game} :kifu
+         {:keys [raw]}                      :camera
+         cboard                             :board} @ctx
         updatelist @captured-boardlist]
     (cond
       (nil? submit) nil
@@ -92,12 +96,19 @@
       (do
         (println "Debounce success - move submitted")
         (.beep (Toolkit/getDefaultToolkit))
+        (when filename
+          (let [out (MatOfByte.)]
+            (println "Writing jpg: " filename "/" (str camidx ".jpg"))
+            (Highgui/imencode ".jpg" raw out)
+            (util/zip-add-file filename (str camidx ".jpg") (ByteArrayInputStream. (.toArray out)))
+            (println "Done writing jpg: " filename "/" (str camidx ".jpg"))
+            ))
         (let [new (inferrence/infer-moves game (butlast updatelist) (last updatelist))]
           (if new
             (do
               (reset! captured-boardlist [])
-              (swap! ctx assoc :kifu (dissoc new :submit)))
-            (swap! ctx update :kifu dissoc :submit)))
+              (swap! ctx assoc :kifu (assoc (dissoc new :submit) :camidx (inc camidx))))
+            (swap! ctx update :kifu #(assoc (dissoc % :submit) :camidx (inc camidx)))))
         (swap! ctx update :camera dissoc :read-delay)))))
 
 (defn add-initial-points [node board]
@@ -115,22 +126,29 @@
       (> (count black) (count white)) (assoc :player-start ["W"]))))
 
 (defn reset-kifu [ctx]
-  (let [board (-> @ctx :board)]
-    (swap! ctx assoc :kifu
-           (->
-             {:moves               (add-initial-points
-                                     {:branches     []
-                                      :player-start ["B"]
-                                      :application  ["Igoki"]
-                                      :file-format  ["4"]
-                                      :gametype     ["1"]
-                                      :size         [(-> @ctx :goban :size)]
-                                      :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
-                                      :komi         ["5.5"]}
-                                     board)
-              :movenumber          0
-              :current-branch-path [[]]}
-             inferrence/reconstruct))))
+  (let [board (-> @ctx :board)
+        new-game
+        (->
+          {:filename            (str "capture/" (.toString (UUID/randomUUID)) ".zip")
+           :camidx              0
+           :moves               (add-initial-points
+                                  {:branches     []
+                                   :player-start ["B"]
+                                   :application  ["Igoki"]
+                                   :file-format  ["4"]
+                                   :gametype     ["1"]
+                                   :size         [(-> @ctx :goban :size)]
+                                   :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
+                                   :komi         ["5.5"]}
+                                  board)
+           :movenumber          0
+           :current-branch-path [[]]}
+          inferrence/reconstruct)]
+    (util/zip-add-file-string
+      (:filename new-game)
+      "config.edn"
+      (pr-str new-game))
+    (swap! ctx assoc :kifu new-game)))
 
 (defmethod ui/construct :kifu [ctx]
   (if-not (-> @ctx :kifu)
