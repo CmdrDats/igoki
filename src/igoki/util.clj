@@ -17,17 +17,6 @@
     (.get frame 0 0 data)
     image))
 
-(defn mat-to-buffered-image [^Mat frame]
-  (let [type (case (.channels frame)
-               1 BufferedImage/TYPE_BYTE_GRAY
-               3 BufferedImage/TYPE_3BYTE_BGR)
-        image (BufferedImage. (.width frame) (.height frame) type)
-        raster (.getRaster image)
-        data-buffer ^DataBufferByte (.getDataBuffer raster)
-        data (.getData data-buffer)]
-    (.get frame 0 0 data)
-    image))
-
 (defn bufimage-to-pimage [^BufferedImage bimg]
   (let [img (PImage. (.getWidth bimg) (.getHeight bimg) PConstants/ARGB)]
     (.getRGB bimg 0 0 (.-width img) (.-height img) (.-pixels img) 0 (.-width img))
@@ -52,6 +41,18 @@
 (defn point-along-line [[[p1x p1y] [p2x p2y] :as line] percent]
   [(+ p1x (* (- p2x p1x) percent))
    (+ p1y (* (- p2y p1y) percent))])
+
+(defn update-edges [points]
+  (partition 2 (interleave points (take 4 (drop 1 (cycle points))))))
+
+(defn update-closest-point [points p]
+  (let [indexed-dist
+        (->>
+          points
+          (map-indexed (fn [i g] [(line-length-squared [g p]) i]))
+          sort)
+        [_ i :as e] (first indexed-dist)]
+    (assoc points i p)))
 
 (defn flipped-line [[p1 p2]]
   [p2 p1])

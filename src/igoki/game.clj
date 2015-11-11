@@ -37,10 +37,11 @@
       (fn [c]
         (-> c
             (update :kifu assoc :submit {:latch 3 :board board})
-            (update :camera assoc :read-delay 25))))))
+            (update :camera assoc :read-delay 100))))))
 
 (defn board-updated [_ ctx _ board]
-  (println "Board updated.")
+  #_(println "Board updated.")
+  #_(inferrence/print-boards board)
   (swap! captured-boardlist conj board)
   (let [{{:keys [kifu-board dirty] :as game} :kifu} @ctx
         nodes (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
@@ -70,7 +71,15 @@
       :else
       (submit-move ctx))))
 
-
+(defn dump-camera [filename camidx raw updatelist]
+  (when filename
+    (let [out (MatOfByte.)]
+      (println "Writing jpg: " filename "/" (str camidx ".jpg"))
+      (Highgui/imencode ".jpg" raw out)
+      (util/zip-add-file filename (str camidx ".jpg") (ByteArrayInputStream. (.toArray out)))
+      (util/zip-add-file-string filename (str camidx ".edn") (pr-str updatelist))
+      (println "Done writing jpg: " filename "/" (str camidx ".jpg"))
+      )))
 
 (defn camera-updated [wk ctx old new]
   (view/camera-updated wk ctx old new)
@@ -95,17 +104,11 @@
       :else
       (do
         (println "Debounce success - move submitted")
-        (.beep (Toolkit/getDefaultToolkit))
-        (when filename
-          (let [out (MatOfByte.)]
-            (println "Writing jpg: " filename "/" (str camidx ".jpg"))
-            (Highgui/imencode ".jpg" raw out)
-            (util/zip-add-file filename (str camidx ".jpg") (ByteArrayInputStream. (.toArray out)))
-            (println "Done writing jpg: " filename "/" (str camidx ".jpg"))
-            ))
-        (let [new (inferrence/infer-moves game (butlast updatelist) (last updatelist))]
+        (dump-camera filename camidx raw updatelist)
+        (let [new (inferrence/infer-moves game updatelist (last updatelist))]
           (if new
             (do
+              (.beep (Toolkit/getDefaultToolkit))
               (reset! captured-boardlist [])
               (swap! ctx assoc :kifu (assoc (dissoc new :submit) :camidx (inc camidx))))
             (swap! ctx update :kifu #(assoc (dissoc % :submit) :camidx (inc camidx)))))
@@ -126,7 +129,8 @@
       (> (count black) (count white)) (assoc :player-start ["W"]))))
 
 (defn reset-kifu [ctx]
-  (let [board (-> @ctx :board)
+  (let [context @ctx
+        board (-> context :board)
         new-game
         (->
           {:filename            (str "capture/" (.toString (UUID/randomUUID)) ".zip")
@@ -144,10 +148,12 @@
            :movenumber          0
            :current-branch-path [[]]}
           inferrence/reconstruct)]
+
     (util/zip-add-file-string
       (:filename new-game)
       "config.edn"
       (pr-str new-game))
+    (dump-camera (:filename new-game) 0 (-> context :camera :raw) [board])
     (swap! ctx assoc :kifu new-game)))
 
 (defmethod ui/construct :kifu [ctx]
@@ -201,14 +207,15 @@
                (- (q/height) (* (- (q/width) (q/height)) (/ (.height pimg) (.width pimg))))
                (q/width) (q/height)))
 
-    (ui/shadow-text "Recording Kifu..." tx 25)
-    (ui/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 50)
-    (ui/shadow-text "<R> Reset Kifu" tx 100)
-    (ui/shadow-text "<V> Back to camera diff view" tx 125)
-    (ui/shadow-text "<C> Calibrate board" tx 150)
-    (ui/shadow-text "<E> Export SGF" tx 175)
-    (ui/shadow-text "<L> Load SGF" tx 200)
-    (ui/shadow-text "<M> Toggle show branches" tx 225)
+    (ui/shadow-text (str "Recording: Img #" (:camidx game)) tx 25)
+    (ui/shadow-text (:filename game) tx 50)
+    (ui/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
+    (ui/shadow-text "<R> Reset Kifu" tx 125)
+    (ui/shadow-text "<V> Back to camera diff view" tx 150)
+    (ui/shadow-text "<C> Calibrate board" tx 175)
+    (ui/shadow-text "<E> Export SGF" tx 200)
+    (ui/shadow-text "<L> Load SGF" tx 225)
+    (ui/shadow-text "<M> Toggle show branches" tx 250)
 
     (q/fill 220 179 92)
     (q/rect 0 0 (q/height) (q/height))

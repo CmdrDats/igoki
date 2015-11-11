@@ -96,18 +96,6 @@
           (q/text (get pn p) x (- y 5))
           (q/ellipse x y 2 2))))))
 
-(defn update-edges [{:keys [points] :as goban}]
-  (assoc goban
-    :edges (partition 2 (interleave points (take 4 (drop 1 (cycle points)))))))
-
-(defn update-closest-point [{:keys [points] :as goban} p]
-  (let [indexed-dist
-        (->>
-          points
-          (map-indexed (fn [i g] [(util/line-length-squared [g p]) i]))
-          sort)
-        [_ i :as e] (first indexed-dist)]
-    (assoc-in goban [:points i] p)))
 
 (defmethod ui/mouse-dragged :goban [ctx]
   (when-let [c ^PImage (-> @ctx :camera :pimg)]
@@ -115,11 +103,13 @@
           py (/ (* (- (q/mouse-y) 5) (.height c)) (q/height))]
       (swap!
         ctx update-in [:goban]
-        (fn [goban p]
-          (update-edges
-            (if (> (count (:points goban)) 3)
-              (update-closest-point goban p)
-              (update goban :points (comp vec conj) p))))
+        (fn [{:keys [points] :as goban} p]
+          (let [points (if (> (count points) 3)
+                         (util/update-closest-point points p)
+                         (vec (conj points p)))
+                edges (util/update-edges points)]
+            (assoc goban :points points :edges edges))
+          )
         [px py])
       (reverse-transform ctx))))
 

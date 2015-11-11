@@ -44,6 +44,8 @@
 (defmulti mouse-released state)
 (defmethod mouse-released :default [ctx])
 
+(defmulti mouse-moved state)
+(defmethod mouse-moved :default [ctx])
 
 (defmulti key-pressed state)
 (defmethod key-pressed :default [ctx])
@@ -66,6 +68,7 @@
           :mouse-dragged (partial #'mouse-dragged ctx)
           :mouse-pressed (partial #'mouse-pressed ctx)
           :mouse-released (partial #'mouse-released ctx)
+          :mouse-moved (partial #'mouse-moved ctx)
           :key-pressed (partial #'key-pressed ctx))]
     (swap! ctx assoc :sketch sketch)))
 
