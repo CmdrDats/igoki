@@ -2,7 +2,7 @@
   (:require [igoki.ui :as ui]
             [igoki.util :as util]
             [quil.core :as q])
-  (:import (org.opencv.core MatOfPoint2f Point Mat Rect Size Core Scalar CvType)
+  (:import (org.opencv.core MatOfPoint2f Point Mat Rect Size Core Scalar CvType MatOfDouble)
            (org.opencv.calib3d Calib3d)
            (org.opencv.imgproc Imgproc)
            (processing.core PImage)))
@@ -17,7 +17,9 @@
   (Size. (* block-size (inc size)) (* block-size (inc size))))
 
 (defn mean-at [^Mat mat x y [sizex sizey]]
-  (let [p (Point. (- x (/ sizex 2)) (- y (/ y sizey 2)))
+  (let [[x y] [(max 1 (min (- x (/ sizex 2)) (- (.rows mat) sizex 2)))
+               (max 1 (min (- y (/ sizey 2)) (- (.rows mat) sizey 2)))]
+        p (Point. x y)
         roi (Rect. p (Size. sizex sizey))
         m (Mat. mat roi)
         a (Core/mean m)]
@@ -42,27 +44,37 @@
   (let [{{:keys [homography shift samplesize samplepoints]} :view {:keys [raw]} :camera {:keys [size]} :goban} @ctx
         [sx sy] shift
         [szx szy] samplesize
-        flattened (Mat/zeros (ref-size size) CvType/CV_8UC3)]
+        flattened (Mat/zeros (ref-size size) CvType/CV_8UC3)
+        imgmean (MatOfDouble.) imgstddev (MatOfDouble.)]
 
     (Imgproc/warpPerspective raw flattened homography (ref-size size) )
     (Imgproc/cvtColor flattened flattened Imgproc/COLOR_BGR2HSV)
+    (Core/meanStdDev flattened imgmean imgstddev)
+    #_(println (util/write-mat imgmean) " ::: " (util/write-mat imgstddev))
 
+    (.toArray imgmean)
+    #_(Imgproc/equalizeHist flattened flattened)
     (swap! ctx assoc-in [:view :flattened] flattened)
     #_(Core/absdiff ^Mat flattened ^Mat reference flattened)
-    (->>
-      (partition
-        size
-        (for [row samplepoints [px py] row]
-          (let [[h s v :as d] (mean-at flattened px py samplesize)]
-            (cond
-              (< v 80) :b
-              (and (> v 180) (< s 35)) :w)
-            #_(if (> (apply max d) 50)
-                (cond
-                  (> w1 b) :w
-                  :else :b)))))
-      (map vec)
-      vec)))
+    (let [[hm sm vm] (seq (.toArray imgmean))
+          [hs ss vs] (seq (.toArray imgstddev))
+          vlower (- vm vs)
+          slower (- sm (/ ss 3))
+          vupper (+ vm vs)]
+      (->>
+        (partition
+          size
+          (for [row samplepoints [px py] row]
+            (let [[h s v :as d] (mean-at flattened px py samplesize)]
+              (cond
+                (and (< v vlower) (< s sm)) :b
+                (and (> v vupper) (< s sm)) :w)
+              #_(if (> (apply max d) 50)
+                  (cond
+                    (> w1 b) :w
+                    :else :b)))))
+        (map vec)
+        vec))))
 
 
 
