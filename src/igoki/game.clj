@@ -134,7 +134,7 @@
         new-game
         (->
           {:filename            (str "capture/" (.toString (UUID/randomUUID)) ".zip")
-           :camidx              0
+           :camidx              1
            :moves               (add-initial-points
                                   {:branches     []
                                    :player-start ["B"]
