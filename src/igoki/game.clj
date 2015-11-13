@@ -149,6 +149,9 @@
            :current-branch-path [[]]}
           inferrence/reconstruct)]
 
+    (when-not (.exists (File. "capture"))
+      (.mkdir (File. "capture")))
+
     (util/zip-add-file-string
       (:filename new-game)
       "config.edn"
