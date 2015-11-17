@@ -41,34 +41,33 @@
 
 
 (defn read-board [ctx]
-  (let [{{:keys [homography shift samplesize samplepoints]} :view {:keys [raw]} :camera {:keys [size]} :goban} @ctx
+  (let [{{:keys [homography shift samplesize samplepoints refmean refstddev]} :view {:keys [raw]} :camera {:keys [size]} :goban} @ctx
         [sx sy] shift
         [szx szy] samplesize
-        flattened (Mat/zeros (ref-size size) CvType/CV_8UC3)
-        imgmean (MatOfDouble.) imgstddev (MatOfDouble.)]
+        flattened (Mat.)]
 
     (Imgproc/warpPerspective raw flattened homography (ref-size size) )
     (Imgproc/cvtColor flattened flattened Imgproc/COLOR_BGR2HSV)
-    (Core/meanStdDev flattened imgmean imgstddev)
     #_(println (util/write-mat imgmean) " ::: " (util/write-mat imgstddev))
 
-    (.toArray imgmean)
     #_(Imgproc/equalizeHist flattened flattened)
     (swap! ctx assoc-in [:view :flattened] flattened)
     #_(Core/absdiff ^Mat flattened ^Mat reference flattened)
-    (let [[hm sm vm] (seq (.toArray imgmean))
-          [hs ss vs] (seq (.toArray imgstddev))
+    (let [[hm sm vm] refmean
+          [hs ss vs] refstddev
           vlower (- vm vs)
+          vupper (+ vm vs)
           slower (- sm (/ ss 3))
-          vupper (+ vm vs)]
+          supper (+ sm ss)
+          hlower (- hm (* hs 2))]
       (->>
         (partition
           size
           (for [row samplepoints [px py] row]
             (let [[h s v :as d] (mean-at flattened px py samplesize)]
               (cond
-                (and (< v vlower) (< s sm)) :b
-                (and (> v vupper) (< s sm)) :w)
+                (and (not (< hlower h (+ hm hs))) (< v vlower) (< s supper)) :b
+                (and (not (< hlower h (+ hm (* hs 3)))) (> v vupper) (< s sm)) :w)
               #_(if (> (apply max d) 50)
                   (cond
                     (> w1 b) :w
@@ -91,16 +90,23 @@
         origpoints (util/vec->mat (MatOfPoint2f.) points)
         homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)
         ref (Mat.)
-        samplecorners (if force (target-points size) (or samplecorners (target-points size)))]
+        samplecorners (if force (target-points size) (or samplecorners (target-points size)))
+        imgmean (MatOfDouble.) imgstddev (MatOfDouble.)]
+
     (when homography
-      (Imgproc/warpPerspective raw ref homography (ref-size size)))
-    (swap! ctx assoc :view
-           {:homography homography
-            :shift      (if force [0 0] (or shift [0 0]))
-            :samplesize (if force [14 14] (or samplesize [14 14]))
-            :samplecorners samplecorners
-            :samplepoints (sample-points samplecorners size)
-            :reference  (if force ref (or reference ref))})))
+      (Imgproc/warpPerspective raw ref homography (ref-size size))
+      (Imgproc/cvtColor ref ref Imgproc/COLOR_BGR2HSV)
+      (Core/meanStdDev ref imgmean imgstddev)
+      (println (seq (.toArray imgmean)))
+      (swap! ctx assoc :view
+             {:homography    homography
+              :shift         (if force [0 0] (or shift [0 0]))
+              :samplesize    (if force [14 14] (or samplesize [14 14]))
+              :samplecorners samplecorners
+              :samplepoints  (sample-points samplecorners size)
+              :refmean       (seq (.toArray imgmean))
+              :refstddev     (seq (.toArray imgstddev))
+              :reference     (if force ref (or reference ref))}))))
 
 (defmethod ui/construct :view [ctx]
   (util/add-watch-path ctx :view [:camera] camera-updated)
@@ -113,7 +119,7 @@
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
 
-  (let [{{:keys [homography shift samplesize samplepoints flattened]} :view {:keys [raw]} :camera {:keys [size]} :goban
+  (let [{{:keys [homography shift samplesize samplepoints flattened refmean refstddev]} :view {:keys [raw]} :camera {:keys [size]} :goban
          board :board}  @ctx
         tx (+ (* size block-size) 40)]
     (cond
@@ -155,6 +161,8 @@
                   (q/ellipse (+ tx h 35) (+ 200 s) 1 1)
                   )))
 
+            (ui/shadow-text (str "Ref HSV Mean: " (vec (take 3 (map int refmean)))) (+ tx 35) 505)
+            (ui/shadow-text (str "Ref HSV Stddev: " (vec (take 3 (map int refstddev)))) (+ tx 35) 530)
             (when
               (and (< 10 (q/mouse-x) (- (.cols flattened) 10))
                    (< 10 (q/mouse-y) (- (.rows flattened) 10)))

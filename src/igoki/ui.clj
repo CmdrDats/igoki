@@ -144,10 +144,10 @@
           (success-fn (.getSelectedFile chooser)))
         (finally (.dispose frame))))))
 
-(defn load-dialog [success-fn]
+(defn load-dialog [success-fn & [start-dir]]
   (SwingUtilities/invokeLater
     #(let [frame (JFrame. "Load")
-           chooser (JFileChooser.)]
+           chooser (if start-dir (JFileChooser. start-dir) (JFileChooser.))]
       (try
         (.setAlwaysOnTop frame true)
         (when

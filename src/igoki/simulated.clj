@@ -3,9 +3,10 @@
             [quil.core :as q]
             [igoki.util :as util]
             [igoki.game :as game])
-  (:import (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f)
+  (:import (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f MatOfByte)
            (org.opencv.imgproc Imgproc)
-           (org.opencv.highgui Highgui)))
+           (org.opencv.highgui Highgui)
+           (de.schlichtherle.truezip.fs FsEntryNotFoundException)))
 
 ;; This view simulates a camera for testing igoki's behaviour without having a board and camera handy
 (defonce simctx (atom {:sketchconfig {:framerate 20 :size [640 480]}}))
@@ -83,26 +84,41 @@
                        (Scalar. 96 90 29))))
 
     (catch Exception e
-      (.printStackTrace e))))
+      (.printStackTrace e)))
+  m)
 
 (defn simulate []
-  (let [m (.clone (-> @simctx :sim :background)) #_(Mat/zeros (Size. 1280 720) CvType/CV_8UC3)]
-    (draw-board m)
+  (let [context @simctx
+        m (if (= (:mode context) :replay)
+            (-> context :camera :raw)
+            (draw-board (.clone (-> context :sim :background))))]
+
     (swap! simctx
            update :camera assoc
            :raw m
            :pimg (util/mat-to-pimage m))))
 
 (defmethod ui/draw :simulation [ctx]
+
   (simulate)
-  (let [{{:keys [^Mat raw pimg]} :camera} @ctx]
+
+  (let [{{:keys [^Mat raw pimg]} :camera
+         {:keys [frame]} :replay
+         mode :mode} @ctx
+        [cellsize grid-start] (if raw (grid-spec raw) [])
+        tx (q/height)]
     (q/fill 128 64 78)
     (q/rect 0 0 (q/width) (q/height))
-    (let [[cellsize grid-start] (grid-spec raw)
-          tx (q/height) ]
-      (cond
-        (nil? pimg)
-        (ui/shadow-text "Image not built yet, please wait..." 10 25)
+    (cond
+      (nil? pimg)
+      (ui/shadow-text "Image not built yet, please wait..." 10 25)
+        (= mode :replay)
+        (do
+          (q/image pimg 0 0 (q/width) (q/height))
+          (ui/shadow-text "Esc: Back to simulation" tx 50)
+          (ui/shadow-text "Arrows: Forward/back " tx 75)
+          (ui/shadow-text "L: Load captured zip" tx 100)
+          )
         :else
         (do
           (q/image pimg 0 0 (q/width) (q/height))
@@ -112,7 +128,8 @@
           (ui/shadow-text "A: Alternating" tx 125)
           (ui/shadow-text "C: Clear" tx 150)
           (ui/shadow-text "R: Reset board. " tx 175)
-          )))))
+          (ui/shadow-text "L: Load zip. " tx 200)
+          ))))
 
 (defn next-stone [{:keys [next mode]}]
   (case mode
@@ -142,6 +159,27 @@
 (defn set-mode [sim c]
   (assoc sim :mode c :next (case c :white :w :black :b nil)))
 
+(defn step-file-index [ctx nextfn]
+  (try
+    (let [{{:keys [file index]} :replay} @ctx
+          nextindex (nextfn index)
+          image (util/zip-read-file file (str nextindex ".jpg"))
+          raw (Highgui/imdecode (MatOfByte. image) Highgui/IMREAD_UNCHANGED)
+          pimg (util/mat-to-pimage raw)]
+      (swap!
+        ctx
+        (fn [c]
+          (-> c
+              (update :camera assoc :raw raw :pimg pimg)
+              (update :replay assoc :index nextindex)))))
+    (catch FsEntryNotFoundException e)))
+
+(defn load-zip [ctx file]
+  (println "Loading:" file)
+  (swap! ctx assoc :mode :replay :replay {:file file :index 0})
+  (step-file-index ctx identity))
+
+
 (defmethod ui/key-pressed :simulation [ctx]
   (case
     (q/key-code)
@@ -160,8 +198,15 @@
     66 (swap! ctx update :sim set-mode :black)
     ;; R
     82 (reset-board ctx (-> @ctx :sim :size))
+    ;; Left
+    37 (step-file-index simctx dec)
+    ;; Right
+    39 (step-file-index simctx inc)
+    ;; L
+    76 (ui/load-dialog #(load-zip simctx (.getAbsolutePath %)) (str (System/getProperty "user.dir") "/capture"))
     (println "Unhandled key-down: " (q/key-code))
     ))
+
 
 
 

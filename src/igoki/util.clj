@@ -4,7 +4,7 @@
            (java.awt.image BufferedImage DataBufferByte)
            (processing.core PImage PConstants)
            (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
-           (java.io InputStream ByteArrayInputStream)))
+           (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)))
 
 (defn mat-to-buffered-image [^Mat frame]
   (let [type (case (.channels frame)
@@ -145,4 +145,7 @@
   (zip-add-file zipname destname (ByteArrayInputStream. (.getBytes input))))
 
 
-
+(defn zip-read-file [zipname filename]
+  (let [out (ByteArrayOutputStream.)]
+    (.output (TFile. ^String zipname ^String filename) out)
+    (.toByteArray out)))

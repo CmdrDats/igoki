@@ -12,7 +12,8 @@
            (java.util Date UUID)
            (java.text SimpleDateFormat)
            (org.opencv.highgui Highgui)
-           (org.opencv.core MatOfByte)))
+           (org.opencv.core MatOfByte)
+           (de.schlichtherle.truezip.file TVFS)))
 
 (defn board-diff [b1 b2]
   (remove
@@ -129,6 +130,7 @@
       (> (count black) (count white)) (assoc :player-start ["W"]))))
 
 (defn reset-kifu [ctx]
+  (TVFS/umount)
   (let [context @ctx
         board (-> context :board)
         new-game
