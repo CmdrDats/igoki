@@ -79,24 +79,27 @@
 
         (draw-stone m mx my (-> @simctx :sim :next) cellsize)
 
-        (Core/fillPoly m
-                       [(util/vec->mat (MatOfPoint.) (map (fn [[x y]] [(+ (or mx 100) x) (+ (or my 100) y)]) [[0 0] [120 0] [120 55] [200 200] [55 120] [0 120] [0 0]]))]
-                       (Scalar. 96 90 29))))
+        (util/with-release [pts (MatOfPoint.)]
+          (util/vec->mat pts (map (fn [[x y]] [(+ (or mx 100) x) (+ (or my 100) y)]) [[0 0] [120 0] [120 55] [200 200] [55 120] [0 120] [0 0]]))
+          (Core/fillPoly m [pts] (Scalar. 96 90 29)))))
 
     (catch Exception e
       (.printStackTrace e)))
   m)
 
 (defn simulate []
-  (let [context @simctx
-        m (if (= (:mode context) :replay)
-            (-> context :camera :raw)
-            (draw-board (.clone (-> context :sim :background))))]
-
-    (swap! simctx
-           update :camera assoc
-           :raw m
-           :pimg (util/mat-to-pimage m))))
+  (let [context @simctx]
+    (if (= (:mode context) :replay)
+      (swap! simctx
+             update :camera assoc
+             :raw (-> context :camera :raw)
+             :pimg (util/mat-to-pimage (-> context :camera :raw)))
+      (util/with-release [m (.clone (-> context :sim :background))]
+        (draw-board m)
+        (swap! simctx
+               update :camera assoc
+               :raw m
+               :pimg (util/mat-to-pimage m))))))
 
 (defmethod ui/draw :simulation [ctx]
 

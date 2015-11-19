@@ -35,13 +35,13 @@
         rightedge (divide ctr cbr)]
     (map
       (fn [left right] (divide left right))
-      leftedge rightedge)
-    )
-  )
+      leftedge rightedge)))
 
 
 (defn read-board [ctx]
-  (let [{{:keys [homography shift samplesize samplepoints refmean refstddev]} :view {:keys [raw]} :camera {:keys [size]} :goban} @ctx
+  (let [{{:keys [homography shift samplesize samplepoints refmean refstddev reference]} :view
+         {:keys [raw]} :camera
+         {:keys [size]} :goban} @ctx
         [sx sy] shift
         [szx szy] samplesize
         flattened (Mat.)]
@@ -51,29 +51,32 @@
     #_(println (util/write-mat imgmean) " ::: " (util/write-mat imgstddev))
 
     #_(Imgproc/equalizeHist flattened flattened)
-    (swap! ctx assoc-in [:view :flattened] flattened)
+    (swap! ctx assoc-in [:camera :flattened] flattened)
     #_(Core/absdiff ^Mat flattened ^Mat reference flattened)
     (let [[hm sm vm] refmean
-          [hs ss vs] refstddev
-          vlower (- vm vs)
-          vupper (+ vm vs)
-          slower (- sm (/ ss 3))
-          supper (+ sm ss)
-          hlower (- hm (* hs 2))]
-      (->>
-        (partition
-          size
-          (for [row samplepoints [px py] row]
-            (let [[h s v :as d] (mean-at flattened px py samplesize)]
-              (cond
-                (and (not (< hlower h (+ hm hs))) (< v vlower) (< s supper)) :b
-                (and (not (< hlower h (+ hm (* hs 3)))) (> v vupper) (< s sm)) :w)
-              #_(if (> (apply max d) 50)
-                  (cond
-                    (> w1 b) :w
-                    :else :b)))))
-        (map vec)
-        vec))))
+          [hs ss vs] refstddev]
+      (vec
+        (map
+          (comp
+            vec
+            (fn [row refrow]
+              (map
+                (fn [[px py] [rh rs rv]]
+                  (let [[h s v] (mean-at flattened px py samplesize)]
+                    (cond
+                      (and
+                        (not (< (- rh 20) h (+ rh 20)))
+                        (< v (- rv vs))
+                        (< s (+ rs ss))) :b
+
+                      (and
+                        (not (< (- rh 20) h (+ rh 30)))
+                        (> v (+ rv vs))
+                        (< s rs)) :w
+                      )))
+                row refrow)))
+          samplepoints
+          reference)))))
 
 
 
@@ -82,34 +85,43 @@
   (swap! ctx assoc :board (read-board ctx)))
 
 
-(defn update-reference [ctx & [force]]
-  (let [{{:keys [points size] :as goban} :goban
-         {:keys [raw]} :camera
-         {:keys [reference shift samplesize samplecorners]} :view} @ctx
-        target (util/vec->mat (MatOfPoint2f.) (target-points size))
-        origpoints (util/vec->mat (MatOfPoint2f.) points)
-        homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)
-        ref (Mat.)
-        samplecorners (if force (target-points size) (or samplecorners (target-points size)))
-        imgmean (MatOfDouble.) imgstddev (MatOfDouble.)]
-
-    (when homography
+(defn gather-reference [context homography]
+  (util/with-release
+    [imgmean (MatOfDouble.)
+     imgstddev (MatOfDouble.)]
+    (let [{{:keys [size]}             :goban
+           {:keys [raw]}              :camera
+           {:keys [shift samplesize]} :view} context
+          samplecorners (target-points size)
+          ref (Mat.)
+          samplepoints (sample-points samplecorners size)]
       (Imgproc/warpPerspective raw ref homography (ref-size size))
       (Imgproc/cvtColor ref ref Imgproc/COLOR_BGR2HSV)
       (Core/meanStdDev ref imgmean imgstddev)
-      (println (seq (.toArray imgmean)))
-      (swap! ctx assoc :view
-             {:homography    homography
-              :shift         (if force [0 0] (or shift [0 0]))
-              :samplesize    (if force [14 14] (or samplesize [14 14]))
-              :samplecorners samplecorners
-              :samplepoints  (sample-points samplecorners size)
-              :refmean       (seq (.toArray imgmean))
-              :refstddev     (seq (.toArray imgstddev))
-              :reference     (if force ref (or reference ref))}))))
+      {:homography    homography
+       :shift         [0 0]
+       :samplesize    [14 14]
+       :samplecorners samplecorners
+       :samplepoints  samplepoints
+       :refmean       (seq (.toArray imgmean))
+       :refstddev     (seq (.toArray imgstddev))
+       :reference     (map (fn [row] (map (fn [[x y]] (mean-at ref x y samplesize)) row)) samplepoints)})))
+
+(defn update-reference [ctx & [force]]
+  (util/with-release
+    [target (MatOfPoint2f.)
+     origpoints (MatOfPoint2f.)]
+    (let [{{:keys [points size]} :goban :as context} @ctx
+          target (util/vec->mat target (target-points size))
+          origpoints (util/vec->mat origpoints points)
+          homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)]
+      (when homography
+        (if (or force (not (:view context)))
+          (swap! ctx assoc :view (gather-reference context homography))
+          (swap! ctx assoc-in [:view :homography] homography))))))
 
 (defmethod ui/construct :view [ctx]
-  (util/add-watch-path ctx :view [:camera] camera-updated)
+  (util/add-watch-path ctx :view [:camera :raw] camera-updated)
   (update-reference ctx))
 
 (defmethod ui/destruct :view [ctx]
@@ -119,7 +131,9 @@
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
 
-  (let [{{:keys [homography shift samplesize samplepoints flattened refmean refstddev]} :view {:keys [raw]} :camera {:keys [size]} :goban
+  (let [{{:keys [homography shift samplesize samplepoints refmean refstddev]} :view
+         {:keys [raw flattened]} :camera
+         {:keys [size]} :goban
          board :board}  @ctx
         tx (+ (* size block-size) 40)]
     (cond
@@ -149,7 +163,7 @@
             (q/line (+ tx 35) (+ 200 (* x 85)) (+ tx 290) (+ 200 (* x 85))))
 
           (when drawn
-            (doseq [x (range (- (q/mouse-x) 7) (+ (q/mouse-x) 7))
+            #_(doseq [x (range (- (q/mouse-x) 7) (+ (q/mouse-x) 7))
                     y (range (- (q/mouse-y) 7) (+ (q/mouse-y) 7))]
               (when-let [hsv (seq (.get flattened x y))]
                 (let [[h s v] hsv]

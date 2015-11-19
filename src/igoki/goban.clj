@@ -24,20 +24,19 @@
           [topleft topright bottomright bottomleft] (view/target-points size)]
 
       (when homography
-        (let [ref (Mat.)
-              pts
-              (util/vec->mat
-                (MatOfPoint2f.)
-                (mapcat
-                  (fn [t]
-                    [(util/point-along-line [topleft topright] (/ t (dec size)))
-                     (util/point-along-line [bottomleft bottomright] (/ t (dec size)))
-                     (util/point-along-line [topleft bottomleft] (/ t (dec size)))
-                     (util/point-along-line [topright bottomright] (/ t (dec size)))])
-                  (range 0 size)))]
+        (util/with-release [ref (MatOfPoint2f.)
+                            pts (MatOfPoint2f.)]
+          (util/vec->mat
+            pts
+            (mapcat
+              (fn [t]
+                [(util/point-along-line [topleft topright] (/ t (dec size)))
+                 (util/point-along-line [bottomleft bottomright] (/ t (dec size)))
+                 (util/point-along-line [topleft bottomleft] (/ t (dec size)))
+                 (util/point-along-line [topright bottomright] (/ t (dec size)))])
+              (range 0 size)))
           (Core/perspectiveTransform pts ref (.inv (-> @ui/ctx :view :homography)))
-          (swap! ctx assoc-in [:goban :lines] (partition-all 4 (:data (util/write-mat ref)))))))))
-
+          (swap! ctx assoc-in [:goban :lines] (partition 2 (util/mat->seq ref))))))))
 
 
 (defmethod ui/construct :goban [ctx]
@@ -77,8 +76,8 @@
         (q/stroke-weight 1)
 
         (when lines
-          (doseq [[p1 p2 p3 p4] lines]
-            (q/line (convert-point c [p1 p2]) (convert-point c [p3 p4])))
+          (doseq [[p1 p2] lines]
+            (q/line (convert-point c p1) (convert-point c p2)))
           (ui/shadow-text
             (str size "x" size)
             (/ (reduce + (map first points)) 4)

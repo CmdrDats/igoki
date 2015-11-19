@@ -1,6 +1,6 @@
 (ns igoki.util
   (:require [clojure.java.io :as io])
-  (:import (org.opencv.core Mat Size CvType Point)
+  (:import (org.opencv.core Mat Size CvType Point MatOfPoint2f MatOfPoint)
            (java.awt.image BufferedImage DataBufferByte)
            (processing.core PImage PConstants)
            (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
@@ -27,6 +27,16 @@
   (-> frame
       mat-to-buffered-image
       bufimage-to-pimage))
+
+(defmacro with-release
+  "A let block, calling .release on each provided binding at the end, in a finally block."
+  [bindings & body]
+  (let [release (map (fn [b] `(.release ~(first b))) (partition 2 bindings))]
+    `(let ~bindings
+       (try
+         ~@body
+         (finally
+           ~@release)))))
 
 (defn line-length-squared [[[x1 y1] [x2 y2] :as line]]
   (+ (* (- y2 y1) (- y2 y1)) (* (- x2 x1) (- x2 x1))))
@@ -75,6 +85,16 @@
   {:type (.type mat)
    :size [(.width mat) (.height mat)]
    :data (read-string (.replace (.dump mat) ";\n " ","))})
+
+(defmulti mat->seq class)
+(defmethod mat->seq :default [m]
+  (throw (RuntimeException. (str "Unknown type for conversion to vec: " (class m)))))
+
+(defmethod mat->seq MatOfPoint2f [m]
+  (map (fn [i] [(.-x i) (.-y i)]) (seq (.toArray m))))
+
+(defmethod mat->seq MatOfPoint [m]
+  (map (fn [i] [(.-x i) (.-y i)]) (seq (.toArray m))))
 
 (defn vec->mat
   [mat vec]

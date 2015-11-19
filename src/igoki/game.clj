@@ -74,7 +74,7 @@
 
 (defn dump-camera [filename camidx raw updatelist]
   (when filename
-    (let [out (MatOfByte.)]
+    (util/with-release [out (MatOfByte.)]
       (println "Writing jpg: " filename "/" (str camidx ".jpg"))
       (Highgui/imencode ".jpg" raw out)
       (util/zip-add-file filename (str camidx ".jpg") (ByteArrayInputStream. (.toArray out)))
@@ -130,13 +130,14 @@
       (> (count black) (count white)) (assoc :player-start ["W"]))))
 
 (defn reset-kifu [ctx]
-  (TVFS/umount)
   (let [context @ctx
         board (-> context :board)
+        camfile (or (-> context :kifu :filename) (str "capture/" (.toString (UUID/randomUUID)) ".zip"))
+        camidx (or (-> context :kifu :camidx) 0)
         new-game
         (->
-          {:filename            (str "capture/" (.toString (UUID/randomUUID)) ".zip")
-           :camidx              1
+          {:filename            camfile
+           :camidx              (inc camidx)
            :moves               (add-initial-points
                                   {:branches     []
                                    :player-start ["B"]
@@ -156,15 +157,20 @@
 
     (util/zip-add-file-string
       (:filename new-game)
-      "config.edn"
-      (pr-str new-game))
-    (dump-camera (:filename new-game) 0 (-> context :camera :raw) [board])
+      (str camidx ".config.edn")
+      (pr-str
+        {:board     (:board context)
+         :goban     (:goban context)
+         :view      (dissoc (:view context) :homography)
+         :kifu      new-game}))
+    (dump-camera (:filename new-game) camidx (-> context :camera :raw) [board])
     (swap! ctx assoc :kifu new-game)))
 
 (defmethod ui/construct :kifu [ctx]
-  (if-not (-> @ctx :kifu)
+  (when-not (-> @ctx :kifu)
+    (TVFS/umount)
     (reset-kifu ctx))
-  (util/add-watch-path ctx :kifu-camera [:camera] #'camera-updated )
+  (util/add-watch-path ctx :kifu-camera [:camera :raw] #'camera-updated )
   (util/add-watch-path ctx :kifu-board [:board] #'board-updated))
 
 (defmethod ui/destruct :kifu [ctx]
