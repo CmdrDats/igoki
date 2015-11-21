@@ -67,12 +67,13 @@
                       (and
                         (not (< (- rh 20) h (+ rh 20)))
                         (< v (- rv vs))
-                        (< s (+ rs ss))) :b
+                        #_(< s (+ rs ss))) :b
 
-                      (and
-                        (not (< (- rh 20) h (+ rh 30)))
+                      (or
+                        #_(not (< (- rh 20) h (+ rh 50)))
                         (> v (+ rv vs))
-                        (< s rs)) :w
+                        (and (< s (- rs ss)) (> v (+ rv (/ vs 2))))
+                        #_(< s rs)) :w
                       )))
                 row refrow)))
           samplepoints
@@ -92,6 +93,7 @@
     (let [{{:keys [size]}             :goban
            {:keys [raw]}              :camera
            {:keys [shift samplesize]} :view} context
+          samplesize (or samplesize [14 14])
           samplecorners (target-points size)
           ref (Mat.)
           samplepoints (sample-points samplecorners size)]
@@ -100,7 +102,7 @@
       (Core/meanStdDev ref imgmean imgstddev)
       {:homography    homography
        :shift         [0 0]
-       :samplesize    [14 14]
+       :samplesize    samplesize
        :samplecorners samplecorners
        :samplepoints  samplepoints
        :refmean       (seq (.toArray imgmean))
@@ -108,6 +110,11 @@
        :reference     (map (fn [row] (map (fn [[x y]] (mean-at ref x y samplesize)) row)) samplepoints)})))
 
 (defn update-reference [ctx & [force]]
+  (let [{{:keys [homography]} :view :as context} @ctx]
+    (when (and homography (or force (not (-> context :view :reference))))
+      (swap! ctx assoc :view (gather-reference context homography)))))
+
+(defn update-homography [ctx]
   (util/with-release
     [target (MatOfPoint2f.)
      origpoints (MatOfPoint2f.)]
@@ -116,12 +123,11 @@
           origpoints (util/vec->mat origpoints points)
           homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)]
       (when homography
-        (if (or force (not (:view context)))
-          (swap! ctx assoc :view (gather-reference context homography))
-          (swap! ctx assoc-in [:view :homography] homography))))))
+        (swap! ctx assoc-in [:view :homography] homography)))))
 
 (defmethod ui/construct :view [ctx]
   (util/add-watch-path ctx :view [:camera :raw] camera-updated)
+  (update-homography ctx)
   (update-reference ctx))
 
 (defmethod ui/destruct :view [ctx]

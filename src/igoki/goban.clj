@@ -16,7 +16,7 @@
 
 (defn reverse-transform [ctx]
   (when (= 4 (count (-> @ctx :goban :edges)))
-    (view/update-reference ctx)
+    (view/update-homography ctx)
     (let [context @ctx
           homography (-> context :view :homography)
           size (-> context :goban :size)

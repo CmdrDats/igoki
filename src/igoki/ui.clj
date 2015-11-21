@@ -2,9 +2,11 @@
   (:require [quil.core :as q]
             [igoki.util :as util])
   (:import (org.opencv.highgui VideoCapture Highgui)
-           (org.opencv.core Mat)
+           (org.opencv.core Mat Core)
            (javax.swing SwingUtilities JFrame JFileChooser)
-           (org.opencv.video Video)))
+           (org.opencv.video Video)
+           (org.opencv.imgproc Imgproc)
+           (java.util LinkedList)))
 
 (defn setup [ctx]
   (q/smooth)
@@ -98,6 +100,37 @@
     (.release video))
   (swap! ctx update :camera assoc :stopped true :video nil))
 
+(defn illuminate-correct [m]
+  (util/with-release [lab-image (Mat.) equalized (Mat.)]
+    (let [planes (LinkedList.)]
+      (Imgproc/cvtColor m lab-image Imgproc/COLOR_BGR2Lab)
+      (Core/split lab-image planes)
+      (Imgproc/equalizeHist (first planes) equalized)
+      (.copyTo equalized (first planes))
+      (Core/merge planes lab-image)
+      (Imgproc/cvtColor lab-image m Imgproc/COLOR_Lab2BGR)
+      m)))
+
+(defn camera-read [ctx video]
+  (when-not (.isOpened video)
+    (println "Error: Camera not opened"))
+  (when-not (-> @ctx :camera :stopped)
+    (try
+      (let [frame (Mat.)]
+        (.read video frame)
+        (let [corrected (illuminate-correct frame)]
+          (swap!
+            ctx update :camera assoc
+            :raw corrected
+            :pimg (util/mat-to-pimage corrected))))
+      (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
+      (catch Exception e
+        (println "exception thrown")
+        (.printStackTrace e)
+        #_(stop-read-loop ctx)
+        #_(throw e)))
+    (recur ctx video)))
+
 (defn read-loop [ctx camidx]
   (let [^VideoCapture video (VideoCapture. camidx)]
     (swap! ctx update :camera assoc
@@ -106,25 +139,7 @@
     (doto
       (Thread.
         ^Runnable
-        (fn []
-          (when-not (.isOpened video)
-            (println "Error: Camera not opened"))
-          (when-not (-> @ctx :camera :stopped)
-            (try
-              (let [frame (Mat.)]
-                (.read video frame)
-                (swap!
-                  ctx update :camera assoc
-                  :raw frame
-                  :pimg (util/mat-to-pimage frame)))
-              (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
-              (catch Exception e
-                (println "exception thrown")
-                (.printStackTrace e)
-                #_(stop-read-loop ctx)
-                #_(throw e)))
-            (recur))
-          ))
+        #(camera-read ctx video))
       (.setDaemon true)
       (.start))))
 
