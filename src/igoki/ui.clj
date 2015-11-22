@@ -118,7 +118,7 @@
     (try
       (let [frame (Mat.)]
         (.read video frame)
-        (let [corrected (illuminate-correct frame)]
+        (let [corrected frame #_(illuminate-correct frame)]
           (swap!
             ctx update :camera assoc
             :raw corrected
