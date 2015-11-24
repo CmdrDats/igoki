@@ -65,7 +65,7 @@
                   (let [[h s v] (mean-at flattened px py samplesize)]
                     (cond
                       (and
-                        (not (< (- rh 20) h (+ rh 20)))
+                        (not (< (- rh 10) h (+ rh 10)))
                         (< v (- rv vs))
                         #_(< s (+ rs ss))) :b
 
