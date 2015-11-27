@@ -6,7 +6,9 @@
            (javax.swing SwingUtilities JFrame JFileChooser)
            (org.opencv.video Video)
            (org.opencv.imgproc Imgproc)
-           (java.util LinkedList)))
+           (java.util LinkedList)
+           (kuusisto.tinysound TinySound)
+           (java.io File)))
 
 (defn setup [ctx]
   (q/smooth)
@@ -169,5 +171,16 @@
           (= JFileChooser/APPROVE_OPTION (.showOpenDialog chooser frame))
           (success-fn (.getSelectedFile chooser)))
         (finally (.dispose frame))))))
+
+(TinySound/init)
+
+(def sounds
+  {:click  (TinySound/loadSound (ClassLoader/getSystemResource "sounds/click.wav"))
+   :undo   (TinySound/loadSound (ClassLoader/getSystemResource "sounds/back.wav"))
+   :submit (TinySound/loadSound (ClassLoader/getSystemResource "sounds/submit.wav"))})
+
+(defn sound [soundkey]
+  (when-let [s (get sounds soundkey)]
+    (.play s)))
 
 #_(start (transition ctx :goban))

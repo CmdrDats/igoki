@@ -63,6 +63,7 @@
         (first (or (:black lastmove) (:white lastmove)))
         (= (take 2 mv) (sgf/convert-sgf-coord (first (or (:black lastmove) (:white lastmove))))))
       (do
+        (ui/sound :undo)
         (swap!
           ctx
           (fn [c]
@@ -104,15 +105,16 @@
       (swap! ctx update-in [:kifu :submit :latch] dec)
       :else
       (do
+        (ui/sound :submit)
         (println "Debounce success - move submitted")
         (dump-camera filename camidx raw updatelist)
         (let [new (inferrence/infer-moves game updatelist (last updatelist))]
-          (if new
+          (if (and new (not= (:kifu-board new) (:kifu-board game)))
             (do
-              (.beep (Toolkit/getDefaultToolkit))
+              (ui/sound :click)
               (reset! captured-boardlist [])
-              (swap! ctx assoc :kifu (assoc (dissoc new :submit) :camidx (inc camidx))))
-            (swap! ctx update :kifu #(assoc (dissoc % :submit) :camidx (inc camidx)))))
+              (swap! ctx assoc :kifu (assoc (dissoc new :submit) :camidx ((fnil inc 0) camidx))))
+            (swap! ctx update :kifu #(assoc (dissoc % :submit) :camidx ((fnil inc 0) camidx)))))
         (swap! ctx update :camera dissoc :read-delay)))))
 
 (defn add-initial-points [node board]
@@ -219,7 +221,8 @@
                (q/width) (q/height)))
 
     (ui/shadow-text (str "Recording: Img #" (:camidx game)) tx 25)
-    (ui/shadow-text (:filename game) tx 50)
+    (when (:filename game)
+      (ui/shadow-text (:filename game) tx 50))
     (ui/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
     (ui/shadow-text "<R> Reset Kifu" tx 125)
     (ui/shadow-text "<V> Back to camera diff view" tx 150)

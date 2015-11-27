@@ -24,9 +24,10 @@
     img))
 
 (defn mat-to-pimage [^Mat frame]
-  (-> frame
-      mat-to-buffered-image
-      bufimage-to-pimage))
+  (when (and (> (.rows frame) 0) (> (.cols frame) 0))
+    (-> frame
+        mat-to-buffered-image
+        bufimage-to-pimage)))
 
 (defmacro with-release
   "A let block, calling .release on each provided binding at the end, in a finally block."

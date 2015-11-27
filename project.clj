@@ -10,5 +10,7 @@
    [clj-http "2.0.0"]
    [cheshire "5.5.0"]
    [de.schlichtherle.truezip/truezip-file "7.7.9"]
-   [de.schlichtherle.truezip/truezip-driver-zip "7.7.9"]]
+   [de.schlichtherle.truezip/truezip-driver-zip "7.7.9"]
+   [kuusisto/tinysound "1.1.1"]]
+  :repositories {"yadarts-maven" "https://raw.github.com/yadarts/maven/master"}
   :main igoki.core)

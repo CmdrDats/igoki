@@ -74,7 +74,9 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  I hope this has whetted your appetite enough to install and give it a shot! Please send me feedback,
  as I am keen to hear what you think.
- 
+
+ For more info on camera setup and so on, @itiswritten2001 put together a detailed writeup at http://imgur.com/a/t2Ddg
+
 ## Usage
  
  This project is written in clojure and there is (currently) no binary for it, so you need to install
