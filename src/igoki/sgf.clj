@@ -19,14 +19,14 @@
    "PL" :player-start
 
    ;; Annotation
-   "C" :comment
+   "C"  :comment
    "DM" :position-even
    "GB" :position-bias-black
    "GW" :position-bias-white
    "HO" :position-hotspot
-   "N" :name
+   "N"  :name
    "UC" :position-unclear
-   "V" :value-to-white                                      ; Negative is good for black
+   "V"  :value-to-white                                     ; Negative is good for black
 
    ;; Move annotation
    "BM" :move-bad
@@ -88,17 +88,20 @@
    ;; Miscellaneous
    "FG" :print-figure
    "PM" :print-move-numbers
-   "VW" :view                                               ; show only listed points or reset if empty
-   })
+   "VW" :view}                                              ; show only listed points or reset if empty
+  )
 
 (def reverse-property-lookup
   (into {} (map (fn [[k v]] [v k]) property-lookup)))
 
 (defn convert-coord [x y]
-  (str (char (+ 97 x)) (char (+ 97 y))))
+  (if (or (neg? x) (neg? y))
+    ""
+    (str (char (+ 97 x)) (char (+ 97 y)))))
 
 (defn convert-sgf-coord [[x y :as s]]
-  [(- (int x) 97) (- (int y) 97)])
+  (when (and x y)
+    [(- (int x) 97) (- (int y) 97)]))
 
 (defn inpath [branch-path]
   (concat [:branches] (mapcat (fn [i] [i :branches]) (mapcat identity branch-path))))

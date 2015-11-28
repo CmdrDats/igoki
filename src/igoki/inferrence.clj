@@ -99,6 +99,5 @@
               g))
           game
           moves)]
-    (println moves)
     (print-boards (:kifu-board game) (:kifu-board inferred) final-position)
     (if (= (:kifu-board inferred) final-position) inferred)))

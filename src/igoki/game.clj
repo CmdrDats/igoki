@@ -230,6 +230,7 @@
     (ui/shadow-text "<E> Export SGF" tx 200)
     (ui/shadow-text "<L> Load SGF" tx 225)
     (ui/shadow-text "<M> Toggle show branches" tx 250)
+    (ui/shadow-text "<P> Pass" tx 275)
 
     (q/fill 220 179 92)
     (q/rect 0 0 (q/height) (q/height))
@@ -278,9 +279,9 @@
 
     (q/text-size 12)
     ;; Draw the constructed sgf board stones
-    (doseq [[p {:keys [stone] mn :movenumber}] (:board constructed)]
-      (let [[x y] (sgf/convert-sgf-coord p)]
-        (when stone
+    (doseq [[pt {:keys [stone] mn :movenumber}] (:board constructed)]
+      (let [[x y :as p] (sgf/convert-sgf-coord pt)]
+        (when (and p stone)
           (q/stroke-weight 1)
           (q/stroke 0)
           (q/fill (if (= stone :white) 255 0))
@@ -314,23 +315,25 @@
     (when lastmove
       (let [{:keys [black white]} lastmove]
         (doseq [m (or black white)]
-          (let [[x y] (sgf/convert-sgf-coord m)]
-            (q/stroke (if white 0 255))
-            (q/stroke-weight 3)
-            (q/fill 0 0)
-            (q/ellipse (+ grid-start (* x cellsize))
-                       (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2)))))
+          (let [[x y :as p] (sgf/convert-sgf-coord m)]
+            (when p
+              (q/stroke (if white 0 255))
+              (q/stroke-weight 3)
+              (q/fill 0 0)
+              (q/ellipse (+ grid-start (* x cellsize))
+                         (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2))))))
 
       ;; Mark next branches
       (when (:show-branches game)
         (doseq [{:keys [black white]} (:branches lastmove)
                 m (or black white)]
-          (let [[x y] (sgf/convert-sgf-coord m)]
-            (q/stroke (if white 255 0))
-            (q/stroke-weight 3)
-            (q/fill 0 0)
-            (q/ellipse (+ grid-start (* x cellsize))
-                       (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2))))))
+          (let [[x y :as p] (sgf/convert-sgf-coord m)]
+            (when p
+              (q/stroke (if white 255 0))
+              (q/stroke-weight 3)
+              (q/fill 0 0)
+              (q/ellipse (+ grid-start (* x cellsize))
+                         (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2)))))))
 
     ;; If in the process of submitting, mark that stone.
     (when submit
@@ -387,9 +390,13 @@
           (assoc-in [:kifu :current-branch-path] new-branch-path)
           (update-in [:kifu] inferrence/reconstruct)))))
 
-(defmethod ui/key-pressed :kifu [ctx]
-  #_(.showSaveDialog (JFileChooser.) (:sketch @ctx))
+(defn pass [context]
+  (let [{:keys [kifu]} context]
+    (assoc context
+      :kifu
+      (inferrence/play-move kifu [-1 -1 nil ({:white :w :black :b} (-> kifu :constructed :player-turn))]))))
 
+(defmethod ui/key-pressed :kifu [ctx]
   (case
     (q/key-code)
     67 (ui/transition ctx :goban)
@@ -400,5 +407,6 @@
     77 (toggle-branches ctx)
     37 (swap! ctx move-backward)
     39 (swap! ctx move-forward)
+    80 (swap! ctx pass)
     (println "Key code not handled: " (q/key-code))))
 
