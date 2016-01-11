@@ -170,3 +170,15 @@
   (let [out (ByteArrayOutputStream.)]
     (.output (TFile. ^String zipname ^String filename) out)
     (.toByteArray out)))
+
+(defn hamming-dist [s1 s2]
+  (let [n (min (count s1) (count s2))
+        dist* (fn [^long n ^long i ^long a]
+                (if (zero? n)
+                  a
+                  (recur (dec n)
+                         (inc i)
+                         (if (not= (get s1 i) (get s2 i))
+                           (inc a)
+                           a))))]
+    (dist* n 0 (- (max (count s1) (count s2)) n))))

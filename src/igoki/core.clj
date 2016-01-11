@@ -4,7 +4,9 @@
     [igoki.goban]
     [igoki.view]
     [igoki.game]
-    [igoki.ui :as ui])
+    [igoki.ui :as ui]
+    [clojure.tools.logging :as log]
+    )
   (:gen-class))
 
 (nu.pattern.OpenCV/loadShared)

@@ -422,3 +422,62 @@
             (.setDaemon true)
             (.start)))))
     #_(.release camera)))
+
+
+
+;; Some work on hough circles, discarded because it gets very inaccurate on busy boards.
+(comment
+  (defn hough-circles [m]
+    (util/with-release
+      [mat (Mat.)
+       bilat (Mat.)
+       blurred (Mat.)
+       white-mask (Mat.)
+       black-mask (Mat.)
+       laplacian (Mat.)
+       masked (Mat.)
+       circles (Mat.)
+       canny (Mat.)]
+      #_(doseq [r (range (count (:signature cluster)))]
+          (let [[x y] [(mod r szx) (int (/ r szx))]]
+            (.put ^Mat mat x y (double-array (repeat 3 (* 255.0 (double (get (:signature cluster) r))))))))
+
+      (Imgproc/cvtColor m mat Imgproc/COLOR_HSV2BGR)
+      (Imgproc/cvtColor mat mat Imgproc/COLOR_BGR2GRAY)
+      (Imgproc/dilate mat blurred (Imgproc/getStructuringElement Imgproc/MORPH_ELLIPSE (Size. 7 7)))
+      (Imgproc/erode blurred blurred (Imgproc/getStructuringElement Imgproc/MORPH_ELLIPSE (Size. 9 9)))
+      (Imgproc/blur blurred bilat (Size. 5 5))
+      #_(Imgproc/Laplacian bilat laplacian 0 1 0.8 0.1)
+      #_(Core/addWeighted laplacian 10.0 bilat 0.8 10.0 bilat)
+
+      (Core/compare bilat (Scalar. 200.0) white-mask Core/CMP_GT)
+      (Imgproc/dilate white-mask white-mask (Imgproc/getStructuringElement Imgproc/MORPH_ELLIPSE (Size. 12 12)))
+      (Core/compare bilat (Scalar. 80.0) black-mask Core/CMP_LT)
+      #_(Imgproc/GaussianBlur blurred bilat (Size. 9 9) 20)
+      #_(Imgproc/cvtColor (ui/illuminate-correct blurred) bilat Imgproc/COLOR_BGR2GRAY)
+      #_(Imgproc/bilateralFilter blurred bilat 2 (double 10) (double 10))
+
+      (Imgproc/Canny bilat canny 50 25)
+
+      #_(q/image (util/mat-to-pimage bilat) 0 0)
+      (let [min-radius 17
+            max-radius 25]
+        (Imgproc/HoughCircles bilat circles Imgproc/CV_HOUGH_GRADIENT 1 25 50 8 min-radius max-radius)
+
+        (let [found (doall (map #(vec (.get circles 0 %)) (range (.cols circles))))]
+          #_(println "---------------")
+          {:bilat (util/mat-to-pimage bilat)
+           :canny (util/mat-to-pimage canny)
+           :white (doall (filter (fn [[x y]]
+                                   #_(println (first (.get ^Mat white-mask y x)))
+                                   (= 255 (int (first (.get ^Mat white-mask y x))))) found))
+           :black (doall (filter (fn [[x y]]
+                                   #_(println (first (.get ^Mat white-mask y x)))
+                                   (= 255 (int (first (.get ^Mat black-mask y x))))) found))}
+          #_{:white (filter (fn [[x y]] (= 1 (int (first (.get ^Mat white-mask y x))))) found)
+             :black (filter (fn [[x y]] (= 1 (int (first (.get ^Mat black-mask y x))))) found)}))))
+  (defn read-circle-board [samplepoints {:keys [black white] :as circles}]
+    #_(for [[y row] (map-indexed vector samplepoints)
+            [x [px py]] (map-indexed vector row)]
+        )
+    ))

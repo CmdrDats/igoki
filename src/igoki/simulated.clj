@@ -94,7 +94,7 @@
              update :camera assoc
              :raw (-> context :camera :raw)
              :pimg (util/mat-to-pimage (-> context :camera :raw)))
-      (util/with-release [m (.clone (-> context :sim :background))]
+      (let [m (.clone (-> context :sim :background))]
         (draw-board m)
         (swap! simctx
                update :camera assoc

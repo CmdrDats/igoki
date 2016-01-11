@@ -234,7 +234,7 @@
 
     (q/fill 220 179 92)
     (q/rect 0 0 (q/height) (q/height))
-    (q/stroke-weight 1.1)
+    (q/stroke-weight 0.8)
     (q/stroke-cap :square)
     (q/stroke 0 196)
 
@@ -264,8 +264,8 @@
       (q/stroke-weight 1)
       (q/stroke 0 32)
       (q/fill 0)
-      (q/ellipse (+ grid-start (* x cellsize) 0.5)
-                 (+ grid-start (* y cellsize) 0.5) 6 6))
+      (q/ellipse (+ grid-start (* x cellsize))
+                 (+ grid-start (* y cellsize)) 6 6))
 
     ;; Draw camera board (shadow)
     (doseq [[y row] (map-indexed vector board)
@@ -282,11 +282,11 @@
     (doseq [[pt {:keys [stone] mn :movenumber}] (:board constructed)]
       (let [[x y :as p] (sgf/convert-sgf-coord pt)]
         (when (and p stone)
-          (q/stroke-weight 1)
+          (q/stroke-weight 0.5)
           (q/stroke 0)
           (q/fill (if (= stone :white) 255 0))
           (q/ellipse (+ grid-start (* x cellsize))
-                     (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))
+                     (+ grid-start (* y cellsize)) (- cellsize 2) (- cellsize 2))
 
           (q/fill (if (= stone :white) 0 255)))
 
