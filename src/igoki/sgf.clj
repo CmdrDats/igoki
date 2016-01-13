@@ -91,6 +91,16 @@
    "VW" :view}                                              ; show only listed points or reset if empty
   )
 
+(def handicap-placement
+  {2 ["pd" "dp"]
+   3 ["pd" "dp" "pp"]
+   4 ["pd" "dp" "pp" "dd"]
+   5 ["pd" "dp" "pp" "dd" "jj"]
+   6 ["pd" "dp" "pp" "dd" "dj" "pj"]
+   7 ["pd" "dp" "pp" "dd" "jj" "dj" "pj"]
+   8 ["pd" "dp" "pp" "dd" "dj" "pj" "jd" "jp"]
+   9 ["pd" "dp" "pp" "dd" "dj" "pj" "jd" "jp" "jj"]})
+
 (def reverse-property-lookup
   (into {} (map (fn [[k v]] [v k]) property-lookup)))
 

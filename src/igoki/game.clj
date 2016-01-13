@@ -56,13 +56,15 @@
       (and (not (empty? diff)) dirty)
       (println "Not actioning board updates until clean state is reached")
       ;; Special case to undo last move
-      (and
+      ;; Disabled temporarily for issues with online integration.
+      #_(and
         lastmove
         (= (count diff) 1)
         (nil? mn) (not (nil? mo))
         (first (or (:black lastmove) (:white lastmove)))
         (= (take 2 mv) (sgf/convert-sgf-coord (first (or (:black lastmove) (:white lastmove))))))
-      (do
+
+      #_(do
         (ui/sound :undo)
         (swap!
           ctx
