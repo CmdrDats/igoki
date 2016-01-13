@@ -114,13 +114,20 @@
                       (fn [[px py] reference-cluster]
                         nil
                         (let [[rh rl rs] reference-cluster
-                              [h l s] (mean-at new-flat px py samplesize)]
+                              [h l s] (mean-at new-flat px py samplesize)
+                              hf 20]
 
                           (cond
                             (or
+                              (and
+                                (or (< (+ h hf) rh) (> (- h hf) rh))
+                                (< l 128))
                               (< l (- rl (/ rl 3)))
                               #_(and (< l rl) (< s) (< s (/ rs 2)))) :b
                             (or
+                              (and
+                                (or (< (+ h hf) rh) (> (- h hf) rh))
+                                (> l 128))
                               (> l (+ rl (/ (- 255 rl) 2)))
                               (and (> rl 180) (> s (+ rs 50)))) :w)))
                       row refrow)))

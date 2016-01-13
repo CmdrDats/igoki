@@ -122,7 +122,28 @@
 (defn add-move [game [x y time]]
   (inferrence/play-move game [x y 0 (case (-> game :constructed :player-turn) :black :b :w)]))
 
-(defn initialize-game [game]
+(defn play-move [c data]
+  (let [ogspath (-> c :ogs :current-branch-path)
+        ogsmovenumber (-> c :ogs :movenumber)
+        currentpath (-> c :kifu :current-branch-path)
+        currentmovenumber (-> c :kifu :movenumber)
+        kifu (inferrence/reconstruct (assoc (:kifu c) :current-branch-path ogspath :movenumber ogsmovenumber))
+        game (add-move kifu (:move data))
+        newpath (:current-branch-path game)
+        newmovenumber (:movenumber game)
+        game
+        (if (or (not= ogsmovenumber currentmovenumber) (not= ogspath currentpath))
+          (inferrence/reconstruct (assoc game :current-branch-path currentpath :movenumber currentmovenumber))
+          game)]
+    (ui/sound :click)
+    (->
+      c
+      (assoc :kifu game)
+      (update :ogs assoc
+              :current-branch-path newpath
+              :movenumber newmovenumber))))
+
+(defn initialize-game [c game]
   (let [initial-node
         (cond->
           {:branches     []
@@ -146,8 +167,14 @@
         (inferrence/reconstruct
           {:moves               initial-node
            :current-branch-path []
-           :movenumber          0})]
-    (reduce add-move game-setup (:moves game))))
+           :movenumber          0})
+        game-setup (reduce add-move game-setup (:moves game))]
+    (->
+      c
+      (update :kifu merge game-setup)
+      (update :ogs assoc
+              :current-branch-path (:current-branch-path game-setup)
+              :movenumber (:movenumber game-setup)))))
 
 (def game-events
   ["gamedata" "clock" "phase" "undo_requested" "undo_accepted" "move" "conditional_moves"
@@ -175,18 +202,15 @@
     (socket-listener
       socket (action "move")
       (fn [data]
-        (swap! ctx update-in [:kifu]
-               #(do
-                 (ui/sound :click)
-                 (add-move % (:move data))))))
+        (swap! ctx play-move data)))
 
     (socket-listener
       socket (action "gamedata")
       (fn [data]
         (cond
           (= "play" (:phase data))
-          (swap! ctx update-in
-                 [:kifu] #(merge % (initialize-game (-> @ctx :ogs :event-stream first :data))))
+          (swap! ctx initialize-game data)
+
 
           (= "finished" (:phase data))
           (do

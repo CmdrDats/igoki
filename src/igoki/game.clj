@@ -57,14 +57,14 @@
       (println "Not actioning board updates until clean state is reached")
       ;; Special case to undo last move
       ;; Disabled temporarily for issues with online integration.
-      #_(and
+      (and
         lastmove
         (= (count diff) 1)
         (nil? mn) (not (nil? mo))
         (first (or (:black lastmove) (:white lastmove)))
         (= (take 2 mv) (sgf/convert-sgf-coord (first (or (:black lastmove) (:white lastmove))))))
 
-      #_(do
+      (do
         (ui/sound :undo)
         (swap!
           ctx
