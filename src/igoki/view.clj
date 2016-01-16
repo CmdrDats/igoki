@@ -115,21 +115,21 @@
                         nil
                         (let [[rh rl rs] reference-cluster
                               [h l s] (mean-at new-flat px py samplesize)
-                              hf 20]
+                              hf 40]
 
                           (cond
                             (or
                               (and
                                 (or (< (+ h hf) rh) (> (- h hf) rh))
                                 (< l 128))
-                              (< l (- rl (/ rl 3)))
+                              (< l (- rl (/ rl 2)))
                               #_(and (< l rl) (< s) (< s (/ rs 2)))) :b
                             (or
                               (and
                                 (or (< (+ h hf) rh) (> (- h hf) rh))
                                 (> l 128))
                               (> l (+ rl (/ (- 255 rl) 2)))
-                              (and (> rl 180) (> s (+ rs 50)))) :w)))
+                              (and (> rl 190) (> s (+ rs 60)))) :w)))
                       row refrow)))
                 samplepoints
                 reference))))))))

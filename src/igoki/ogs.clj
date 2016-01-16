@@ -6,7 +6,8 @@
     [cheshire.core :as json]
     [igoki.inferrence :as inferrence]
     [igoki.sgf :as sgf]
-    [igoki.ui :as ui])
+    [igoki.ui :as ui]
+    [igoki.util :as util])
   (:import (io.socket.client Socket IO Ack)
            (io.socket.emitter Emitter$Listener)
            (org.json JSONObject)
@@ -166,13 +167,14 @@
         game-setup
         (inferrence/reconstruct
           {:moves               initial-node
-           :current-branch-path []
+           :current-branch-path [[]]
            :movenumber          0})
         game-setup (reduce add-move game-setup (:moves game))]
     (->
       c
       (update :kifu merge game-setup)
       (update :ogs assoc
+              :gameinfo game
               :current-branch-path (:current-branch-path game-setup)
               :movenumber (:movenumber game-setup)))))
 
@@ -184,10 +186,53 @@
   (let [ogs (:ogs @ctx)]
     (doseq [en game-events]
       (.off (:socket ogs) (str "game/" (:gameid ogs) "/" en)))
+    (remove-watch ctx (str "ogs." (:gameid ogs)))
     (socket-emit (:socket ogs) "game/disconnect" {:game_id (:gameid ogs)})))
 
-(defn connect-record [ctx socket auth gameid]
-  (let [player (:body (me auth))
+(defn check-submit-move [ctx old new]
+  (let [ogspath (-> new :ogs :current-branch-path)
+        oldpath (-> old :kifu :current-branch-path)
+        newpath (-> new :kifu :current-branch-path)
+        gameinfo (-> new :ogs :gameinfo)
+        players (-> new :ogs :players)]
+    ;; When either the kifu path or the ogspath changes - check for submission
+    (when-not (and (= oldpath newpath)
+                   (= (-> old :ogs :current-branch-path) ogspath))
+      (log/info "ogspath: " ogspath)
+      (log/info "oldpath: " oldpath)
+      (log/info "newpath: " newpath)
+      (log/info (:auth gameinfo))
+      (let [flatogspath (mapcat identity ogspath)
+            flatnewpath (mapcat identity newpath)]
+        (when (and
+                (> (count flatnewpath) (count flatogspath))
+                (= flatogspath (take (count flatogspath) flatnewpath)))
+          (let [{:keys [black white]} (first (drop (inc (count flatogspath)) (sgf/current-branch-node-list newpath (-> new :kifu :moves))))
+                player (first (filter #(= (:id (:info %)) (get gameinfo (if black :black_player_id :white_player_id))) players))]
+            (cond
+              (and black player)
+              (do
+                (log/info "Submitting Black move: " black player)
+                (socket-emit (-> new :ogs :socket)
+                             "game/move" {:game_id   (:game_id gameinfo)
+                                          :move      (first black)
+                                          :player_id (-> player :info :id)
+                                          :auth      (:auth player)}))
+              (and white player)
+              (do
+                (log/info "Submitting White move: " white player)
+                (socket-emit (-> new :ogs :socket)
+                             "game/move" {:game_id   (:game_id gameinfo)
+                                          :move      (first white)
+                                          :player_id (-> player :info :id)
+                                          :auth      (:auth player)})))
+            ))))))
+
+(defn connect-record [ctx socket gameid auth & [auth2]]
+  (let [game (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth)))
+        _ (log/info "GAME INFO!!!!!!!!!!!! " game)
+        player {:info (:body (me auth)) :auth (:auth game)}
+        player2 (if auth2 {:info (:body (me auth2)) :auth (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth2)))})
         action #(str "game/" gameid "/" %)
         listen
         (fn [eventname]
@@ -217,16 +262,20 @@
             (disconnect ctx)
             (let [game {:sgf          (:body (game-sgf auth gameid))
                         :event-stream (:event-stream (:ogs @ctx))
-                        :gameid       gameid}]
+                        :gameid       gameid
+                        :auth         auth}]
               (spit (str "resources/ogs-game." gameid ".edn")
                     (pr-str game)))))))
 
     (socket-emit socket "game/connect" {:game_id gameid :player_id (:id player) :chat true})
 
+    (add-watch
+      ctx (str "ogs." gameid)
+      (fn [_ c o n]
+        (check-submit-move c o n)))
+
     (swap! ctx assoc
-      :ogs
-      {:socket socket :auth auth
-       :gameid gameid})))
+      :ogs {:socket socket :gameid gameid :players (if player2 [player player2] [player])})))
 
 
 
