@@ -7,7 +7,8 @@
     [igoki.inferrence :as inferrence]
     [igoki.sgf :as sgf]
     [igoki.ui :as ui]
-    [igoki.util :as util])
+    [igoki.util :as util]
+    [igoki.announce :as announce])
   (:import (io.socket.client Socket IO Ack)
            (io.socket.emitter Emitter$Listener)
            (org.json JSONObject)
@@ -129,18 +130,18 @@
         currentpath (-> c :kifu :current-branch-path)
         currentmovenumber (-> c :kifu :movenumber)
         kifu (inferrence/reconstruct (assoc (:kifu c) :current-branch-path ogspath :movenumber ogsmovenumber))
-        game (add-move kifu (:move data))
-        newpath (:current-branch-path game)
-        newmovenumber (:movenumber game)
+        ogsgame (add-move kifu (:move data))
+        newpath (:current-branch-path ogsgame)
+        newmovenumber (:movenumber ogsgame)
         game
         (if (or (not= ogsmovenumber currentmovenumber) (not= ogspath currentpath))
-          (inferrence/reconstruct (assoc game :current-branch-path currentpath :movenumber currentmovenumber))
-          game)]
-    (ui/sound :click)
+          (inferrence/reconstruct (assoc ogsgame :current-branch-path currentpath :movenumber currentmovenumber))
+          ogsgame)]
     (->
       c
       (assoc :kifu game)
       (update :ogs assoc
+              :game ogsgame
               :current-branch-path newpath
               :movenumber newmovenumber))))
 
@@ -247,7 +248,15 @@
     (socket-listener
       socket (action "move")
       (fn [data]
-        (swap! ctx play-move data)))
+        (ui/sound :click)
+        (swap! ctx play-move data)
+        (let [{:keys [ogs kifu]} @ctx]
+          (println "announcing move :"
+                   (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
+                   (igoki.inferrence/print-boards (-> ogs :game :kifu-board)))
+          (igoki.announce/comment-move
+            (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
+            (-> ogs :game :kifu-board)))))
 
     (socket-listener
       socket (action "gamedata")
@@ -302,6 +311,6 @@
   (def player (:body (me auth)))
   #_(def game (:body (client/get (str url "/api/v1/games/3374557") (ogs-headers auth))))
   #_(def ctx (atom {}))
-  (connect-record ui/ctx socket auth "3374557")
+  (connect-record ui/ctx socket "3881083" auth)
   (socket-emit socket "game/connect" {:game_id (:id game) :player_id (:id player) :chat false})
   (socket-emit socket "game/move" {:game_id (:id game) :move "rg" :player_id (:id player) :auth (:auth game)}))

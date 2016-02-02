@@ -249,14 +249,14 @@
             extent (+ grid-start (* cellsize (dec size)))
             x-offset (if (> x 7) 66 65)]
         (q/text-align :center :bottom)
-        (q/text (str (char (+ x-offset x))) coord (- grid-start (/ cellsize 2)))
+        (q/text (str (inc x)) coord (- grid-start (/ cellsize 2)))
         (q/text-align :center :top)
-        (q/text (str (char (+ x-offset x))) coord (+ extent (/ cellsize 2)))
+        (q/text (str (inc x)) coord (+ extent (/ cellsize 2)))
 
         (q/text-align :right :center)
-        (q/text (str (- size x)) (- grid-start (/ cellsize 2)) coord)
+        (q/text (str (inc x)) (- grid-start (/ cellsize 2)) coord)
         (q/text-align :left :center)
-        (q/text (str (- size x)) (+ extent (/ cellsize 2)) coord)
+        (q/text (str (inc x)) (+ extent (/ cellsize 2)) coord)
 
         (q/line coord grid-start coord extent)
         (q/line grid-start coord extent coord)))
