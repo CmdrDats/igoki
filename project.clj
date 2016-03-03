@@ -20,8 +20,8 @@
    [org.slf4j/jul-to-slf4j "1.6.2"]
    [org.slf4j/slf4j-log4j12 "1.6.2"]
 
-
-   [ring-server "0.4.0"]
+   [com.taoensso/sente "1.8.0"]
+   [http-kit "2.1.18"]
    [reagent "0.6.0-alpha"
     :exclusions [org.clojure/tools.reader]]
    [reagent-forms "0.5.20"]
@@ -44,9 +44,6 @@
             [lein-cljsbuild "1.1.1"]
             [lein-asset-minifier "0.2.7"
              :exclusions [org.clojure/clojure]]]
-
-  :ring {:handler igoki.web.handler/app
-         :uberwar-name "igoki.war"}
 
   :min-lein-version "2.5.0"
 

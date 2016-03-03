@@ -1,11 +1,17 @@
 (ns igoki.core
+  (:require-macros
+    [cljs.core.async.macros :as asyncm :refer (go go-loop)])
   (:require [reagent.core :as r]
             [reagent.session :as session]
+            [reagent-forms.core :as forms]
             [igoki.sound :as snd]
+            [igoki.comms :as comms]
             [secretary.core :as secretary :include-macros true]
             [accountant.core :as accountant]
             [igoki.xutil :as xu]
             [clojure.string :as string]))
+
+(enable-console-print!)
 
 (defonce app
   (r/atom {:selection "Library"
@@ -14,7 +20,8 @@
                           (case (int (rand 4))
                             1 :b
                             2 :w
-                            nil)))}))
+                            nil)))
+           :config {:tab {:selected :info}}}))
 
 ;; -------------------------
 ;; Views
@@ -110,40 +117,50 @@
                        (= cell :w) [:div.stone.white]
                        (= @hover [x y]) [:div.stone.white.ghost])])))))]]]])))
 
-(defn config-dialog [config]
-  [(if (:visible config) :div.modal.active :div.modal) {:on-click #(swap! app assoc-in [:config :visible] false)}
-   [:div.modalview
-    (if (:visible config)
-      [:div.titlebuttons
-       [:span
-        [:input.tabradio {:type      "radio" :name "config-tabs" :id "config-info"
-                          :on-change #(.log js/console "Info")}]
-        [:label.tab {:for "config-info"} "Info"]
-        [:article.config "opened!"]]
-       [:span
-        [:input.tabradio {:type "radio" :name "config-tabs" :id "config-online"}]
-        [:label.tab {:for "config-online"} "Online"]
-        [:article.config "online"]]
-       [:span
-        [:input.tabradio {:type "radio" :name "config-tabs" :id "config-camera"}]
-        [:label.tab {:for "config-camera"} "Camera"]
-        [:article.config
-         [:img {:src "/cap.png" :width "100%" :height "100%"}]]]])]
-
-   ])
+(defn config-dialog []
+  (let [doc (r/cursor app [:config])]
+    (fn []
+      [(if (:visible @doc) :div.modal.active :div.modal) {:on-click #(swap! doc assoc :visible false)}
+       [:div.modalview {:on-click (fn [e] (.stopPropagation e))}
+        (if (:visible @doc)
+          [forms/bind-fields
+           [:div.titlebuttons
+            [:span
+             [:input.tabradio {:field :radio
+                               :name  :tab.selected
+                               :value :info
+                               :id    "config-info"}]
+             [:label.tab {:for "config-info"} "Info"]
+             [:article.config "opened!"]]
+            [:span
+             [:input.tabradio {:field :radio
+                               :name  :tab.selected
+                               :value :online
+                               :id    "config-online"}]
+             [:label.tab {:for "config-online"} "Online"]
+             [:article.config "online"]]
+            [:span
+             [:input.tabradio {:field :radio
+                               :name  :tab.selected
+                               :value :camera
+                               :id    "config-camera"}]
+             [:label.tab {:for "config-camera"} "Camera"]
+             [:article.config
+              [:button {:on-click #()} "Next"]
+              [:img {:src "/cap.png" :width "100%" :height "100%"}]]]]
+           doc])]])))
 
 (defn home-page []
   [:div.page
-
    [sidebar]
-
+   [:div#output]
    [:div.maincontent
     [:div [:h2 "Welcome to igoki"]
      [:div [:a {:href "/about"} "go to about page"]
       [board (:board @app)]
       [:div.clear]
       [:button {:on-click #(swap! app update-in [:config :visible] (fn [i] (not i)))} "Game Config"]
-      [config-dialog (:config @app)]
+      [config-dialog]
 
       #_[:img {:src "/cap.png"}]]]]])
 
@@ -172,6 +189,7 @@
 (defn init! []
   (accountant/configure-navigation!)
   (accountant/dispatch-current!)
+  (comms/start-router!)
   (mount-root))
 
 

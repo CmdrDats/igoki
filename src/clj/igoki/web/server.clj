@@ -1,15 +1,15 @@
 (ns igoki.web.server
-  (:require [igoki.web.handler :refer [app]]
+  (:require [igoki.web.handler :as handler]
             [environ.core :refer [env]]
-            [ring.adapter.jetty :refer [run-jetty]])
+            [org.httpkit.server :as server])
   (:gen-class))
 
 ;; Battle plan:
 
-;; Go board component
+;; DONE: Go board component
 ;; Game view (turn indicator + captured pieces view)
 ;; Game setup popup
-;; Camera input tab
+;; DONE: Camera input tab
 ;; Camera raw view
 ;; Camera raw: board corner setup
 ;; Camera flattened view
@@ -19,4 +19,5 @@
 
  (defn start []
    (let [port (Integer/parseInt (or (env :port) "3000"))]
-     (run-jetty app {:port port :join? false})))
+     (server/run-server handler/app {:port port :join? false})
+     (handler/start-router!)))
