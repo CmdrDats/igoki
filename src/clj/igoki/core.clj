@@ -6,7 +6,8 @@
     [igoki.game]
     [igoki.ui :as ui]
     [igoki.web.server :as server]
-    [clojure.tools.logging :as log])
+    [clojure.tools.logging :as log]
+    [igoki.web.handler :as handler])
   (:gen-class))
 
 (nu.pattern.OpenCV/loadShared)
@@ -16,6 +17,7 @@
   (ui/start (ui/transition ui/ctx :goban)))
 
 (defn -main [& args]
+  (handler/start-router!)
   (server/start)
   (start)
   )

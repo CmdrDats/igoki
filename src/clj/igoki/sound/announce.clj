@@ -1,4 +1,4 @@
-(ns igoki.announce
+(ns igoki.sound.announce
   (:require [clojure.string :as str]
             [igoki.sgf :as sgf]
             [clojure.java.io :as io]
@@ -38,7 +38,7 @@
               (case p
                 "," (Thread/sleep 250)
                 "-" (Thread/sleep 500)
-                (snd/sound (str "sounds/japanese/" p ".wav"))))))
+                (snd/sound (str "public/sounds/japanese/" p ".wav"))))))
     (.setDaemon true)
     (.start)))
 

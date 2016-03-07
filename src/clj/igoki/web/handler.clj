@@ -31,7 +31,11 @@
 (defn event-msg-handler
   "Wraps `-event-msg-handler` with logging, error catching, etc."
   [{:as ev-msg :keys [id ?data event]}]
-  (-event-msg-handler ev-msg))
+  (try
+    (-event-msg-handler ev-msg)
+    (catch Exception e
+      ;; Like, don't kill the messenger?
+      (.printStackTrace e))))
 
 (defmethod -event-msg-handler
   :default ; Default/fallback case (no other matching handler)
@@ -43,6 +47,34 @@
       (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
 
 ;; TODO Add your (defmethod -event-msg-handler <event-id> [ev-msg] <body>)s here...
+
+(defn reply [{:keys [send-fn ring-req] :as req} ev msg]
+  (send-fn (-> ring-req :session :uid) [ev msg]))
+
+(def cameralist
+         (atom [{:id 1 :slot 0
+                 :corners [[100 100] [100 200] [200 200] [200 100]]}
+                {:id 2 :slot 1
+                 :corners [[50 50] [100 200] [200 200] [200 100]]}]))
+
+(defmethod -event-msg-handler
+  :camera/list
+  [{:keys [?data] :as req}]
+  (.println System/out "hi")
+  (reply req :camera/updatelist @cameralist))
+
+(defmethod -event-msg-handler
+  :camera/new
+  [{:keys [?data] :as req}]
+  (swap!
+    cameralist
+    (fn [c] (conj
+              c
+              {:id      (inc (apply max (map :id c)))
+               :slot    0
+               :corners [[100 100] [100 200] [200 200] [200 100]]
+               :viewing :start})))
+  (reply req :camera/updatelist @cameralist))
 
 ;;;; Sente event router (our `event-msg-handler` loop)
 
@@ -68,7 +100,12 @@
      [:meta {:charset "utf-8"}]
      [:meta {:name "viewport"
              :content "width=device-width, initial-scale=1"}]
-     (include-css (if (env :dev) "css/site.css" "css/site.min.css"))]
+     (include-css (if (env :dev) "css/site.css" "css/site.min.css"))
+     (include-css "css/bootstrap.css")
+     (include-css "css/material-design-iconic-font.min.css")
+     (include-css "css/re-com.css")
+     (include-css "css/roboto-italic.css")
+     (include-css "css/roboto-condensed.css")]
     [:body
      mount-target
      (include-js "js/app.js")]))

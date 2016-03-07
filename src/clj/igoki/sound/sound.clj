@@ -5,7 +5,7 @@
 (def get-clip
   (memoize
     (fn [file]
-      (println "Loading:" file)
+      #_(println "Loading:" file)
       (let [ais  (AudioSystem/getAudioInputStream (ClassLoader/getSystemResource file))
             clip (AudioSystem/getClip)]
         (.open clip ais)
@@ -25,9 +25,9 @@
     (.removeLineListener clip listener)))
 
 (def sounds
-  {:click  "sounds/click.wav"
-   :undo   "sounds/back.wav"
-   :submit "sounds/submit.wav"})
+  {:click  "public/sounds/click.wav"
+   :undo   "public/sounds/back.wav"
+   :submit "public/sounds/submit.wav"})
 
 (defn play-sound [soundkey]
   (if-let [s (get sounds soundkey)]

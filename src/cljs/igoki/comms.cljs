@@ -2,7 +2,8 @@
   (:require
     [cljs.core.async :as async :refer (<! >! put! chan)]
     [taoensso.encore :as encore]
-    [taoensso.sente  :as sente :refer (cb-success?)]))
+    [taoensso.sente :as sente :refer (cb-success?)]
+    [re-frame.core :as rf]))
 
 (defn ->output! [fmt & args]
   (let [output-el (.getElementById js/document "output")
@@ -21,6 +22,17 @@
   (def chsk-state state)   ; Watchable, read-only atom
   )
 
+(defn send
+  ([eventtype message]
+   (chsk-send! [eventtype message]))
+  ([eventtype message timeout success-fn & [fail-fn]]
+    (chsk-send!
+      [eventtype message] timeout
+      (fn [reply]
+        (if (sente/cb-success? reply)
+          (success-fn reply)
+          (if fail-fn (fail-fn)))))))
+
 (defmulti -event-msg-handler
           "Multimethod to handle Sente `event-msg`s"
           :id ; Dispatch on event-id
@@ -33,8 +45,9 @@
 
 (defmethod -event-msg-handler
   :default ; Default/fallback case (no other matching handler)
-  [{:as ev-msg :keys [event]}]
-  (->output! "Unhandled event: %s" event))
+  [{:as ev-msg :keys [id ?data]}]
+  (->output! "Dispatching: " id)
+  (rf/dispatch [id ?data]))
 
 (defmethod -event-msg-handler :chsk/state
   [{:as ev-msg :keys [?data]}]
@@ -43,8 +56,9 @@
     (->output! "Channel socket state change: %s" ?data)))
 
 (defmethod -event-msg-handler :chsk/recv
-  [{:as ev-msg :keys [?data]}]
-  (->output! "Push event from server: %s" ?data))
+  [{:as ev-msg :keys [?data id]}]
+  (->output! "Message received: " id)
+  (-event-msg-handler (assoc ev-msg :id (first ?data) :?data (second ?data))))
 
 (defmethod -event-msg-handler :chsk/handshake
   [{:as ev-msg :keys [?data]}]
@@ -58,3 +72,4 @@
   (reset! router_
           (sente/start-client-chsk-router!
             ch-chsk event-msg-handler)))
+

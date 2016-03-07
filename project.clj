@@ -20,6 +20,9 @@
    [org.slf4j/jul-to-slf4j "1.6.2"]
    [org.slf4j/slf4j-log4j12 "1.6.2"]
 
+   [re-frame "0.7.0-alpha-3"]
+   [re-com "0.8.0"]
+   [prismatic/schema "1.0.5"]
    [com.taoensso/sente "1.8.0"]
    [http-kit "2.1.18"]
    [reagent "0.6.0-alpha"
@@ -33,6 +36,7 @@
    [environ "1.0.2"]
    [org.clojure/clojurescript "1.7.228"
     :scope "provided"]
+   [com.andrewmcveigh/cljs-time "0.3.14"]
    [secretary "1.2.3"]
    [venantius/accountant "0.1.6"
     :exclusions [org.clojure/tools.reader]]]

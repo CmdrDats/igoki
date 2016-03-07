@@ -67,7 +67,7 @@
         (= (take 2 mv) (sgf/convert-sgf-coord (first (or (:black lastmove) (:white lastmove))))))
 
       (do
-        (snd/sound :undo)
+        (snd/play-sound :undo)
         (swap!
           ctx
           (fn [c]
@@ -109,13 +109,13 @@
       (swap! ctx update-in [:kifu :submit :latch] dec)
       :else
       (do
-        (snd/sound :submit)
+        (snd/play-sound :submit)
         (println "Debounce success - move submitted")
         (dump-camera filename camidx raw updatelist)
         (let [new (inferrence/infer-moves game updatelist (last updatelist))]
           (if (and new (not= (:kifu-board new) (:kifu-board game)))
             (do
-              (snd/sound :click)
+              (snd/play-sound :click)
               (reset! captured-boardlist [])
               (swap! ctx assoc :kifu (assoc (dissoc new :submit) :camidx ((fnil inc 0) camidx))))
             (swap! ctx update :kifu #(assoc (dissoc % :submit) :camidx ((fnil inc 0) camidx)))))
