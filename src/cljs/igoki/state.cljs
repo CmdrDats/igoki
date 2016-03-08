@@ -31,9 +31,6 @@
      :games   [Game]
      :cameras {s/Num Camera}}))
 
-;; Arbitrary abstraction leakage required.
-
-
 ;; Game camera management
 (rf/register-handler
   :init

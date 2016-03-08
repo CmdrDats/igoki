@@ -116,6 +116,9 @@
             [:radialGradient {:id "black-radial" :cx "40%" :cy "40%" :r "80%" :fx "30%" :fy "30%"}
              [:stop {:offset "0%" :style {:stop-color "#444444" :stop-opacity "1"}}]
              [:stop {:offset "100%" :style {:stop-color "#111111" :stop-opacity "1"}}]]
+            [:radialGradient {:id "shadow-radial" :cx "50%" :cy "50%" :r "100%" :fx "50%" :fy "50%"}
+             [:stop {:offset "30%" :style {:stop-color "black" :stop-opacity "0.5"}}]
+             [:stop {:offset "100%" :style {:stop-color "black" :stop-opacity "0"}}]]
             ;; TODO: Add stone shadows when react is upgraded in cljsjs
             #_[:filter {:id "f2" :x 0 :y 0 :width "200%" :height "200%"}
                [:feOffset {:result "offOut" :in "SourceGraphic" :dx 20 :dy 20}]
@@ -152,13 +155,24 @@
                 :r            (* stroke 3)}])
             (for [[y row] (map-indexed vector (:contents state))
                   [x cell] (map-indexed vector row)]
+              (if
+                (or (= cell :b) (= cell :w))
+                [:ellipse
+                 {:key          (str "board-stone-shadow-" x "-" y)
+                  :cx           (+ (ffn x) (* 2 stroke)) :cy (+ (ffn y) (* 2 stroke))
+                  :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
+                  :stroke-width 0
+                  :opacity      0.5
+                  :fill         "url(#shadow-radial)"}]))
+            (for [[y row] (map-indexed vector (:contents state))
+                  [x cell] (map-indexed vector row)]
               (cond
                 (= cell :b)
                 [:ellipse
                  {:key          (str "board-stone-" x "-" y)
                   :cx           (ffn x) :cy (ffn y)
                   :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
-                  :stroke       "rgba(255,255,255,0.3)"
+                  :stroke       "rgba(68,68,68,1)"
                   :stroke-width stroke
                   :fill         "url(#black-radial)"}]
 
@@ -167,7 +181,7 @@
                  {:key          (str "board-stone-" x "-" y)
                   :cx           (ffn x) :cy (ffn y)
                   :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
-                  :stroke       "rgba(0,0,0,0.3)"
+                  :stroke       "rgba(128,128,128,1)"
                   :stroke-width stroke
                   :fill         "url(#white-radial)"}]
                 (= @hover [x y])
@@ -181,7 +195,7 @@
                   :fill         "url(#white-radial)"}]
                 :else
                 [:rect
-                 {:on-mouse-enter #(do (println x y) (reset! hover [x y]))
+                 {:on-mouse-enter #(reset! hover [x y])
                   :key            (str "board-stone-" x "-" y)
                   :x              (- (ffn x) (/ step 2)) :y (- (ffn y) (/ step 2))
                   :width          step :height step
