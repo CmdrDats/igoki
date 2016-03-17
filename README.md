@@ -112,7 +112,7 @@ to take the stone height into consideration.
 From there, the Game mode wil allow you to record and export your game into an SGF file.
 
 There is still much to do in the way of features, but the major feature shortlist currently are
- (in oder of priority) :
+ (in order of priority) :
 
  - Decent reviewing support: Load SGF, step back and forth through the game, create branches and 
    explore game variations. 
