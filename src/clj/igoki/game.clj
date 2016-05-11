@@ -42,14 +42,23 @@
             (update :kifu assoc :submit {:latch 3 :board board})
             (update :camera assoc :read-delay 100))))))
 
+(defn board-history [{:keys [current-branch-path movenumber moves] :as game}]
+  (->>
+    (range (dec movenumber))
+    (map
+      (fn [m]
+        (let [g (inferrence/reconstruct (assoc game :movenumber m))]
+          [(:kifu-board g) g])))
+    (into {})))
+
 (defn board-updated [_ ctx _ board]
   #_(println "Board updated.")
-  #_(inferrence/print-boards board)
   (swap! captured-boardlist conj board)
   (let [{{:keys [kifu-board dirty] :as game} :kifu} @ctx
         nodes (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
         lastmove (last nodes)
-        [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)]
+        [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)
+        history-game (if (and lastmove (> (count diff) 1)) (get (board-history game) board))]
     (cond
       (and (empty? diff) dirty)
       (do
@@ -59,21 +68,10 @@
       (println "Not actioning board updates until clean state is reached")
       ;; Special case to undo last move
       ;; Disabled temporarily for issues with online integration.
-      (and
-        lastmove
-        (= (count diff) 1)
-        (nil? mn) (not (nil? mo))
-        (first (or (:black lastmove) (:white lastmove)))
-        (= (take 2 mv) (sgf/convert-sgf-coord (first (or (:black lastmove) (:white lastmove))))))
-
+      history-game
       (do
         (snd/play-sound :undo)
-        (swap!
-          ctx
-          (fn [c]
-            (-> c
-                (update-in [:kifu :current-branch-path] #(update % (dec (count %)) (comp vec butlast)))
-                (update :kifu inferrence/reconstruct)))))
+        (swap! ctx (fn [c] (assoc c :kifu history-game))))
       :else
       (submit-move ctx))))
 
