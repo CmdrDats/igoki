@@ -6,7 +6,36 @@
            (org.opencv.calib3d Calib3d)
            (org.opencv.imgproc Imgproc)
            (processing.core PImage)
-           (java.util LinkedList)))
+           (java.util LinkedList UUID)
+           (org.opencv.highgui Highgui)
+           (java.io File)
+           (org.deeplearning4j.util ModelSerializer)
+           (org.deeplearning4j.eval Evaluation)
+           (org.canova.image.loader ImageLoader)
+           (org.deeplearning4j.nn.multilayer MultiLayerNetwork)
+           (org.nd4j.linalg.api.ndarray INDArray)))
+
+;; Moving average
+;; 'dirty' flags on positions (set against previous x frames as reference)
+;; Single-shot, multi stone .output call.
+;;
+
+;; Stone detection, neural network
+
+(defn load-net [nm]
+  (ModelSerializer/restoreMultiLayerNetwork (File. (str nm ".cnet"))))
+(def net (load-net "resources/convnet"))
+(def loader (ImageLoader. 36 36 3))
+
+(defn eval [flat px py]
+  (let [smat (.submat flat (Rect. (- px 18) (- py 18) 36 36))
+        img (util/mat-to-buffered-image smat)
+        ^INDArray d (.asRowVector loader img)
+        _ (.divi d 255.0)
+        ^INDArray o (.output ^MultiLayerNetwork net d)]
+    (.release smat)
+    (for [i (range 3)]
+      (.getFloat o (int i)))))
 
 (def block-size 35.0)
 
@@ -20,8 +49,7 @@
 (defn sample-coords [x y [szx szy :as samplesize]]
   [(max 0 (- x szx)) (max 0 (- y szy)) (* 2 szx) (* 2 szy)])
 
-(defn mat-rect [^Mat mat x y w h]
-  (let [[sx sy sw sh] (sample-coords x y [w h])]
+(defn mat-rect [^Mat mat x y w h] (let [[sx sy sw sh] (sample-coords x y [w h])]
     (Mat. mat (Rect. (Point. sx sy) (Size. sw sh)))))
 
 (defn read-clusters [labels centers]
@@ -77,62 +105,69 @@
       leftedge rightedge)))
 
 
-
+(defn dump-points [ctx]
+  (let [flat (-> ctx :camera :flattened)
+        samplepoints (-> ctx :view :samplepoints)
+        board (-> ctx :board)
+        id (first (.split (.toString (UUID/randomUUID)) "[-]"))]
+    (when flat
+      (doseq [[py rows] (map-indexed vector samplepoints)]
+        (doseq [[px [x y]] (map-indexed vector rows)]
+          (let [r (Rect. (- x 18) (- y 18) 36 36)
+                p (get-in board [py px])]
+            (Highgui/imwrite (str "samples/" (if p (name p) "e") "-" px "-" py "-" id ".png") (.submat ^Mat flat r)))
+          ))
+      samplepoints)))
 
 ;; Given circles and samplepoints, construct a possible board view.
-
+(def reading (atom false))
 
 (defn read-board [ctx]
-  (util/with-release
-    [bilat (Mat.)]
-    (let [{{:keys [homography shift samplesize samplepoints refmean refstddev reference]} :view
-           {:keys [raw flattened]}                                                        :camera
-           {:keys [size]}                                                                 :goban} ctx
-          [sx sy] shift
-          conv-flat (Mat.)
-          new-flat (Mat.)]
-      (when homography
-        (Imgproc/cvtColor raw new-flat Imgproc/COLOR_BGR2HLS_FULL)
-        (Imgproc/warpPerspective new-flat new-flat homography (ref-size size))
-        #_(Imgproc/erode new-flat new-flat (Imgproc/getStructuringElement Imgproc/MORPH_RECT (Size. 5 5)))
-        #_(Imgproc/bilateralFilter new-flat bilat 2 (double 10) (double 10))
-        #_(Imgproc/cvtColor new-flat new-flat Imgproc/COLOR_BGR2HLS_FULL)
-        #_(.convertTo new-flat new-flat CvType/CV_8UC3 1.0)
+  (if-not @reading
+    (util/with-release
+      [bilat (Mat.)]
+      (reset! reading true)
+      (let [{{:keys [homography shift samplesize samplepoints refmean refstddev reference]} :view
+             {:keys [raw flattened]} :camera
+             {:keys [size]} :goban} ctx
+            [sx sy] shift
+            conv-flat (Mat.)
+            new-flat (Mat.)]
+        (when homography
+          #_(Imgproc/cvtColor raw new-flat Imgproc/COLOR_BGR2HLS_FULL)
+          (Imgproc/warpPerspective raw bilat homography (ref-size size))
+          #_(Imgproc/GaussianBlur new-flat new-flat (Size. 5 5) 10)
+          #_(Imgproc/erode new-flat new-flat (Imgproc/getStructuringElement Imgproc/MORPH_RECT (Size. 5 5)))
+          (Imgproc/bilateralFilter bilat new-flat 2 (double 10) (double 10))
+          #_(Imgproc/cvtColor new-flat new-flat Imgproc/COLOR_BGR2HLS_FULL)
+          #_(.convertTo new-flat new-flat CvType/CV_8UC3 1.0)
 
-        #_(println "==================")
-        (->
-          ctx
-          (assoc-in [:camera :flattened] new-flat)
-          (assoc
-            :board
-            (vec
-              (map
-                (comp
-                  vec
-                  (fn [row refrow]
-                    (map
-                      (fn [[px py] reference-cluster]
-                        nil
-                        (let [[rh rl rs] reference-cluster
-                              [h l s] (mean-at new-flat px py samplesize)
-                              hf 40]
+          #_(println "==================")
 
-                          (cond
-                            (or
-                              (and
-                                (or (< (+ h hf) rh) (> (- h hf) rh))
-                                (< l 128))
-                              (< l (- rl (/ rl 2)))
-                              #_(and (< l rl) (< s) (< s (/ rs 2)))) :b
-                            (or
-                              (and
-                                (or (< (+ h hf) rh) (> (- h hf) rh))
-                                (> l 128))
-                              (> l (+ rl (/ (- 255 rl) 2)))
-                              (and (> rl 190) (> s (+ rs 60)))) :w)))
-                      row refrow)))
-                samplepoints
-                reference))))))))
+          (let [board
+                (vec
+                  (map
+                    (comp
+                      vec
+                      (fn [row refrow]
+                        (map
+                          (fn [[px py]]
+                            nil
+                            (let [[b e w] (eval new-flat px py)]
+                              (cond
+                                (> b 0.5) :b
+                                (> w 0.8) :w)))
+                          row)))
+                    samplepoints
+                    reference))]
+            (Thread/sleep 500)
+            (reset! reading false)
+            (->
+              ctx
+              (assoc-in [:camera :flattened] new-flat)
+              (assoc :board board ))))
+        ))
+    ctx))
 
 
 
@@ -152,8 +187,8 @@
           samplecorners (or samplecorners (target-points size))
           samplepoints (sample-points samplecorners size)
           ref (Mat.)]
-      (Imgproc/cvtColor raw ref Imgproc/COLOR_BGR2HLS_FULL)
-      (Imgproc/warpPerspective ref ref homography (ref-size size))
+      #_(Imgproc/cvtColor raw ref Imgproc/COLOR_BGR2HLS_FULL)
+      (Imgproc/warpPerspective raw ref homography (ref-size size))
 
       (Core/meanStdDev ref imgmean imgstddev)
       {:homography    homography
@@ -187,6 +222,7 @@
 (defmethod ui/construct :view [ctx]
   (util/add-watch-path ctx :view [:camera :raw] camera-updated)
   (swap! ctx update-homography)
+  (swap! ctx read-board)
   (update-reference ctx))
 
 (defmethod ui/destruct :view [ctx]
@@ -261,11 +297,12 @@
               (q/image (util/mat-to-pimage (first planes)) 0 700 350 350)
               (q/image (util/mat-to-pimage (second planes)) 350 700 350 350)
               (q/image (util/mat-to-pimage (first (drop 2 planes))) 700 700 350 350))
-            (when
+            #_(when
               (and (< 10 (q/mouse-x) (- (.cols flattened) 10))
                    (< 10 (q/mouse-y) (- (.rows flattened) 10)))
               (q/stroke-weight 5)
               (let [[samplex sampley] (closest-samplepoint samplepoints [(q/mouse-x) (q/mouse-y)])
+
                     [px py sw sh] (sample-coords samplex sampley samplesize)
                     cluster (cluster-at flattened samplex sampley samplesize)
                     mean (mean-at flattened samplex sampley samplesize)
@@ -333,16 +370,22 @@
                       (q/rect (+ px (mod r szx)) (+ szy (+ py (int (/ r szx))))
                               1 1))))
 
+
                 (apply q/stroke c)
                 (q/stroke-weight w)
                 (q/fill 0 0)
-                (q/rect sx sy sw sh)
+                #_(q/rect sx sy sw sh)
+                (q/rect (- px 18) (- py 18) 36 36)
 
                 (when-not (nil? v)
-                  (q/fill (if (= v :w) 255 0) 255)
+                  (q/fill (case v :w 255 :b 0 :na (q/color 255 0 0)) 255)
                   (q/stroke (if (= v :w) 0 255) 255)
                   (q/stroke-weight 1)
-                  (q/ellipse (+ sx (/ sw 2)) (+ sy (/ sh 2)) 12 12)))))
+                  (q/ellipse (+ sx (/ sw 2)) (+ sy (/ sh 2)) 12 12)
+                  (q/stroke-weight 0.5)
+                  (q/ellipse (+ 18 (* x 17.5)) (+ 718 (* y 17.5)) 4 4)
+                  (q/ellipse (+ 368 (* x 17.5)) (+ 718 (* y 17.5)) 4 4)
+                  (q/ellipse (+ 718 (* x 17.5)) (+ 718 (* y 17.5)) 4 4)))))
 
 
 
@@ -355,7 +398,7 @@
           )))))
 
 (defmethod ui/mouse-dragged :view [ctx]
-  (let [[szx szy] (-> @ctx :view :samplesize)
+  #_(let [[szx szy] (-> @ctx :view :samplesize)
         px (- (q/mouse-x) (/ szx 2))
         py (- (q/mouse-y) (/ szy 2))
         size (-> @ctx :goban :size)]
@@ -366,6 +409,22 @@
               points (sample-points corners size)]
           (assoc view :samplecorners corners :samplepoints points)))
       [px py])))
+
+(defmethod ui/mouse-pressed :view [ctx]
+
+  (let [[szx szy] (-> @ctx :view :samplesize)
+        [px py] (map (comp dec int #(/ % block-size)) (closest-samplepoint (-> @ctx :view :samplepoints) [(q/mouse-x) (q/mouse-y)]))]
+    (cond
+      (= (q/mouse-button) :left)
+      (swap! ctx assoc-in [:board py px] :w)
+      (= (q/mouse-button) :right)
+      (swap! ctx assoc-in [:board py px] :b)
+      :else
+      (swap! ctx update-in [:board py px] #(if (nil? %) :na nil))
+      )))
+
+(defmethod ui/mouse-released :view [ctx]
+  )
 
 (defmethod ui/key-pressed :view [ctx]
   (case
@@ -398,3 +457,25 @@
       #_(println clusters)
       (util/hamming-dist (:signature clusters) (:signature clusters2))
       )))
+
+(comment
+  [[nil :b nil nil nil nil nil :b nil nil nil nil nil nil :w :b :b nil nil]
+   [:w :w :b :b nil nil :b nil :b :b :b nil nil :w :b nil :b nil nil]
+   [nil :b :w :b nil :b nil :b :w :w nil :b :w nil :w :b nil nil nil]
+   [nil :w :w :w :b :b :b :w :w nil nil :b :w :w :b :b :b :b nil]
+   [nil nil nil nil :w :w :w :w nil :w :b nil :b :w nil :w :w :b nil]
+   [nil nil :w :w nil :w nil :b nil :b nil :b :b :w nil nil nil :w nil]
+   [nil :w :w :b :b :w :b nil :b nil :b nil :b :b :w :w :w nil nil]
+   [nil :b :w :w :w :b :w :w :w :b :w :w :b :b :b :b :w :w nil]
+   [nil nil :b nil :b :b :b :b :b :b :w :b :w :b :b :w :b :w nil]
+   [nil :b :b nil :b nil nil :w :b :w :w nil :w :w :w :w :b :w nil]
+   [:b :w :w :w nil nil :w nil :w :b :b nil :w nil :w :b :b :b nil]
+   [nil nil nil nil nil :b :w :w :w :w :w :w nil :b :w :w :w :b nil]
+   [nil nil :w :b nil nil nil nil nil nil nil nil :b nil :b :w :b :b nil]
+   [nil nil :w :b nil nil :b nil nil nil nil :w nil :b :b :b nil nil nil]
+   [nil :w :b nil :b nil nil :b :b nil :b nil :b :b :w :w :b :b nil]
+   [nil :w :b :b nil nil nil :w :b nil :b :b :w :b nil :b :b :w nil]
+   [nil :w :b nil nil :b nil :b :w :w :b :w :w :w :b :b :w :w nil]
+   [nil :w :b :w :w nil nil :b :w :b :w :w nil nil :w :w nil nil nil]
+   [nil nil :w :b :b :b nil :b :w nil nil nil nil nil nil nil nil nil nil]]
+  )

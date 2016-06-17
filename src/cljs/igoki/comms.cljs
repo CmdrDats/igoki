@@ -63,6 +63,7 @@
 (defmethod -event-msg-handler :chsk/handshake
   [{:as ev-msg :keys [?data]}]
   (let [[?uid ?csrf-token ?handshake-data] ?data]
+    (rf/dispatch [:camera/list])
     (->output! "Handshake: %s" ?data)))
 
 (defonce router_ (atom nil))

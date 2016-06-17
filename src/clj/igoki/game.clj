@@ -44,7 +44,7 @@
 
 (defn board-history [{:keys [current-branch-path movenumber moves] :as game}]
   (->>
-    (range (dec movenumber))
+    (range movenumber)
     (map
       (fn [m]
         (let [g (inferrence/reconstruct (assoc game :movenumber m))]
@@ -58,7 +58,7 @@
         nodes (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
         lastmove (last nodes)
         [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)
-        history-game (if (and lastmove (> (count diff) 1)) (get (board-history game) board))]
+        history-game (if (and lastmove (> (count diff) 0)) (get (board-history game) board))]
     (cond
       (and (empty? diff) dirty)
       (do

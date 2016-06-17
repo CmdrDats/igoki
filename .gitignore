@@ -11,3 +11,5 @@ pom.xml.asc
 capture
 resources/*.edn
 *.log
+node_modules
+resources/samples

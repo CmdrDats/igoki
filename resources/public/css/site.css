@@ -6,7 +6,6 @@
     overflow: hidden;
     width: 100%;
     height: 100%;
-    background-image: url("../images/retina_wood_@2X.png");
 }
 
 .gobansvg {
@@ -36,4 +35,13 @@
     -webkit-border-radius: 40px; /* Saf3+, Chrome */
     border-radius: 40px; /* Opera 10.5, IE 9 */
     /*-moz-border-radius: 40px;  Disabled for FF1+ */
+}
+
+.logo {
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    float: left;
+    margin-left: 15px;
+    margin-right: 5px;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
 }

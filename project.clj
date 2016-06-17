@@ -20,6 +20,14 @@
    [org.slf4j/jul-to-slf4j "1.6.2"]
    [org.slf4j/slf4j-log4j12 "1.6.2"]
 
+   [com.google.guava/guava "18.0"]
+   [org.nd4j/nd4j "0.4-rc3.10" :extension "pom"]
+   [org.nd4j/nd4j-native "0.4-rc3.10"]
+   [org.deeplearning4j/deeplearning4j-core "0.4-rc3.10"]
+   [org.nd4j/canova-api "0.0.0.16"]
+
+
+
    [re-frame "0.7.0-alpha-3"]
    [re-com "0.8.0"]
    [prismatic/schema "1.0.5"]
@@ -40,12 +48,17 @@
    [secretary "1.2.3"]
    [venantius/accountant "0.1.6"
     :exclusions [org.clojure/tools.reader]]]
+  :npm
+  {:root :target-path
+   :dependencies
+   [[magnifier "0.3.0"]]}
   :repositories {"yadarts-maven" "https://raw.github.com/yadarts/maven/master"}
   :jvm-opts ["-Djavax.net.ssl.trustStore=resources/ogs.truststore"]
   :main igoki.core
 
   :plugins [[lein-environ "1.0.2"]
             [lein-cljsbuild "1.1.1"]
+            [lein-npm "0.6.2"]
             [lein-asset-minifier "0.2.7"
              :exclusions [org.clojure/clojure]]]
 

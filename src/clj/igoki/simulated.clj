@@ -3,14 +3,15 @@
             [quil.core :as q]
             [igoki.util :as util]
             [igoki.game :as game]
-            [igoki.xutil :as xu])
+            [igoki.xutil :as xu]
+            [clojure.java.io :as io])
   (:import (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f MatOfByte)
            (org.opencv.imgproc Imgproc)
            (org.opencv.highgui Highgui)
            (de.schlichtherle.truezip.fs FsEntryNotFoundException)))
 
 ;; This view simulates a camera for testing igoki's behaviour without having a board and camera handy
-(defonce simctx (atom {:sketchconfig {:framerate 20 :size [640 480]}}))
+(defonce simctx (atom {:sketchconfig {:framerate 5 :size [640 480]}}))
 
 (defn blank-board [size]
   (vec
@@ -107,7 +108,7 @@
   (simulate)
 
   (let [{{:keys [^Mat raw pimg]} :camera
-         {:keys [frame]} :replay
+         {:keys [frame index]} :replay
          mode :mode} @ctx
         [cellsize grid-start] (if raw (grid-spec raw) [])
         tx (q/height)]
@@ -120,7 +121,7 @@
         (do
           (q/image pimg 0 0 (q/width) (q/height))
           (ui/shadow-text "Esc: Back to simulation" tx 50)
-          (ui/shadow-text "Arrows: Forward/back " tx 75)
+          (ui/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
           (ui/shadow-text "L: Load captured zip" tx 100)
           )
         :else
@@ -176,13 +177,16 @@
           (-> c
               (update :camera assoc :raw raw :pimg pimg)
               (update :replay assoc :index nextindex)))))
-    (catch FsEntryNotFoundException e)))
+    (catch FsEntryNotFoundException e (.printStackTrace e))))
 
 (defn load-zip [ctx file]
   (println "Loading:" file)
   (swap! ctx assoc :mode :replay :replay {:file file :index 0})
   (step-file-index ctx identity))
 
+(defn load-img [ctx file]
+  (swap! ctx assoc :mode :replay :replay {:file file :index 0})
+  (step-file-index ctx identity))
 
 (defmethod ui/key-pressed :simulation [ctx]
   (case
@@ -210,7 +214,6 @@
     76 (ui/load-dialog #(load-zip simctx (.getAbsolutePath %)) (str (System/getProperty "user.dir") "/capture"))
     (println "Unhandled key-down: " (q/key-code))
     ))
-
 
 
 

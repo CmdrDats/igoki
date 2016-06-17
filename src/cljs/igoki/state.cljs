@@ -39,8 +39,7 @@
       :current {}
       :config {:tab :info :visible false}
       :games []
-      :cameras {})
-    (rf/dispatch [:camera/list])))
+      :cameras {})))
 
 (rf/register-handler
   :camera/list
@@ -48,6 +47,13 @@
     (println "Requesting camera list")
     (comms/send :camera/list {})
     db))
+
+(rf/register-handler
+  :camera/select
+  (fn [db [_ id]]
+    (println "Selected Camera: " id)
+    (comms/send :camera/select {})
+    (assoc-in db [:forms :config :selected-camera] id)))
 
 (rf/register-handler
   :camera/updatelist
@@ -63,10 +69,14 @@
 
 (rf/register-handler
   :camera/remove
-  (fn [db id]
+  (fn [db [_ id]]
     (comms/send :camera/remove {:id id})
     db))
 
+(rf/register-handler
+  :camera/corner-move
+  (fn [db [_ pt]]
+    db))
 
 (rf/register-sub :cameralist (fn [db _] (ra/reaction (:cameras @db))))
 

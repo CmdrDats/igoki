@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="872px" height="877px" viewBox="0 0 872 877" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 3.6.1 (26313) - http://www.bohemiancoding.com/sketch -->
+    <title>Board</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+      <pattern id="wood" patternUnits="userSpaceOnUse" width="822" height="873">
+        <image xlink:href="/images/light-wood-texture.jpg" x="32" y="12" width="790" height="861" preserveAspectRatio="none"/>
+      </pattern>
+        <rect id="path-1" x="32" y="12" width="790" height="861"></rect>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Board">
+            <path d="M0,16 C0,16 23,12.2929688 32.4902344,12.2929688 C286.333333,12.2929688 790,16 790,16 C790,16 819.822266,588.305339 819.822266,872.732422 C819.822266,875.305339 790,877 790,877 L0,877 L0,16 Z" id="Rectangle-2-Copy-4" fill-opacity="0.05" fill="#000000"></path>
+            <path d="M32.7832031,13.4052734 C32.7832031,11.1979167 82,0 82,0 L872,0 L872,861 C872,861 836.373698,872.513672 821.524414,872.513672 C573.040365,872.513672 82,861 82,861 C82,861 32.7832031,298.197917 32.7832031,13.4052734 Z" id="Rectangle-2-Copy-2" fill-opacity="0.1" fill="#000000"></path>
+            <g id="Rectangle-2">
+              <use fill="#C1A870" xlink:href="#path-1"></use>
+                <use fill-opacity="0.5" fill="url(#wood)" xlink:href="#path-1"></use>
+            </g>
+            <rect id="Rectangle-2-Copy" fill-opacity="0.1" fill="#000000" x="32" y="862" width="790" height="12"></rect>
+            <rect id="Rectangle-2-Copy-3" fill-opacity="0.2" fill="#000000" x="818" y="12" width="4" height="861"></rect>
+        </g>
+    </g>
+</svg>

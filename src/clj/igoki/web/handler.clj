@@ -53,9 +53,9 @@
 
 (def cameralist
          (atom [{:id 1 :slot 0
-                 :corners [[100 100] [100 200] [200 200] [200 100]]}
+                 :corners [[20 20] [20 80] [80 80] [80 20]]}
                 {:id 2 :slot 1
-                 :corners [[50 50] [100 200] [200 200] [200 100]]}]))
+                 :corners [[10 10] [20 80] [80 80] [80 12]]}]))
 
 (defmethod -event-msg-handler
   :camera/list

@@ -18,9 +18,15 @@
 
 (enable-console-print!)
 
+(def coords
+  {:y ["一" "二" "三" "四" "五" "六" "七" "八" "九" "十"
+       "十一" "十二" "十三" "十四" "十五" "十六" "十七" "十八" "十九"]
+   :x [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19]})
+
 (def app
   (r/atom {:selection "Library"
            :board     {:size 19
+                       :coords true
                        :contents
                        (for [y (range 19)]
                          (for [x (range 19)]
@@ -94,22 +100,48 @@
           :fill "#ddeeee"}])
 
 (defn newboard [size state]
-  (let [stars (set (xu/star-points (:size state)))
-        stroke (max 0.1 (min (/ size 600) 1))
-        border (* (/ size (dec (:size state))) 0.55)
-        step (/ (- size (* border 2)) (dec (:size state)))
-        cfn #(+ 0.5 (int (+ border (* step %))))
-        ffn #(+ border (* step %))
+  (let [bowls? (> size 300)
+        xsize size
+        ysize (if bowls? (* size 0.70) size)
+        xlayoutgrid (/ xsize 50)
+        ylayoutgrid (/ ysize 50)
+
+        bxoffset (* xlayoutgrid 10)
+        byoffset (* ylayoutgrid 1.65)
+
+        bxmax (* xlayoutgrid 40.3)
+        bymax (* ylayoutgrid 48.7)
+
+        bxsize (- bxmax bxoffset)
+        bysize (- bymax byoffset)
+
+        bxborder (* (/ bxsize (dec (:size state))) (if (:coords state) 1 0.55))
+        byborder (* (/ bysize (dec (:size state))) (if (:coords state) 1 0.55))
+
+        xstep (/ (- bxsize (* bxborder 2)) (dec (:size state)))
+        ystep (/ (- bysize (* byborder 2)) (dec (:size state)))
+
+        stars (set (xu/star-points (:size state)))
+        stroke (max 0.1 (min (/ ysize 600) 1))
+
+        cxfn #(+ 0.5 (int (+ bxoffset bxborder (* xstep %))))
+        cyfn #(+ 0.5 (int (+ byoffset byborder (* ystep %))))
+        fxfn #(+ bxoffset bxborder (* xstep %))
+        fyfn #(+ byoffset (+ byborder (* ystep %)))
+
         hover (r/atom nil)]
     (fn []
       [:div.gobancontainer
        {:style
-        {:width (str size "px") :height (str size "px")}}
+        {:width xsize :height ysize}}
        [:div.goban
 
         (into
           [:svg.gobansvg
            [:defs
+            [:pattern {:id "image" :x 0 :y 0 :patternUnits "userSpaceOnUse" :height 100 :width 100}
+             [:image {:x 0 :y 0 :height 100 :width 100 :xlinkHref "/images/calibration.png"}]]
+
             [:radialGradient {:id "white-radial" :cx "40%" :cy "40%" :r "80%" :fx "30%" :fy "30%"}
              [:stop {:offset "0%" :style {:stop-color "rgb(255,255,255)" :stop-opacity "1"}}]
              [:stop {:offset "100%" :style {:stop-color "#ecebeb" :stop-opacity "1"}}]]
@@ -126,41 +158,67 @@
                [:blend {:in "SourceGraphic" :in2 "blurOut" :mode "normal"}]]]
            #_[:ellipse {:cx           200 :cy 70 :rx 55 :ry 55 :fill "url(#white-radial)"
                         :stroke-width stroke :stroke "black"}]
+           #_[:circle {:id "top" :cx 100 :cy 100 :r 80 :fill "url(#image)"}]
+
+
+           [:image {:x (* xlayoutgrid 0) :y (* ylayoutgrid 1) :width (* xlayoutgrid 12) :height (* ylayoutgrid 25) :xlinkHref "/images/wbowl.svg"}]
+           [:image {:x (* xlayoutgrid 35) :y (* ylayoutgrid 17)  :width (* xlayoutgrid 20) :height (* ylayoutgrid 40) :xlinkHref "/images/bbowl.svg"}]
+           [:image {:x (* xlayoutgrid 6) :y (* ylayoutgrid 1) :width (* xlayoutgrid 39) :height (* ylayoutgrid 48) :xlinkHref "/images/board.svg"}]
            [:rect
-            {:x     0 :y (- size (/ border 3))
-             :width size :height (/ border 3)
-             :fill  "rgba(0,0,0,0.1)"}]
-           ]
+            {:x     bxoffset :y byoffset
+             :width bxsize :height bysize
+             :fill  "rgba(0,0,0,0.1)"}]]
           (concat
+            (let [[x y] @hover]
+              [[:line
+                {:key     (str "board-hoverlinex-" x)
+                 :x1      (cxfn x) :y1 (+ 0.5 (int (+ byoffset byborder)))
+                 :x2      (cxfn x) :y2 (+ 0.5 (int (+ byoffset (- bysize byborder))))
+                 :opacity 0.6
+                 :style   {:stroke "rgb(128,128,255)" :stroke-width (* stroke 4)}}]
+               [:line
+                {:key     (str "board-hoverliney-" y)
+                 :x1      (+ 0.5 (int (+ bxoffset bxborder))) :y1 (cyfn y)
+                 :x2      (+ 0.5 (int (+ bxoffset (- bxsize bxborder)))) :y2 (cyfn y)
+                 :opacity 0.6
+                 :style   {:stroke "rgb(128,128,255)" :stroke-width (* stroke 4)}}]])
+            (if (:coords state)
+              (for [x (range (:size state))]
+                [:text {:x (cxfn x) :y (+ byoffset (* ystep 0.6)) :font-size (* 16 stroke) :fill "black" :text-anchor "middle"} (get-in coords [:x x])]))
+            (if (:coords state)
+              (for [y (range (:size state))]
+                [:text {:x (+ bxoffset (* xstep 0.3)) :y (+ (cyfn y) (* ystep 0.1)) :font-size (* 16 stroke) :fill "black" :text-anchor "middle"} (get-in coords [:y y])]))
             (for [x (range (:size state))]
               [:line
                {:key   (str "board-linex-" x)
-                :x1    (cfn x) :y1 (+ 0.5 (int border))
-                :x2    (cfn x) :y2 (+ 0.5 (int (- size border)))
+                :x1    (cxfn x) :y1 (+ 0.5 (int (+ byoffset byborder)))
+                :x2    (cxfn x) :y2 (+ 0.5 (int (+ byoffset (- bysize byborder))))
                 :style {:stroke "rgb(0,0,0)" :stroke-width stroke}}])
+
             (for [y (range (:size state))]
               [:line
                {:key   (str "board-liney-" y)
-                :x1    (+ 0.5 (int border)) :y1 (cfn y)
-                :x2    (+ 0.5 (int (- size border))) :y2 (cfn y)
+                :x1    (+ 0.5 (int (+ bxoffset bxborder))) :y1 (cyfn y)
+                :x2    (+ 0.5 (int (+ bxoffset (- bxsize bxborder)))) :y2 (cyfn y)
                 :style {:stroke "rgb(0,0,0)" :stroke-width stroke}}])
             (for [[x y] stars]
               [:circle
                {:key          (str "board-star-" x "-" y)
-                :cx           (cfn x)
-                :cy           (cfn y)
+                :cx           (cxfn x)
+                :cy           (cyfn y)
                 :fill         "black"
                 :stroke       "black"
                 :stroke-width 0
                 :r            (* stroke 3)}])
+
             (for [[y row] (map-indexed vector (:contents state))
                   [x cell] (map-indexed vector row)]
               (if
                 (or (= cell :b) (= cell :w))
                 [:ellipse
                  {:key          (str "board-stone-shadow-" x "-" y)
-                  :cx           (+ (ffn x) (* 2 stroke)) :cy (+ (ffn y) (* 2 stroke))
-                  :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
+                  :cx           (+ (fxfn x) (* 3 stroke)) :cy (+ (fyfn y) (* 3 stroke))
+                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
                   :stroke-width 0
                   :opacity      0.5
                   :fill         "url(#shadow-radial)"}]))
@@ -170,8 +228,8 @@
                 (= cell :b)
                 [:ellipse
                  {:key          (str "board-stone-" x "-" y)
-                  :cx           (ffn x) :cy (ffn y)
-                  :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
+                  :cx           (fxfn x) :cy (fyfn y)
+                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
                   :stroke       "rgba(68,68,68,1)"
                   :stroke-width stroke
                   :fill         "url(#black-radial)"}]
@@ -179,16 +237,16 @@
                 (= cell :w)
                 [:ellipse
                  {:key          (str "board-stone-" x "-" y)
-                  :cx           (ffn x) :cy (ffn y)
-                  :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
+                  :cx           (fxfn x) :cy (fyfn y)
+                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
                   :stroke       "rgba(128,128,128,1)"
                   :stroke-width stroke
                   :fill         "url(#white-radial)"}]
                 (= @hover [x y])
                 [:ellipse
                  {:key          (str "board-stone-" x "-" y)
-                  :cx           (ffn x) :cy (ffn y)
-                  :rx           (- (/ step 2) stroke) :ry (- (/ step 2) stroke)
+                  :cx           (fxfn x) :cy (fyfn y)
+                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
                   :stroke       "rgba(0,0,0,0.3)"
                   :stroke-width stroke
                   :opacity      0.5
@@ -197,8 +255,8 @@
                 [:rect
                  {:on-mouse-enter #(reset! hover [x y])
                   :key            (str "board-stone-" x "-" y)
-                  :x              (- (ffn x) (/ step 2)) :y (- (ffn y) (/ step 2))
-                  :width          step :height step
+                  :x              (- (fxfn x) (/ xstep 2)) :y (- (fyfn y) (/ ystep 2))
+                  :width          xstep :height xstep
                   :stroke         "rgba(0,0,0,0)"
                   :stroke-width   stroke
                   :opacity        0}])
@@ -208,16 +266,14 @@
   (let [stars (set (xu/star-points (count state)))
         hover (r/atom nil)]
     (fn []
-      [:div
+      [:div.playarea {:style {:background-color "#31731A"}}
 
-       [newboard 50 state]
+       #_[newboard 50 state]
+       #_[newboard 200 state]
+       #_[newboard 500 state]
+       #_[newboard 800 state]
 
-
-       [newboard 200 state]
-
-       [newboard 500 state]
-
-       [newboard 800 state]
+       [newboard (.-clientWidth (first (array-seq (.getElementsByTagName js/document "body")))) state]
 
        ])))
 
@@ -363,26 +419,68 @@
        ]]]]])
 
 (defn game-camera [config cameralist]
-  [:article.config
-   [rc/v-box
-    :children
-    [[rc/h-box
-      :align :center
-      :children
-      [[rc/box
-        :size "auto"
-        :child
-        [rc/horizontal-bar-tabs
-         :tabs
-         (for [{:keys [id] :as cam} @cameralist]
-           {:label (str id) :id (keyword (str "camera-" id))})
-         :on-change #(rf/dispatch [:form/update :config [:selected-camera] %])
-         :model (keyword (or (:selected-camera @config) "camera-1"))]]
-       [rc/box
-        :size "initial"
-        :child
-        [:button {:on-click #(rf/dispatch [:camera/new])} "New"]]]]
-     [:img {:src "/cap.png" :width "600"}]]]])
+  (let [dragger (r/atom nil)]
+    (fn []
+      [:article.config
+       [rc/v-box
+        :children
+        [[rc/h-box
+          :align :center
+          :children
+          [[rc/box
+            :size "auto"
+            :child
+            [rc/horizontal-bar-tabs
+             :tabs
+             (for [{:keys [id] :as cam} @cameralist]
+               {:label (str id) :id id})
+             :on-change #(rf/dispatch [:camera/select %])
+             :model (or (:selected-camera @config) 1)]]
+           [rc/box
+            :size "initial"
+            :child
+            [:button {:on-click #(rf/dispatch [:camera/new])} "New"]]]]
+         (let [{:keys [corners] :as selected}
+               (first (filter #(= (:id %) (or (:selected-camera @config) 1)) @cameralist))
+               [c1 c2 c3 c4] corners]
+           (println "SELECTED CAMERA" selected)
+           [:div {:style {:position "relative"}}
+            [:img {:src "/cap.png" :width 600 :position "absolute" :top 0 :left 0}]
+            [:svg {:on-mouse-down #(reset! dragger [(.-clientX %) (.-clientY %)]) :style {:position "absolute" :top 0 :left 0 :width "100%" :height "100%"}
+                   :on-mouse-move #(when (-> @dragger)
+                                    (let [[dx dy] @dragger]
+                                      (reset! dragger [(.-clientX %) (.-clientY %)]))
+                                    (.log js/console %))
+                   :on-mouse-up   #(when @dragger
+                                    (reset! dragger nil)
+                                    (rf/dispatch [:camera/corner-move-finish]))}
+             [:defs
+              [:pattern {:id "camera-zoom" :x 0 :y 0 :patternUnits "objectBoundingBox" :width 1 :height 1
+                         :preserveAspectRatio "xMaxYmin meet"}
+               [:image {:x -100 :y 0 :xlinkHref "/cap.png" :width 200 :height 200 :verticalAlign "top"
+                        }]]]
+
+             [:line {:x1    (str (first c1) "%")
+                     :y1    (str (second c1) "%")
+                     :x2    (str (first c2) "%")
+                     :y2    (str (second c2) "%")
+                     :style {:stroke "rgb(128,128,255)" :stroke-width 2}}]
+             [:line {:x1    (str (first c2) "%")
+                     :y1    (str (second c2) "%")
+                     :x2    (str (first c3) "%")
+                     :y2    (str (second c3) "%")
+                     :style {:stroke "rgb(128,128,255)" :stroke-width 2}}]
+             [:line {:x1    (str (first c3) "%")
+                     :y1    (str (second c3) "%")
+                     :x2    (str (first c4) "%")
+                     :y2    (str (second c4) "%")
+                     :style {:stroke "rgb(128,128,255)" :stroke-width 2}}]
+             [:line {:x1    (str (first c4) "%")
+                     :y1    (str (second c4) "%")
+                     :x2    (str (first c1) "%")
+                     :y2    (str (second c1) "%")
+                     :style {:stroke "rgb(128,128,255)" :stroke-width 2}}]
+             [:circle {:id "camera-zoom-circle" :cx 140 :cy 100 :r 80 :fill "url(#camera-zoom)"}]]])]]])))
 
 (defn config-dialog []
   (let [config (r/cursor (rf/subscribe [:forms]) [:config])
@@ -449,8 +547,12 @@
    [sidebar]
    [:div#output]
    [:div.maincontent
-    [:div [:h2 "Welcome to igoki"]
-     [:div [:a {:href "/about"} "go to about page"]
+    [:img.logo
+     {:src "/images/igoki96.png" :width 48}]
+    [:div
+     [:div
+      [:h2 {:style {:margin-bottom "25px"}} "Welcome to igoki"]
+      #_[:a {:href "/about"} "go to about page"]
       [board (:board @app)]
       [:div.clear]
       [rc/button
