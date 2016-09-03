@@ -24,11 +24,14 @@
 
 (defn load-net [nm]
   (ModelSerializer/restoreMultiLayerNetwork (File. (str nm ".cnet"))))
-(def net (load-net "resources/convnet"))
-(def loader (ImageLoader. 36 36 3))
+(def net (load-net "resources/supersimple"))
+(def loader (ImageLoader. 10 10 3))
 
-(defn eval [flat px py]
-  (let [smat (.submat flat (Rect. (- px 18) (- py 18) 36 36))
+(def block-size 10)
+
+
+(defn eval-net [flat px py]
+  (let [smat (.submat flat (Rect. (- px (/ block-size 2)) (- py (/ block-size 2)) 10 10))
         img (util/mat-to-buffered-image smat)
         ^INDArray d (.asRowVector loader img)
         _ (.divi d 255.0)
@@ -37,7 +40,6 @@
     (for [i (range 3)]
       (.getFloat o (int i)))))
 
-(def block-size 35.0)
 
 (defn target-points [size]
   (let [extent (* block-size size)]
@@ -113,7 +115,7 @@
     (when flat
       (doseq [[py rows] (map-indexed vector samplepoints)]
         (doseq [[px [x y]] (map-indexed vector rows)]
-          (let [r (Rect. (- x 18) (- y 18) 36 36)
+          (let [r (Rect. (- x (/ block-size 2)) (- y (/ block-size 2)) block-size block-size)
                 p (get-in board [py px])]
             (Highgui/imwrite (str "samples/" (if p (name p) "e") "-" px "-" py "-" id ".png") (.submat ^Mat flat r)))
           ))
@@ -124,49 +126,38 @@
 
 (defn read-board [ctx]
   (if-not @reading
-    (util/with-release
-      [bilat (Mat.)]
+    (try
       (reset! reading true)
-      (let [{{:keys [homography shift samplesize samplepoints refmean refstddev reference]} :view
+      (let [{{:keys [homography samplepoints flattened]} :view
              {:keys [raw flattened]} :camera
              {:keys [size]} :goban} ctx
-            [sx sy] shift
-            conv-flat (Mat.)
-            new-flat (Mat.)]
+            new-flat (or flattened (Mat.))]
         (when homography
-          #_(Imgproc/cvtColor raw new-flat Imgproc/COLOR_BGR2HLS_FULL)
-          (Imgproc/warpPerspective raw bilat homography (ref-size size))
-          #_(Imgproc/GaussianBlur new-flat new-flat (Size. 5 5) 10)
-          #_(Imgproc/erode new-flat new-flat (Imgproc/getStructuringElement Imgproc/MORPH_RECT (Size. 5 5)))
-          (Imgproc/bilateralFilter bilat new-flat 2 (double 10) (double 10))
-          #_(Imgproc/cvtColor new-flat new-flat Imgproc/COLOR_BGR2HLS_FULL)
-          #_(.convertTo new-flat new-flat CvType/CV_8UC3 1.0)
-
-          #_(println "==================")
+          (Imgproc/warpPerspective raw new-flat homography (ref-size size))
 
           (let [board
                 (vec
                   (map
                     (comp
                       vec
-                      (fn [row refrow]
+                      (fn [row]
                         (map
                           (fn [[px py]]
                             nil
-                            (let [[b e w] (eval new-flat px py)]
+                            (let [[b e w] (eval-net new-flat px py)]
                               (cond
                                 (> b 0.5) :b
-                                (> w 0.8) :w)))
+                                (> w 0.7) :w)))
                           row)))
-                    samplepoints
-                    reference))]
-            (Thread/sleep 500)
-            (reset! reading false)
+                    samplepoints))]
             (->
               ctx
               (assoc-in [:camera :flattened] new-flat)
-              (assoc :board board ))))
-        ))
+              (assoc-in [:camera :flattened-pimage] (util/mat-to-pimage new-flat))
+              (assoc :board board))))
+        )
+      (finally
+        (reset! reading false)))
     ctx))
 
 
@@ -244,12 +235,13 @@
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
 
-  (let [{{:keys [homography shift samplesize samplepoints refmean refstddev
-                 sample-img cluster-img cluster-img-2 reference ]} :view
-         {:keys [raw flattened]} :camera
+  (let [{{:keys [homography samplesize samplepoints]} :view
+         {:keys [raw flattened-pimage]} :camera
          {:keys [size]} :goban
          board :board}  @ctx
-        tx (+ (* size block-size) 40)]
+        local-block-size 35.0
+        local-mult (/ local-block-size block-size)
+        tx (+ (* size local-block-size) 40)]
     (cond
       (nil? homography)
       (ui/shadow-text "Could not locate board? <Backspace> to go back" 10 25)
@@ -257,145 +249,53 @@
       (ui/shadow-text "No source image" 10 25)
       :else
       (do
-        (let [[sx sy] shift
-              [szx szy] samplesize]
-          #_(Imgproc/warpPerspective raw flattened homography (ref-size size))
-          #_(Core/absdiff ^Mat flattened ^Mat reference flattened)
+        (q/fill 255)
+        (q/stroke 255)
 
-          (q/fill 255)
-          (q/stroke 255)
-          #_(q/rect tx 200 255 255)
+        (when-not flattened-pimage
+          (ui/shadow-text "No flattened board image, check source?" 25 25))
 
-          (q/fill 255 255 255 255)
-          (q/stroke 255 0 0 128)
-          (q/stroke-weight 10)
-          (q/rect (+ tx 35) 200 255 255)
+        (when flattened-pimage
+          (q/image-mode :corner)
+          (q/image flattened-pimage 0 0 (* local-block-size (inc size)) (* local-block-size (inc size)))
 
           (q/stroke-weight 1)
-          (doseq [x (range 1 3)]
-            (q/line (+ tx 35) (+ 200 (* x 85)) (+ tx 290) (+ 200 (* x 85))))
 
-          (when flattened
-            #_(doseq [x (range (- (q/mouse-x) szx) (+ (q/mouse-x) szx))
-                    y (range (- (q/mouse-y) szy) (+ (q/mouse-y) szy))]
-              (when-let [hsv (seq (.get flattened x y))]
-                (let [[h s v] hsv]
-                  (q/stroke 255 0 0 64)
-                  (q/ellipse (+ tx s 35) (+ 200 v) 1 1)
-                  (q/stroke 0 0 255 64)
-                  (q/ellipse (+ tx h 35) (+ 200 v) 1 1)
-                  (q/stroke 0 255 0 64)
-                  (q/ellipse (+ tx h 35) (+ 200 s) 1 1)
-                  )))
+          (q/stroke 0 255 0)
+          (q/fill 0 0 0 0)
 
-            #_(ui/shadow-text (str "Ref HSV Mean: " (vec (map int refmean))) (+ tx 35) 525)
-            #_(ui/shadow-text (str "Ref HSV Stddev: " (vec (map int refstddev))) (+ tx 35) 545)
-            (q/image-mode :corner)
-            (q/image (util/mat-to-pimage flattened) 0 0)
-            (let [planes (LinkedList.)]
-              (Core/split flattened planes)
-              (q/image (util/mat-to-pimage (first planes)) 0 700 350 350)
-              (q/image (util/mat-to-pimage (second planes)) 350 700 350 350)
-              (q/image (util/mat-to-pimage (first (drop 2 planes))) 700 700 350 350))
-            #_(when
-              (and (< 10 (q/mouse-x) (- (.cols flattened) 10))
-                   (< 10 (q/mouse-y) (- (.rows flattened) 10)))
-              (q/stroke-weight 5)
-              (let [[samplex sampley] (closest-samplepoint samplepoints [(q/mouse-x) (q/mouse-y)])
 
-                    [px py sw sh] (sample-coords samplex sampley samplesize)
-                    cluster (cluster-at flattened samplex sampley samplesize)
-                    mean (mean-at flattened samplex sampley samplesize)
-                    [c1 c2 c3] (:clusters cluster)]
-                #_(println (seq (.-val a)))
-                (ui/shadow-text (str "Cluster 1: " (vec c1)) (+ tx 35) 485)
-                (ui/shadow-text (str "Cluster 2: " (vec c2)) (+ tx 35) 510)
-                (ui/shadow-text (str "Mean: " (vec (map int mean))) (+ tx 35) 535)
+          ;; Draw overlay
+          (doseq [[y row] (map-indexed vector samplepoints)
+                  [x [px py]] (map-indexed vector row)]
+            (let [v (get-in board [y x])
+                  [sx sy sw sh] (sample-coords px py samplesize)]
+              (q/fill 0 0)
+              (q/stroke 0 0)
+              (q/stroke-weight 1)
 
-                (ui/shadow-text (str "Variance: " (vec (map (fn [a b c] (+ (Math/abs (- a b)))) c1 c2 c3))) (+ tx 35) 560)
-                #_(comment
-                  ;; Show HSV mean sample
-                  (q/stroke 255 0 0)
-                  (q/ellipse (+ tx s 35) (+ 200 v) 2 2)
-                  (q/stroke 0 0 255)
-                  (q/ellipse (+ tx h 35) (+ 200 v) 2 2))
-                #_(q/stroke 0 255 0)
-                #_(q/ellipse (+ tx (int (* 200 (/ x (first samplesize)))) 35)
-                           (+ 200 (int (* 200 (/ y (second samplesize))))) 2 2)
+              (apply q/stroke [0 255 0])
+              (q/stroke-weight 1)
+              (q/fill 0 0)
+              #_(q/rect sx sy sw sh)
+              (q/rect
+                (- (* local-mult px) (/ local-block-size 2)) (- (* local-mult py) (/ local-block-size 2))
+                local-block-size local-block-size)
 
+              (when-not (nil? v)
+                (q/fill (case v :w 255 :b 0 :na (q/color 255 0 0)) 255)
+                (q/stroke (if (= v :w) 0 255) 255)
                 (q/stroke-weight 1)
-                (doseq [r (range (count (:signature cluster)))]
-                  (let [l (get (:signature cluster) r)
-                        [h s v :as c] (get (:clusters cluster) l)]
-                    (q/stroke v s h)
-                    (q/fill v s h)
-                    (q/rect (+ 35 tx (* 4 (mod r sw))) (+ 200 (* 4 (int (/ r sw)))) 3 3)))
-
-
-                (q/stroke-weight 1)
-                (q/stroke 0 0 255 255)
-                (q/fill 0 0 255 128)
-                (q/rect px py sw sh)
-                ))
-            #_(Point. (q/mouse-x) (q/mouse-y))
-            (q/stroke-weight 1)
-
-            (q/stroke 0 255 0)
-            (q/fill 0 0 0 0)
-
-
-            ;; Draw overlay
-            (doseq [[y row] (map-indexed vector samplepoints)
-                    [x [px py]] (map-indexed vector row)]
-              (let [ref (get-in reference [y x])
-                    [w c] (if (#{[0 0] [0 (dec size)] [(dec size) 0] [(dec size) (dec size)]} [x y])
-                            [3 [255 0 0]]
-                            [1 [0 255 0]])
-                    v (get-in board [y x])
-                    [sx sy sw sh] (sample-coords px py samplesize)
-                    ]
-                (q/fill 0 0)
-                (q/stroke 0 0)
-                (q/stroke-weight 1)
-                #_(doseq [r (range (count (:signature ref)))]
-                  (let [l (get (:signature ref) r)]=
-                    (q/fill (if (zero? l) 255 0) 255)
-                    (q/rect (+ px (mod r szx)) (+ py (int (/ r szx)))
-                            1 1)))
-
-                #_(let [sref (cluster-at flattened px py samplesize)]
-                  (doseq [r (range (count (:signature sref)))]
-                    (let [l (get (:signature sref) r)]
-                      (q/fill (if (zero? l) 255 0) 255)
-                      (q/rect (+ px (mod r szx)) (+ szy (+ py (int (/ r szx))))
-                              1 1))))
-
-
-                (apply q/stroke c)
-                (q/stroke-weight w)
-                (q/fill 0 0)
-                #_(q/rect sx sy sw sh)
-                (q/rect (- px 18) (- py 18) 36 36)
-
-                (when-not (nil? v)
-                  (q/fill (case v :w 255 :b 0 :na (q/color 255 0 0)) 255)
-                  (q/stroke (if (= v :w) 0 255) 255)
-                  (q/stroke-weight 1)
-                  (q/ellipse (+ sx (/ sw 2)) (+ sy (/ sh 2)) 12 12)
-                  (q/stroke-weight 0.5)
-                  (q/ellipse (+ 18 (* x 17.5)) (+ 718 (* y 17.5)) 4 4)
-                  (q/ellipse (+ 368 (* x 17.5)) (+ 718 (* y 17.5)) 4 4)
-                  (q/ellipse (+ 718 (* x 17.5)) (+ 718 (* y 17.5)) 4 4)))))
+                (q/ellipse (* local-mult (+ sx (/ sw 2))) (* local-mult (+ sy (/ sh 2))) 12 12)))))
 
 
 
-          (q/fill 128)
-          (ui/shadow-text "Play around corners + center for perspective correction" tx 25)
-          (ui/shadow-text "Use mouse on corners to shift point sampling" tx 50)
-          (ui/shadow-text "<Backspace> Back to calibration" tx 100)
-          (ui/shadow-text "<R> Reset reference" tx 125)
-          (ui/shadow-text "<K> Kifu Recording" tx 150)
-          )))))
+        (q/fill 128)
+        (ui/shadow-text "Play around corners + center" tx 25)
+        (ui/shadow-text "to check sampling is correct" tx 50)
+        (ui/shadow-text "<Backspace> Back to calibration" tx 100)
+        (ui/shadow-text "<K> Kifu Recording" tx 150)
+        ))))
 
 (defmethod ui/mouse-dragged :view [ctx]
   #_(let [[szx szy] (-> @ctx :view :samplesize)
@@ -413,7 +313,11 @@
 (defmethod ui/mouse-pressed :view [ctx]
 
   (let [[szx szy] (-> @ctx :view :samplesize)
-        [px py] (map (comp dec int #(/ % block-size)) (closest-samplepoint (-> @ctx :view :samplepoints) [(q/mouse-x) (q/mouse-y)]))]
+        local-block-size 35.0
+        local-mult (/ local-block-size block-size)
+        [px py] (map
+                  (comp dec int #(/ % block-size))
+                  (closest-samplepoint (-> @ctx :view :samplepoints) [(/ (q/mouse-x) local-mult) (/ (q/mouse-y) local-mult)]))]
     (cond
       (= (q/mouse-button) :left)
       (swap! ctx assoc-in [:board py px] :w)
@@ -430,7 +334,6 @@
   (case
     (q/key-code)
     8 (ui/transition ctx :goban)
-    82 (update-reference ctx true)
     38 (swap! ctx update-in [:view :shift 1] dec)
     40 (swap! ctx update-in [:view :shift 1] inc)
     37 (swap! ctx update-in [:view :shift 0] dec)

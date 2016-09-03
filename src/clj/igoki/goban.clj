@@ -49,6 +49,8 @@
   [(/ (* px (q/width)) (.width pimg))
    (/ (* py (q/height)) (.height pimg))])
 
+(def pn ["A19" "T19" "T1" "A1"])
+
 (defmethod ui/draw :goban [ctx]
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
@@ -60,11 +62,8 @@
       :else
       (let [{{:keys [size edges points lines]} :goban} @ctx
             points (map (partial convert-point c) points)
-            edges (map #(map (partial convert-point c) %) edges)
-            pn ["A19" "T19" "T1" "A1"]
-            d (dec size)]
+            edges (map #(map (partial convert-point c) %) edges)]
         (q/image c 0 0 (q/width) (q/height))
-
         (ui/shadow-text "Please select the corners of the board" 10 25)
 
         (ui/shadow-text "<Tab> Cycle 9x9, 13x13 and 19x19. " 10 50)
@@ -82,8 +81,7 @@
             (str size "x" size)
             (/ (reduce + (map first points)) 4)
             (/ (reduce + (map second points)) 4)
-            :center :bottom)
-          )
+            :center :bottom))
 
         (q/stroke 78 64 255 128)
         (q/stroke-weight 2)

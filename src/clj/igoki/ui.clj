@@ -118,20 +118,21 @@
     (println "Error: Camera not opened"))
   (when-not (-> @ctx :camera :stopped)
     (try
-      (let [frame (Mat.)]
+      (let [frame (or (-> @ctx :camera :frame) (Mat.))]
         (.read video frame)
-        (let [corrected frame #_(illuminate-correct frame)]
-          (swap!
-            ctx update :camera assoc
-            :raw corrected
-            :pimg (util/mat-to-pimage corrected))))
-      (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
+
+        (swap!
+          ctx update :camera assoc
+          :raw frame
+          ;; TODO: this chows memory - better to have a hook on update for each specific
+          ;; view - this will only be needed on the first screen.
+          :pimg (util/mat-to-pimage frame)))
+      (Thread/sleep (or (-> @ctx :camera :read-delay) 1000))
       (catch Exception e
         (println "exception thrown")
         (.printStackTrace e)
         #_(stop-read-loop ctx)
-        #_(throw e)))
-    (recur ctx video)))
+        #_(throw e)))))
 
 (defn read-loop [ctx camidx]
   (let [^VideoCapture video (VideoCapture. camidx)]
@@ -141,13 +142,15 @@
     (doto
       (Thread.
         ^Runnable
-        #(camera-read ctx video))
+        #(when-not (-> @ctx :camera :stopped)
+          (camera-read ctx video)
+          (recur)))
       (.setDaemon true)
       (.start))))
 
 (defn switch-read-loop [ctx camidx]
   (stop-read-loop ctx)
-  (Thread/sleep (* 2 (or (-> @ctx :camera :read-delay) 500)))
+  (Thread/sleep (* 2 (or (-> @ctx :camera :read-delay) 1000)))
   (read-loop ctx camidx))
 
 (defn save-dialog [success-fn]

@@ -39,8 +39,8 @@
       ctx
       (fn [c]
         (-> c
-            (update :kifu assoc :submit {:latch 3 :board board})
-            (update :camera assoc :read-delay 100))))))
+            (update :kifu assoc :submit {:latch 1 :board board})
+            #_(update :camera assoc :read-delay 100))))))
 
 (defn board-history [{:keys [current-branch-path movenumber moves] :as game}]
   (->>

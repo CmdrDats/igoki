@@ -5,7 +5,7 @@
             [clojure.edn :as edn])
   (:import (java.io File FileInputStream)
            (org.opencv.highgui Highgui)
-           (org.opencv.core MatOfByte MatOfPoint2f Mat Size Rect)
+           (org.opencv.core MatOfByte MatOfPoint2f Mat Size Rect Core)
            (org.opencv.calib3d Calib3d)
            (org.opencv.imgproc Imgproc)))
 
@@ -76,14 +76,23 @@
       leftedge rightedge)))
 
 (defn dump-points [^File imgfile sample-size flat samplepoints board id]
-  (doseq [[py rows] (map-indexed vector samplepoints)]
-    (doseq [[px [x y]] (map-indexed vector rows)]
-      (let [r (Rect. (- x sample-size) (- y sample-size) (* sample-size 2) (* sample-size 2))
-            p (get-in board [py px])
-            nm (str (.getAbsolutePath (.getParentFile imgfile)) "/samples/" (if p (name p) "e") "/" px "-" py "-" id ".png")]
-        (Highgui/imwrite
-          nm
-          (.submat ^Mat flat r)))))
+  (let [rots [nil 0 1 -1]]
+    (util/with-release
+      [sample (Mat.)]
+      (doseq [[py rows] (map-indexed vector samplepoints)]
+        (doseq [[px [x y]] (map-indexed vector rows)]
+          (let [r (Rect. (- x sample-size) (- y sample-size) (* sample-size 2) (* sample-size 2))
+                p (get-in board [py px])]
+            (doseq [rotname rots]
+              (let [nm (str (.getAbsolutePath (.getParentFile imgfile)) "/samples/"
+                         (if p (name p) "e") "/" id "/" px "-" py "-" (or rotname "O")".png")]
+                (if rotname
+                  (do
+                    (Core/transpose (.submat ^Mat flat r) sample)
+                    (Core/flip sample sample rotname)
+                    (Highgui/imwrite nm sample))
+                  (Highgui/imwrite nm
+                    (.submat ^Mat flat r))))))))))
   samplepoints)
 
 (defn generate-sample-points [settings ^File img]
@@ -113,6 +122,9 @@
     (.mkdirs (File. f "samples/w"))
 
     (doseq [i imgs]
+      (.mkdirs (File. f (str "samples/b/" (.getName i))))
+      (.mkdirs (File. f (str "samples/e/" (.getName i))))
+      (.mkdirs (File. f (str "samples/w/" (.getName i))))
       (println "Processing : " (.getAbsolutePath i))
       (generate-sample-points settings i))))
 
@@ -120,5 +132,6 @@
   (ui/stop-read-loop ui/ctx)
 
   (load-next-sample ui/ctx "resources/samples/testing")
+  (let [c (swap! ui/ctx view/read-board)] :done)
   (save-current-sample ui/ctx)
-  (generate-all-samples {:block-size 35 :sample-size 18} "resources/samples/training"))
+  (generate-all-samples {:block-size 10 :sample-size 5} "resources/samples/training"))

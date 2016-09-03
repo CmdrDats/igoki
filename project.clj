@@ -53,7 +53,9 @@
    :dependencies
    [[magnifier "0.3.0"]]}
   :repositories {"yadarts-maven" "https://raw.github.com/yadarts/maven/master"}
-  :jvm-opts ["-Djavax.net.ssl.trustStore=resources/ogs.truststore"]
+  :jvm-opts ["-Djavax.net.ssl.trustStore=resources/ogs.truststore"
+             "-Xms1024M" "-Xmx2048M" "-XX:NewSize=528M" "-XX:+UseParNewGC" "-XX:+UseConcMarkSweepGC"
+             "-XX:+CMSParallelRemarkEnabled" "-server" "-XX:-OmitStackTraceInFastThrow"]
   :main igoki.core
 
   :plugins [[lein-environ "1.0.2"]
