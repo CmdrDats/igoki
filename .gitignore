@@ -9,3 +9,7 @@ pom.xml.asc
 /.nrepl-port
 /.creds
 capture
+resources/*.edn
+*.log
+node_modules
+resources/samples

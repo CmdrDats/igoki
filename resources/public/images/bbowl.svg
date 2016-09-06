@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="689px" height="619px" viewBox="0 0 689 619" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 3.6.1 (26313) - http://www.bohemiancoding.com/sketch -->
+    <title>BBowl</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="BBowl">
+            <g id="BBowlShadow" transform="translate(0.000000, 273.000000)" fill="#000000">
+                <ellipse id="Oval-28" fill-opacity="0.2" cx="366" cy="169" rx="152" ry="159"></ellipse>
+                <ellipse id="Oval-28-Copy-3" fill-opacity="0.05" transform="translate(465.500000, 191.500000) rotate(-349.000000) translate(-465.500000, -191.500000) " cx="465.5" cy="191.5" rx="225.5" ry="150.5"></ellipse>
+                <ellipse id="Oval-28-Copy-2" fill-opacity="0.3" cx="373" cy="184.5" rx="145" ry="143.5"></ellipse>
+                <ellipse id="Oval-28-Copy" fill-opacity="0.05" cx="259" cy="169" rx="259" ry="159"></ellipse>
+            </g>
+            <g id="BLidShadow" transform="translate(194.000000, 0.000000)" fill="#000000">
+                <ellipse id="Oval-43" fill-opacity="0.1" cx="163" cy="126" rx="163" ry="126"></ellipse>
+                <ellipse id="Oval-43-Copy" fill-opacity="0.2" cx="209" cy="119.5" rx="128" ry="119.5"></ellipse>
+            </g>
+            <g id="BLid" transform="translate(261.000000, 5.000000)">
+                <ellipse id="Oval-32" fill="#422725" cx="128" cy="123.5" rx="128" ry="123.5"></ellipse>
+                <path d="M128,247 C198.692448,247 256,191.707167 256,123.5 C256,55.2928334 198.692448,0 128,0 C57.307552,0 0,55.2928334 0,123.5 C0,191.707167 57.307552,247 128,247 Z M128,227 C188.199038,227 237,179.989899 237,122 C237,64.0101013 188.199038,17 128,17 C67.8009623,17 19,64.0101013 19,122 C19,179.989899 67.8009623,227 128,227 Z" id="Combined-Shape" fill-opacity="0.1" fill="#F7F7F7"></path>
+                <path d="M128,227 C188.199038,227 237,179.989899 237,122 C237,64.0101013 188.199038,17 128,17 C67.8009623,17 19,64.0101013 19,122 C19,179.989899 67.8009623,227 128,227 Z M128,217 C182.123905,217 226,174.690909 226,122.5 C226,70.3090911 182.123905,28 128,28 C73.8760945,28 30,70.3090911 30,122.5 C30,174.690909 73.8760945,217 128,217 Z" id="Combined-Shape" fill-opacity="0.1" fill="#000000"></path>
+                <circle id="Oval-34" fill-opacity="0.03" fill="#D8D8D8" cx="124" cy="122" r="77"></circle>
+                <ellipse id="Oval-33-Copy-4" cx="128" cy="122.5" rx="98" ry="94.5"></ellipse>
+                <ellipse id="Oval-35" fill-opacity="0.1" fill="#D8D8D8" cx="39.5" cy="126.5" rx="4.5" ry="18.5"></ellipse>
+                <ellipse id="Oval-36" fill-opacity="0.1" fill="#D8D8D8" cx="208" cy="121" rx="4" ry="11"></ellipse>
+                <ellipse id="Oval-37" fill-opacity="0.1" fill="#D8D8D8" transform="translate(146.500000, 60.000000) rotate(-340.000000) translate(-146.500000, -60.000000) " cx="146.5" cy="60" rx="22.5" ry="6"></ellipse>
+                <ellipse id="Oval-38" fill-opacity="0.1" fill="#D8D8D8" transform="translate(142.500000, 186.500000) rotate(-16.000000) translate(-142.500000, -186.500000) " cx="142.5" cy="186.5" rx="19.5" ry="4.5"></ellipse>
+            </g>
+            <g transform="translate(233.000000, 317.000000)">
+                <ellipse id="Oval-24" fill="#422725" cx="149" cy="142.5" rx="149" ry="142.5"></ellipse>
+                <ellipse id="Oval-26" fill-opacity="0.1" fill="#D8D8D8" transform="translate(249.500000, 240.000000) rotate(-316.000000) translate(-249.500000, -240.000000) " cx="249.5" cy="240" rx="3.5" ry="19"></ellipse>
+                <ellipse id="Oval-25" fill-opacity="0.1" fill="#D8D8D8" cx="25" cy="145.5" rx="7" ry="26.5"></ellipse>
+                <ellipse id="Oval-22-Copy-2" fill-opacity="0.5" fill="#000000" cx="160" cy="149.5" rx="116" ry="118.5"></ellipse>
+                <path d="M159.5,273 C226.050312,273 280,217.707167 280,149.5 C280,81.2928334 226.050312,26 159.5,26 C92.9496876,26 39,81.2928334 39,149.5 C39,217.707167 92.9496876,273 159.5,273 Z M160,268 C224.065031,268 276,214.945743 276,149.5 C276,84.0542571 224.065031,31 160,31 C95.934969,31 44,84.0542571 44,149.5 C44,214.945743 95.934969,268 160,268 Z" id="Combined-Shape" fill-opacity="0.3" fill="#D8D8D8"></path>
+            </g>
+        </g>
+    </g>
+</svg>

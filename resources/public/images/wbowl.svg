@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="402px" height="574px" viewBox="0 0 402 574" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 3.6.1 (26313) - http://www.bohemiancoding.com/sketch -->
+    <title>igoki-board</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="WBowl">
+            <g id="WLidShadow" transform="translate(40.000000, 318.000000)" fill="#000000">
+                <ellipse id="Oval-20" fill-opacity="0.2" cx="160.5" cy="122" rx="127.5" ry="122"></ellipse>
+                <ellipse id="Oval-21" fill-opacity="0.1" cx="127.5" cy="137.5" rx="127.5" ry="118.5"></ellipse>
+            </g>
+            <g id="WBowlShadow" fill="#000000">
+                <ellipse id="Oval-9" fill-opacity="0.1" cx="216.5" cy="159.5" rx="185.5" ry="159.5"></ellipse>
+                <ellipse id="Oval-10" fill-opacity="0.2" cx="161.5" cy="199" rx="161.5" ry="150"></ellipse>
+            </g>
+            <g id="WLid" transform="translate(61.000000, 326.000000)">
+                <circle id="Oval-16-Copy" fill="#422725" cx="119" cy="119" r="119"></circle>
+                <path d="M119,238 C184.721885,238 238,184.721885 238,119 C238,53.2781148 184.721885,0 119,0 C53.2781148,0 0,53.2781148 0,119 C0,184.721885 53.2781148,238 119,238 Z M119,228 C179.199038,228 228,179.199038 228,119 C228,58.8009623 179.199038,10 119,10 C58.8009623,10 10,58.8009623 10,119 C10,179.199038 58.8009623,228 119,228 Z" id="Combined-Shape" fill-opacity="0.1" fill="#FFFFFF"></path>
+                <circle id="Oval-14" stroke="#3C2422" fill-opacity="0.1" fill="#000000" cx="119" cy="119" r="86"></circle>
+                <ellipse id="Oval-15" fill-opacity="0.2" fill="#D8D8D8" transform="translate(50.000000, 150.000000) rotate(-27.000000) translate(-50.000000, -150.000000) " cx="50" cy="150" rx="3" ry="14"></ellipse>
+                <path d="M195.999462,114.74956 C195.974383,108.661892 195.035309,102.7918 193.313502,97.2716921 C189.833757,86.9476571 183.322578,80 175.864316,80 C174.891905,80 173.935593,80.1181036 173,80.3463956 C179.054136,90.5832726 182.576203,102.83454 182.576203,116 C182.576203,128.015286 179.642652,139.269135 174.528086,148.925241 C174.969761,148.974821 175.415322,149 175.864316,149 C186.936343,149 195.921155,133.688514 195.999462,114.74956 Z" id="Combined-Shape" fill-opacity="0.2" fill="#D8D8D8"></path>
+            </g>
+            <g transform="translate(31.000000, 20.000000)">
+                <path d="M146,291 C226.633573,291 292,225.857431 292,145.5 C292,65.1425689 226.633573,0 146,0 C65.3664265,0 0,65.1425689 0,145.5 C0,225.857431 65.3664265,291 146,291 Z M134,251 C198.065031,251 250,199.512746 250,136 C250,72.4872538 198.065031,21 134,21 C69.934969,21 18,72.4872538 18,136 C18,199.512746 69.934969,251 134,251 Z" id="Combined-Shape" fill="#422725"></path>
+                <ellipse id="Oval-2" fill="#190F0E" cx="134" cy="136" rx="116" ry="115"></ellipse>
+                <ellipse id="Oval-5" fill-opacity="0.1" fill="#D8D8D8" cx="275" cy="145.5" rx="9" ry="34.5"></ellipse>
+                <path d="M133.5,248 C196.184319,248 247,197.632034 247,135.5 C247,73.3679656 196.184319,23 133.5,23 C70.8156809,23 20,73.3679656 20,135.5 C20,197.632034 70.8156809,248 133.5,248 Z M134,251 C198.065031,251 250,199.512746 250,136 C250,72.4872538 198.065031,21 134,21 C69.934969,21 18,72.4872538 18,136 C18,199.512746 69.934969,251 134,251 Z" id="Combined-Shape" fill-opacity="0.4" fill="#D8D8D8"></path>
+            </g>
+        </g>
+    </g>
+</svg>
