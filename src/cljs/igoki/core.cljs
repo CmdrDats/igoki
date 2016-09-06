@@ -30,10 +30,7 @@
                        :contents
                        (for [y (range 19)]
                          (for [x (range 19)]
-                           (case (int (rand 4))
-                             1 :b
-                             2 :w
-                             nil)))}
+                           nil))}
            :config    {:tab {:selected :info}}}))
 
 

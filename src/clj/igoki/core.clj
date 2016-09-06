@@ -17,7 +17,6 @@
   (ui/start (ui/transition ui/ctx :goban)))
 
 (defn -main [& args]
-  (handler/start-router! ui/ctx)
-  (server/start)
+  (server/start ui/ctx)
   (start)
   )

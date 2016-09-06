@@ -7,7 +7,8 @@
             [igoki.ui :as ui]
             [igoki.util :as util]
             [taoensso.sente :as sente]
-            [taoensso.sente.server-adapters.http-kit      :refer (sente-web-server-adapter)])
+            [taoensso.sente.server-adapters.http-kit :refer (sente-web-server-adapter)]
+            [clojure.set :as set])
   (:import (javax.imageio ImageIO)
            (com.sun.xml.internal.messaging.saaj.util ByteOutputStream)
            (java.io ByteArrayInputStream)
@@ -89,6 +90,13 @@
           (println "Sending to " u)
           (chsk-send! u [:kifu/updated (-> n :kifu :kifu-board)])))))
 
+  (add-watch connected-uids ::router
+    (fn [k r o n]
+      (doseq [u (set/difference (:any n) (:any o) )]
+        (println "Sending board to " u)
+        (chsk-send! u [:kifu/updated (-> @ctx :kifu :kifu-board)]))
+      ))
+
   (stop-router!)
   (reset! router_
           (sente/start-server-chsk-router!
@@ -128,7 +136,7 @@
 
 (defn pic [req]
   (if-let [raw (-> @ui/ctx :camera :raw)]
-    (let [bufimage (util/mat-to-buffered-image raw)
+    (let [bufimage (util/mat-to-buffered-image raw nil)
           out (ByteOutputStream.)]
       (ImageIO/write bufimage "jpg" out)
       {:body         (ByteArrayInputStream. (.toByteArray out))

@@ -17,7 +17,7 @@
 
 ;;
 
- (defn start []
+ (defn start [ctx]
    (let [port (Integer/parseInt (or (env :port) "3000"))]
-     (server/run-server handler/app {:port port :join? false})
-     (handler/start-router!)))
+     (handler/start-router! ctx)
+     (server/run-server handler/app {:port port :join? false})))

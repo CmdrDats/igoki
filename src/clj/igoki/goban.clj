@@ -114,7 +114,7 @@
 
                 h (if (>= (count good-matches) 4) (Calib3d/findHomography obj scene))
                 ]
-            (println (count good-matches))
+            #_(println (count good-matches))
             (.fromList gm good-matches)
             (Features2d/drawMatches
               cropped keypoints-object
@@ -136,7 +136,7 @@
               #_(swap! ctx assoc-in [:goban :pimg]
                        (util/mat-to-pimage raw))
               (swap! ctx assoc-in [:goban :flat]
-                     (util/mat-to-pimage img-matches))
+                     (util/mat-to-pimage img-matches nil nil))
               (reverse-transform ctx))))))))
 
 (defn mat->lines [^Mat mat]
@@ -160,8 +160,9 @@
         (if (< (/ Math/PI 4) t (* 3 (/ Math/PI 4)))
           [(Math/round (* t 5)) (Math/round (- x2 (/ (- y2 cy) (Math/tan t)))) cy]
           [(Math/round (* t 5)) cx (Math/round (- y2 (* (- x2 cx) (Math/tan t))))])]
-    (println l)
-    (println [t r])
+    (comment
+      (println l)
+      (println [t r]))
     r))
 
 (defn weld-lines [[mean lines]]
@@ -213,8 +214,10 @@
     (let [lines (map (fn [[x1 y1 x2 y2 :as k]] [x1 y1 x2 y2 (theta k)]) (mat->lines pts2f))
           avg (avg-theta lines)]
       #_(println "=================================================")
+      (swap! ctx update-in [:linedump] conj (map remove-outliers (group-lines avg lines)))
       (doseq [[k ls] (map remove-outliers (group-lines avg lines))
               [[_ gx gy] gls] (group-by (partial line-group [(/ (.cols bilat) 2) (/ (.rows bilat) 2)]) ls)]
+
         #_(println [x1 y1 x2 y2 t])
         #_(println g " -- " (count gls))
         (let [[x1 y1 x2 y2 t] (first gls)
@@ -244,7 +247,7 @@
       (doseq [p (seq (.toArray pts2f))]
         (Core/circle cropped p 2 (Scalar. 255 0 255) 3)))
     (swap! ctx assoc-in [:goban :flat]
-           (util/mat-to-pimage bilat))
+           (util/mat-to-pimage bilat nil nil))
     #_(util/write-mat pts)))
 
 
@@ -317,7 +320,7 @@
           (q/text (get pn p) x (- y 5))
           (q/ellipse x y 2 2))
         (when (and flat flat-view?)
-          (q/image flat 0 0 (q/width) (q/height)))))))
+          (q/image (:pimg flat) 0 0 (q/width) (q/height)))))))
 
 
 (defmethod ui/mouse-dragged :goban [ctx]
