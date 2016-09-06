@@ -164,6 +164,16 @@
         (recur r (get-in m oks) (assoc (get-in m r) (last oks) s)))
       s)))
 
+(defn std-dev
+  "Find the standard deviation of a given number of samples (list of numbers)"
+  [samples]
+  (let [n (count samples)
+        mean (if (zero? n) 0 (/ (reduce + samples) n))
+        intermediate (map #(Math/pow (- %1 mean) 2) samples)]
+    (if (zero? n)
+      0 (Math/sqrt
+          (/ (reduce + intermediate) n)))))
+
 
 (defn zip-add-file [zipname destname ^InputStream input]
   (let [f (TFile. ^String zipname ^String destname (TArchiveDetector.".zip"))]
