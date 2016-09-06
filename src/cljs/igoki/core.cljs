@@ -23,7 +23,7 @@
        "十一" "十二" "十三" "十四" "十五" "十六" "十七" "十八" "十九"]
    :x [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19]})
 
-(def app
+(defonce app
   (r/atom {:selection "Library"
            :board     {:size 19
                        :coords true
@@ -35,6 +35,7 @@
                              2 :w
                              nil)))}
            :config    {:tab {:selected :info}}}))
+
 
 ;; -------------------------
 ;; Views
@@ -100,37 +101,37 @@
           :fill "#ddeeee"}])
 
 (defn newboard [size state]
-  (let [bowls? (> size 300)
-        xsize size
-        ysize (if bowls? (* size 0.70) size)
-        xlayoutgrid (/ xsize 50)
-        ylayoutgrid (/ ysize 50)
+  (fn [size state]
+    (let [bowls? (> size 300)
+          xsize size
+          ysize (if bowls? (* size 0.70) size)
+          xlayoutgrid (/ xsize 50)
+          ylayoutgrid (/ ysize 50)
 
-        bxoffset (* xlayoutgrid 10)
-        byoffset (* ylayoutgrid 1.65)
+          bxoffset (* xlayoutgrid 10)
+          byoffset (* ylayoutgrid 1.65)
 
-        bxmax (* xlayoutgrid 40.3)
-        bymax (* ylayoutgrid 48.7)
+          bxmax (* xlayoutgrid 40.3)
+          bymax (* ylayoutgrid 48.7)
 
-        bxsize (- bxmax bxoffset)
-        bysize (- bymax byoffset)
+          bxsize (- bxmax bxoffset)
+          bysize (- bymax byoffset)
 
-        bxborder (* (/ bxsize (dec (:size state))) (if (:coords state) 1 0.55))
-        byborder (* (/ bysize (dec (:size state))) (if (:coords state) 1 0.55))
+          bxborder (* (/ bxsize (dec (:size state))) (if (:coords state) 1 0.55))
+          byborder (* (/ bysize (dec (:size state))) (if (:coords state) 1 0.55))
 
-        xstep (/ (- bxsize (* bxborder 2)) (dec (:size state)))
-        ystep (/ (- bysize (* byborder 2)) (dec (:size state)))
+          xstep (/ (- bxsize (* bxborder 2)) (dec (:size state)))
+          ystep (/ (- bysize (* byborder 2)) (dec (:size state)))
 
-        stars (set (xu/star-points (:size state)))
-        stroke (max 0.1 (min (/ ysize 600) 1))
+          stars (set (xu/star-points (:size state)))
+          stroke (max 0.1 (min (/ ysize 600) 1))
 
-        cxfn #(+ 0.5 (int (+ bxoffset bxborder (* xstep %))))
-        cyfn #(+ 0.5 (int (+ byoffset byborder (* ystep %))))
-        fxfn #(+ bxoffset bxborder (* xstep %))
-        fyfn #(+ byoffset (+ byborder (* ystep %)))
+          cxfn #(+ 0.5 (int (+ bxoffset bxborder (* xstep %))))
+          cyfn #(+ 0.5 (int (+ byoffset byborder (* ystep %))))
+          fxfn #(+ bxoffset bxborder (* xstep %))
+          fyfn #(+ byoffset (+ byborder (* ystep %)))
 
-        hover (r/atom nil)]
-    (fn []
+          hover (r/atom nil)]
       [:div.gobancontainer
        {:style
         {:width xsize :height ysize}}
@@ -156,32 +157,32 @@
                [:feOffset {:result "offOut" :in "SourceGraphic" :dx 20 :dy 20}]
                [:feGaussianBlur {:result "blurOut" :in "offOut" :stdDeviation 10}]
                [:blend {:in "SourceGraphic" :in2 "blurOut" :mode "normal"}]]]
-           #_[:ellipse {:cx           200 :cy 70 :rx 55 :ry 55 :fill "url(#white-radial)"
+           #_[:ellipse {:cx 200 :cy 70 :rx 55 :ry 55 :fill "url(#white-radial)"
                         :stroke-width stroke :stroke "black"}]
            #_[:circle {:id "top" :cx 100 :cy 100 :r 80 :fill "url(#image)"}]
 
 
            [:image {:x (* xlayoutgrid 0) :y (* ylayoutgrid 1) :width (* xlayoutgrid 12) :height (* ylayoutgrid 25) :xlinkHref "/images/wbowl.svg"}]
-           [:image {:x (* xlayoutgrid 35) :y (* ylayoutgrid 17)  :width (* xlayoutgrid 20) :height (* ylayoutgrid 40) :xlinkHref "/images/bbowl.svg"}]
+           [:image {:x (* xlayoutgrid 35) :y (* ylayoutgrid 17) :width (* xlayoutgrid 20) :height (* ylayoutgrid 40) :xlinkHref "/images/bbowl.svg"}]
            [:image {:x (* xlayoutgrid 6) :y (* ylayoutgrid 1) :width (* xlayoutgrid 39) :height (* ylayoutgrid 48) :xlinkHref "/images/board.svg"}]
            [:rect
-            {:x     bxoffset :y byoffset
+            {:x bxoffset :y byoffset
              :width bxsize :height bysize
-             :fill  "rgba(0,0,0,0.1)"}]]
+             :fill "rgba(0,0,0,0.1)"}]]
           (concat
             (let [[x y] @hover]
               [[:line
-                {:key     (str "board-hoverlinex-" x)
-                 :x1      (cxfn x) :y1 (+ 0.5 (int (+ byoffset byborder)))
-                 :x2      (cxfn x) :y2 (+ 0.5 (int (+ byoffset (- bysize byborder))))
+                {:key (str "board-hoverlinex-" x)
+                 :x1 (cxfn x) :y1 (+ 0.5 (int (+ byoffset byborder)))
+                 :x2 (cxfn x) :y2 (+ 0.5 (int (+ byoffset (- bysize byborder))))
                  :opacity 0.6
-                 :style   {:stroke "rgb(128,128,255)" :stroke-width (* stroke 4)}}]
+                 :style {:stroke "rgb(128,128,255)" :stroke-width (* stroke 4)}}]
                [:line
-                {:key     (str "board-hoverliney-" y)
-                 :x1      (+ 0.5 (int (+ bxoffset bxborder))) :y1 (cyfn y)
-                 :x2      (+ 0.5 (int (+ bxoffset (- bxsize bxborder)))) :y2 (cyfn y)
+                {:key (str "board-hoverliney-" y)
+                 :x1 (+ 0.5 (int (+ bxoffset bxborder))) :y1 (cyfn y)
+                 :x2 (+ 0.5 (int (+ bxoffset (- bxsize bxborder)))) :y2 (cyfn y)
                  :opacity 0.6
-                 :style   {:stroke "rgb(128,128,255)" :stroke-width (* stroke 4)}}]])
+                 :style {:stroke "rgb(128,128,255)" :stroke-width (* stroke 4)}}]])
             (if (:coords state)
               (for [x (range (:size state))]
                 [:text {:x (cxfn x) :y (+ byoffset (* ystep 0.6)) :font-size (* 16 stroke) :fill "black" :text-anchor "middle"} (get-in coords [:x x])]))
@@ -190,82 +191,84 @@
                 [:text {:x (+ bxoffset (* xstep 0.3)) :y (+ (cyfn y) (* ystep 0.1)) :font-size (* 16 stroke) :fill "black" :text-anchor "middle"} (get-in coords [:y y])]))
             (for [x (range (:size state))]
               [:line
-               {:key   (str "board-linex-" x)
-                :x1    (cxfn x) :y1 (+ 0.5 (int (+ byoffset byborder)))
-                :x2    (cxfn x) :y2 (+ 0.5 (int (+ byoffset (- bysize byborder))))
+               {:key (str "board-linex-" x)
+                :x1 (cxfn x) :y1 (+ 0.5 (int (+ byoffset byborder)))
+                :x2 (cxfn x) :y2 (+ 0.5 (int (+ byoffset (- bysize byborder))))
                 :style {:stroke "rgb(0,0,0)" :stroke-width stroke}}])
 
             (for [y (range (:size state))]
               [:line
-               {:key   (str "board-liney-" y)
-                :x1    (+ 0.5 (int (+ bxoffset bxborder))) :y1 (cyfn y)
-                :x2    (+ 0.5 (int (+ bxoffset (- bxsize bxborder)))) :y2 (cyfn y)
+               {:key (str "board-liney-" y)
+                :x1 (+ 0.5 (int (+ bxoffset bxborder))) :y1 (cyfn y)
+                :x2 (+ 0.5 (int (+ bxoffset (- bxsize bxborder)))) :y2 (cyfn y)
                 :style {:stroke "rgb(0,0,0)" :stroke-width stroke}}])
             (for [[x y] stars]
               [:circle
-               {:key          (str "board-star-" x "-" y)
-                :cx           (cxfn x)
-                :cy           (cyfn y)
-                :fill         "black"
-                :stroke       "black"
+               {:key (str "board-star-" x "-" y)
+                :cx (cxfn x)
+                :cy (cyfn y)
+                :fill "black"
+                :stroke "black"
                 :stroke-width 0
-                :r            (* stroke 3)}])
+                :r (* stroke 3)}])
 
             (for [[y row] (map-indexed vector (:contents state))
                   [x cell] (map-indexed vector row)]
               (if
                 (or (= cell :b) (= cell :w))
                 [:ellipse
-                 {:key          (str "board-stone-shadow-" x "-" y)
-                  :cx           (+ (fxfn x) (* 3 stroke)) :cy (+ (fyfn y) (* 3 stroke))
-                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
+                 {:key (str "board-stone-shadow-" x "-" y)
+                  :cx (+ (fxfn x) (* 3 stroke)) :cy (+ (fyfn y) (* 3 stroke))
+                  :rx (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
                   :stroke-width 0
-                  :opacity      0.5
-                  :fill         "url(#shadow-radial)"}]))
+                  :opacity 0.5
+                  :fill "url(#shadow-radial)"}]))
             (for [[y row] (map-indexed vector (:contents state))
                   [x cell] (map-indexed vector row)]
               (cond
                 (= cell :b)
                 [:ellipse
-                 {:key          (str "board-stone-" x "-" y)
-                  :cx           (fxfn x) :cy (fyfn y)
-                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
-                  :stroke       "rgba(68,68,68,1)"
+                 {:key (str "board-stone-" x "-" y)
+                  :cx (fxfn x) :cy (fyfn y)
+                  :rx (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
+                  :stroke "rgba(68,68,68,1)"
                   :stroke-width stroke
-                  :fill         "url(#black-radial)"}]
+                  :fill "url(#black-radial)"}]
 
                 (= cell :w)
                 [:ellipse
-                 {:key          (str "board-stone-" x "-" y)
-                  :cx           (fxfn x) :cy (fyfn y)
-                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
-                  :stroke       "rgba(128,128,128,1)"
+                 {:key (str "board-stone-" x "-" y)
+                  :cx (fxfn x) :cy (fyfn y)
+                  :rx (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
+                  :stroke "rgba(128,128,128,1)"
                   :stroke-width stroke
-                  :fill         "url(#white-radial)"}]
+                  :fill "url(#white-radial)"}]
                 (= @hover [x y])
                 [:ellipse
-                 {:key          (str "board-stone-" x "-" y)
-                  :cx           (fxfn x) :cy (fyfn y)
-                  :rx           (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
-                  :stroke       "rgba(0,0,0,0.3)"
+                 {:key (str "board-stone-" x "-" y)
+                  :cx (fxfn x) :cy (fyfn y)
+                  :rx (- (/ xstep 2) stroke) :ry (- (/ xstep 2) stroke)
+                  :stroke "rgba(0,0,0,0.3)"
                   :stroke-width stroke
-                  :opacity      0.5
-                  :fill         "url(#white-radial)"}]
+                  :opacity 0.5
+                  :fill "url(#white-radial)"}]
                 :else
                 [:rect
                  {:on-mouse-enter #(reset! hover [x y])
-                  :key            (str "board-stone-" x "-" y)
-                  :x              (- (fxfn x) (/ xstep 2)) :y (- (fyfn y) (/ ystep 2))
-                  :width          xstep :height xstep
-                  :stroke         "rgba(0,0,0,0)"
-                  :stroke-width   stroke
-                  :opacity        0}])
+                  :key (str "board-stone-" x "-" y)
+                  :x (- (fxfn x) (/ xstep 2)) :y (- (fyfn y) (/ ystep 2))
+                  :width xstep :height xstep
+                  :stroke "rgba(0,0,0,0)"
+                  :stroke-width stroke
+                  :opacity 0}])
               )))]])))
 
+
 (defn board [state]
-  (let [stars (set (xu/star-points (count state)))
-        hover (r/atom nil)]
-    (fn []
+  (fn [state]
+    (let [b (:board @state)
+          stars (set (xu/star-points (count b)))
+          hover (r/atom nil)]
       [:div.playarea {:style {:background-color "#31731A"}}
 
        #_[newboard 50 state]
@@ -273,7 +276,7 @@
        #_[newboard 500 state]
        #_[newboard 800 state]
 
-       [newboard (.-clientWidth (first (array-seq (.getElementsByTagName js/document "body")))) state]
+       [newboard (.-clientWidth (first (array-seq (.getElementsByTagName js/document "body")))) b]
 
        ])))
 
@@ -553,7 +556,7 @@
      [:div
       [:h2 {:style {:margin-bottom "25px"}} "Welcome to igoki"]
       #_[:a {:href "/about"} "go to about page"]
-      [board (:board @app)]
+      [board app]
       [:div.clear]
       [rc/button
        :on-click #(rf/dispatch [:form/update :config [:visible] true])
@@ -587,7 +590,7 @@
 (defn init! []
   (accountant/configure-navigation!)
   (accountant/dispatch-current!)
-  (comms/start-router!)
+  (comms/start-router! app)
   (mount-root)
   (rf/dispatch [:init])
   )

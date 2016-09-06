@@ -6,28 +6,35 @@
            (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
            (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)))
 
-(defn mat-to-buffered-image [^Mat frame]
+(defn mat-to-buffered-image [^Mat frame ^BufferedImage bimg]
   (let [type (case (.channels frame)
                1 BufferedImage/TYPE_BYTE_GRAY
                3 BufferedImage/TYPE_3BYTE_BGR)
-        image (BufferedImage. (.width frame) (.height frame) type)
+        image
+        (if (and bimg (= type (.getType bimg))
+              (= (.getWidth bimg) (.width frame)) (= (.getHeight bimg) (.height frame)))
+          bimg
+          (BufferedImage. (.width frame) (.height frame) type))
         raster (.getRaster image)
         data-buffer ^DataBufferByte (.getDataBuffer raster)
         data (.getData data-buffer)]
     (.get frame 0 0 data)
     image))
 
-(defn bufimage-to-pimage [^BufferedImage bimg]
-  (let [img (PImage. (.getWidth bimg) (.getHeight bimg) PConstants/ARGB)]
+(defn bufimage-to-pimage [^BufferedImage bimg ^PImage pimg]
+  (let [img
+        (if (and pimg (= (.-width pimg) (.getWidth bimg)) (= (.-height pimg) (.getHeight bimg)))
+          pimg
+          (PImage. (.getWidth bimg) (.getHeight bimg) PConstants/ARGB))]
     (.getRGB bimg 0 0 (.-width img) (.-height img) (.-pixels img) 0 (.-width img))
     (.updatePixels img)
     img))
 
-(defn mat-to-pimage [^Mat frame]
+(defn mat-to-pimage [^Mat frame ^BufferedImage oldbuffer ^PImage oldpimg]
   (when (and (> (.rows frame) 0) (> (.cols frame) 0))
-    (-> frame
-        mat-to-buffered-image
-        bufimage-to-pimage)))
+    (let [buf (mat-to-buffered-image frame oldbuffer)
+          pimg (bufimage-to-pimage buf oldpimg)]
+      {:bufimg buf :pimg pimg})))
 
 (defmacro with-release
   "A let block, calling .release on each provided binding at the end, in a finally block."

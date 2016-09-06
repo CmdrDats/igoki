@@ -15,15 +15,20 @@
   (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
   (q/background 200))
 
-(defn shadow-text [^String s x y & [align-horiz align-vert]]
-  (q/text-align (or align-horiz :left) (or align-vert :bottom))
-  (q/fill 0 196)
-  (q/text-size 20)
-  (q/text s (inc x) (inc y))
+(defn shadow-text
+  ([^String s x y]
+   (shadow-text s x y :left :bottom))
+  ([^String s x y align-horiz]
+    (shadow-text s x y align-horiz :bottom))
+  ([^String s x y align-horiz align-vert]
+   (q/text-align (or align-horiz :left) (or align-vert :bottom))
+   (q/fill 0 196)
+   (q/text-size 20)
+   (q/text s (inc x) (inc y))
 
-  (q/fill 255)
-  (q/text-size 20)
-  (q/text s x y))
+   (q/fill 255)
+   (q/text-size 20)
+   (q/text s x y)))
 
 (defn state [ctx] (:state @ctx))
 
@@ -85,17 +90,20 @@
     (Thread/sleep 500)
     (.read video frame)
     (swap!
-      ctx update :camera assoc
-      :raw frame
-      :pimg (util/mat-to-pimage frame))
+      ctx
+      update :camera
+      #(assoc %
+        :raw frame
+        :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg]))))
     (.release video)))
 
 (defn read-file [ctx fname]
   (let [frame (Highgui/imread (str "resources/" fname))]
     (swap!
-      ctx update :camera assoc
-      :raw frame
-      :pimg (util/mat-to-pimage frame))))
+      ctx update :camera
+      #(assoc %
+        :raw frame
+        :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg]))))))
 
 (defn stop-read-loop [ctx]
   (if-let [video ^VideoCapture (-> @ctx :camera :video)]
@@ -122,11 +130,12 @@
         (.read video frame)
 
         (swap!
-          ctx update :camera assoc
-          :raw frame
-          ;; TODO: this chows memory - better to have a hook on update for each specific
-          ;; view - this will only be needed on the first screen.
-          :pimg (util/mat-to-pimage frame)))
+          ctx update :camera
+          #(assoc %
+            :raw frame
+            ;; TODO: this chows memory - better to have a hook on update for each specific
+            ;; view - this will only be needed on the first screen.
+            :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg])))))
       (Thread/sleep (or (-> @ctx :camera :read-delay) 1000))
       (catch Exception e
         (println "exception thrown")

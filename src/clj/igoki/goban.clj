@@ -55,7 +55,7 @@
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
 
-  (let [c (-> @ctx :camera :pimg)]
+  (let [c (-> @ctx :camera :pimg :pimg)]
     (cond
       (nil? c)
       (ui/shadow-text "Could not acquire image?" 10 25)
@@ -95,7 +95,7 @@
 
 
 (defmethod ui/mouse-dragged :goban [ctx]
-  (when-let [c ^PImage (-> @ctx :camera :pimg)]
+  (when-let [c ^PImage (-> @ctx :camera :pimg :pimg)]
     (let [px (/ (* (q/mouse-x) (.width c)) (q/width))
           py (/ (* (- (q/mouse-y) 5) (.height c)) (q/height))]
       (swap!

@@ -247,7 +247,7 @@
       :else k)))
 
 (defmethod step-action :default [b k v]
-  (println "Unhandled property: " k)
+  #_(println "Unhandled property: " k)
   b)
 
 ;; Annotations and metadata guck

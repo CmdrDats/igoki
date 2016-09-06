@@ -79,8 +79,16 @@
 ;;;; Sente event router (our `event-msg-handler` loop)
 
 (defonce router_ (atom nil))
-(defn  stop-router! [] (when-let [stop-f @router_] (stop-f)))
-(defn start-router! []
+(defn stop-router! [] (when-let [stop-f @router_] (stop-f)))
+(defn start-router! [ctx]
+  (add-watch ctx ::router
+    (fn [k r o n]
+      (if-not (= (-> o :kifu :kifu-board)
+                (-> n :kifu :kifu-board))
+        (doseq [u (:any @connected-uids)]
+          (println "Sending to " u)
+          (chsk-send! u [:kifu/updated (-> n :kifu :kifu-board)])))))
+
   (stop-router!)
   (reset! router_
           (sente/start-server-chsk-router!

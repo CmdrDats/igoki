@@ -40,8 +40,9 @@
 
 (defn event-msg-handler
   "Wraps `-event-msg-handler` with logging, error catching, etc."
-  [{:as ev-msg :keys [id ?data event]}]
-  (-event-msg-handler ev-msg))
+  [app {:as ev-msg :keys [id ?data event]}]
+
+  (-event-msg-handler (assoc ev-msg :ctx app)))
 
 (defmethod -event-msg-handler
   :default ; Default/fallback case (no other matching handler)
@@ -57,7 +58,7 @@
 
 (defmethod -event-msg-handler :chsk/recv
   [{:as ev-msg :keys [?data id]}]
-  (->output! "Message received: " id)
+  (->output! (str "Message recieved: " id))
   (-event-msg-handler (assoc ev-msg :id (first ?data) :?data (second ?data))))
 
 (defmethod -event-msg-handler :chsk/handshake
@@ -66,11 +67,16 @@
     (rf/dispatch [:camera/list])
     (->output! "Handshake: %s" ?data)))
 
+(defmethod -event-msg-handler :kifu/updated
+  [{:as ev-msg :keys [?data ctx]}]
+  (->output! (str "Message data: " ?data))
+  (swap! ctx assoc-in [:board :contents] ?data))
+
 (defonce router_ (atom nil))
 (defn  stop-router! [] (when-let [stop-f @router_] (stop-f)))
-(defn start-router! []
+(defn start-router! [app]
   (stop-router!)
   (reset! router_
           (sente/start-client-chsk-router!
-            ch-chsk event-msg-handler)))
+            ch-chsk (partial event-msg-handler app))))
 

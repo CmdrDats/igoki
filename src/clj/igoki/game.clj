@@ -17,6 +17,18 @@
            (org.opencv.core MatOfByte)
            (de.schlichtherle.truezip.file TVFS)))
 
+;; ========================================================
+;; TODO: Display sibling branches
+;; TODO: Support swapping last move to a different point (traversing to the applicable branch)
+;; TODO: Display other annotations (circle, mark, selected, square, territory-black, territory-white)
+;; TODO: Cache last n moves for backtracking to prevent rebuilding it every time.
+;; TODO: Mainline variation
+;; TODO: 0 and 1 steps on SGF?
+;; This will immensely speed up the end game performance.
+;; ====================================================
+
+
+
 (defn board-diff [b1 b2]
   (remove
     nil?
@@ -39,12 +51,14 @@
       ctx
       (fn [c]
         (-> c
-            (update :kifu assoc :submit {:latch 1 :board board})
-            #_(update :camera assoc :read-delay 100))))))
+            (update :kifu assoc :submit {:latch 2 :board board})
+            (update :camera assoc :read-delay 300))))))
 
 (defn board-history [{:keys [current-branch-path movenumber moves] :as game}]
   (->>
     (range movenumber)
+    ;; This is a slow operation, so just checking the last few moves.
+    (take-last 20)
     (map
       (fn [m]
         (let [g (inferrence/reconstruct (assoc game :movenumber m))]
@@ -201,7 +215,7 @@
 
   ;; Draw the board
   (let [{{:keys [submit kifu-board constructed movenumber] :as game} :kifu
-         {:keys [^PImage pimg]}                                      :camera
+         {:keys [pimg]}                                      :camera
          board                                                       :board
          {:keys [size]}                                              :goban} @ctx
         cellsize (/ (q/height) (+ size 2))
@@ -212,22 +226,20 @@
         lastmove (last actionlist)]
     (when pimg
       (q/image-mode :corners)
-      (q/image pimg
-               (q/height)
-               (- (q/height) (* (- (q/width) (q/height)) (/ (.height pimg) (.width pimg))))
-               (q/width) (q/height)))
+      (q/image (:pimg pimg)
+        (q/height)
+        (- (q/height) (* (- (q/width) (q/height)) (/ (.height (:pimg pimg)) (.width (:pimg pimg)))))
+        (q/width) (q/height)))
 
     (ui/shadow-text (str "Recording: Img #" (:camidx game)) tx 25)
     (when (:filename game)
       (ui/shadow-text (:filename game) tx 50))
     (ui/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
-    (ui/shadow-text "<R> Reset Kifu" tx 125)
+    (ui/shadow-text "<R> Reset, <V> Back" tx 125)
     (ui/shadow-text "<V> Back to camera diff view" tx 150)
-    (ui/shadow-text "<C> Calibrate board" tx 175)
-    (ui/shadow-text "<E> Export SGF" tx 200)
-    (ui/shadow-text "<L> Load SGF" tx 225)
-    (ui/shadow-text "<M> Toggle show branches" tx 250)
-    (ui/shadow-text "<P> Pass" tx 275)
+    (ui/shadow-text "<E> Export, <L> Load SGF" tx 175)
+    (ui/shadow-text "<M> Toggle show branches" tx 200)
+    (ui/shadow-text "<P> Pass" tx 225)
 
     (q/fill 220 179 92)
     (q/rect 0 0 (q/height) (q/height))
@@ -308,29 +320,65 @@
             (q/text-align :center :center)
             (q/text (str movenum) (+ grid-start (* x cellsize)) (- (+ grid-start (* y cellsize)) 1))))))
 
-    ;; Mark the last move
-    (when lastmove
-      (let [{:keys [black white]} lastmove]
-        (doseq [m (or black white)]
-          (let [[x y :as p] (sgf/convert-sgf-coord m)]
-            (when p
-              (q/stroke (if white 0 255))
-              (q/stroke-weight 3)
-              (q/fill 0 0)
-              (q/ellipse (+ grid-start (* x cellsize))
-                         (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2))))))
 
-      ;; Mark next branches
-      (when (:show-branches game)
-        (doseq [{:keys [black white]} (:branches lastmove)
-                m (or black white)]
-          (let [[x y :as p] (sgf/convert-sgf-coord m)]
-            (when p
-              (q/stroke (if white 255 0))
-              (q/stroke-weight 3)
-              (q/fill 0 0)
-              (q/ellipse (+ grid-start (* x cellsize))
-                         (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2)))))))
+
+    (when (:comment lastmove)
+      (q/text-align :left :top)
+
+      (q/fill 255)
+      (q/text-size 12)
+      (q/text (first (:comment lastmove)) tx 240 (- (q/width) tx) (q/height)))
+
+
+    ;; Draw labels
+    (doseq [label (:label lastmove)]
+      (let [[pt text] (.split label ":" 2)
+            [x y :as p] (sgf/convert-sgf-coord pt)
+            stone (nth (nth kifu-board y) x)]
+
+        (cond
+          (= stone :w)
+          (do
+            (q/fill 255)
+            (q/stroke 255))
+
+          (= stone :b)
+          (do
+            (q/fill 0)
+            (q/stroke 0))
+
+          :else
+          (do
+            (q/fill 220 179 92)
+            (q/stroke 220 179 92)))
+
+        (q/stroke-weight 0)
+        (q/ellipse (+ grid-start (* x cellsize))
+          (+ grid-start (* y cellsize)) (/ cellsize 1.5) (/ cellsize 1.5))
+        (q/fill (if (= stone :b) 255 0))
+
+        (q/text-align :center :center)
+        (q/text
+          text
+          (+ grid-start (* x cellsize))
+          (- (+ grid-start (* y cellsize)) 1))))
+    #_(println (:triangle lastmove))
+
+    ;; Draw annotated triangles.
+    (doseq [pt (:triangle lastmove)]
+      (let [[x y :as p] (sgf/convert-sgf-coord pt)
+            stone (nth (nth kifu-board y) x)]
+
+        (q/stroke-weight 0)
+        (apply q/fill (cond (= stone :b) [0] (= stone :w) [255] :else [220 179 92]))
+        (q/ellipse (+ grid-start (* x cellsize))
+          (+ grid-start (* y cellsize)) (/ cellsize 1.1) (/ cellsize 1.1))
+        (q/stroke-weight 2)
+        (q/stroke (if (= stone :b) 255 0))
+        (q/triangle
+          (+ grid-start (* x cellsize)) (- (+ grid-start (* y cellsize)) 6)
+          (- (+ grid-start (* x cellsize)) 6) (+ (+ grid-start (* y cellsize)) 4.5)
+          (+ (+ grid-start (* x cellsize)) 6) (+ (+ grid-start (* y cellsize)) 4.5))))
 
     ;; If in the process of submitting, mark that stone.
     (when submit
@@ -343,6 +391,39 @@
         (q/fill (if (= d :w) 0 255))
         (q/text-align :center :center)
         (q/text "?" (+ grid-start (* x cellsize)) (+ grid-start (* y cellsize)))))
+
+    ;; Mark the last move
+    (when lastmove
+      (let [{:keys [black white]} lastmove]
+        (doseq [m (or black white)]
+          (let [[x y :as p] (sgf/convert-sgf-coord m)]
+            (when p
+              (q/stroke (if white 0 255))
+              (q/stroke-weight 3)
+              (q/fill 0 0)
+              (q/ellipse (+ grid-start (* x cellsize))
+                (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2))))))
+
+      ;; Mark next branches
+      (when (:show-branches game)
+        (doseq [[idx {:keys [black white]}] (map-indexed vector (:branches lastmove))
+                m (or black white)]
+          (let [[x y :as p] (sgf/convert-sgf-coord m)]
+            (when p
+              (if (zero? idx)
+                (q/stroke (if white 255 0))
+                (apply q/stroke (if white [255 0 0] [0 0 255])))
+              (q/stroke-weight 3)
+              (q/fill 0 0)
+              (q/ellipse (+ grid-start (* x cellsize))
+                (+ grid-start (* y cellsize)) (/ cellsize 2) (/ cellsize 2))
+              (q/fill 0)
+              (when (pos? idx)
+                (q/text-size 9)
+                (q/text
+                  (str idx)
+                  (- (+ grid-start (* x cellsize)) 9)
+                  (- (+ grid-start (* y cellsize)) 9))))))))
 
     ;; Highlight differences between constructed and camera board (visual syncing)
     (when (and board kifu-board)

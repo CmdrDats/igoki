@@ -4,7 +4,6 @@
     [igoki.goban]
     [igoki.view]
     [igoki.game])
-  (:require [kdtree])
   (:require [igoki.util :as util :refer [-->]]
             [igoki.ui :as ui])
   (:gen-class)

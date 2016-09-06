@@ -2,15 +2,13 @@
   (:require [igoki.ui :as ui]
             [igoki.util :as util]
             [quil.core :as q])
-  (:import (org.opencv.core MatOfPoint2f Point Mat Rect Size Core Scalar CvType MatOfDouble TermCriteria MatOfInt MatOfFloat MatOfFloat6)
+  (:import (org.opencv.core MatOfPoint2f Mat Rect Size)
            (org.opencv.calib3d Calib3d)
            (org.opencv.imgproc Imgproc)
-           (processing.core PImage)
-           (java.util LinkedList UUID)
+           (java.util UUID)
            (org.opencv.highgui Highgui)
            (java.io File)
            (org.deeplearning4j.util ModelSerializer)
-           (org.deeplearning4j.eval Evaluation)
            (org.canova.image.loader ImageLoader)
            (org.deeplearning4j.nn.multilayer MultiLayerNetwork)
            (org.nd4j.linalg.api.ndarray INDArray)))
@@ -26,13 +24,12 @@
   (ModelSerializer/restoreMultiLayerNetwork (File. (str nm ".cnet"))))
 (def net (load-net "resources/supersimple"))
 (def loader (ImageLoader. 10 10 3))
-
 (def block-size 10)
 
 
 (defn eval-net [flat px py]
   (let [smat (.submat flat (Rect. (- px (/ block-size 2)) (- py (/ block-size 2)) 10 10))
-        img (util/mat-to-buffered-image smat)
+        img (util/mat-to-buffered-image smat nil)
         ^INDArray d (.asRowVector loader img)
         _ (.divi d 255.0)
         ^INDArray o (.output ^MultiLayerNetwork net d)]
@@ -47,52 +44,6 @@
 
 (defn ref-size [size]
   (Size. (* block-size (inc size)) (* block-size (inc size))))
-
-(defn sample-coords [x y [szx szy :as samplesize]]
-  [(max 0 (- x szx)) (max 0 (- y szy)) (* 2 szx) (* 2 szy)])
-
-(defn mat-rect [^Mat mat x y w h] (let [[sx sy sw sh] (sample-coords x y [w h])]
-    (Mat. mat (Rect. (Point. sx sy) (Size. sw sh)))))
-
-(defn read-clusters [labels centers]
-  (.convertTo centers centers CvType/CV_8UC1 255.0)
-  (.reshape centers 3)
-
-  (util/with-release [labelint (MatOfInt. ^Mat labels)]
-    (let [ls (.toArray labelint)
-          counts (sort-by second (frequencies ls))
-          dominant (ffirst counts)
-          labelmap (into {} (map-indexed (fn [i [k _]] [k i]) counts))
-          signature (vec (map labelmap ls))]
-      {:signature signature
-       :counts    counts
-       :clusters  (vec (map (fn [[l _]]
-                              (doall (map (fn [i] (int (first (.get centers l i)))) (range 3)))) counts))
-       :hls       [(int (first (.get centers dominant 0)))
-                   (int (first (.get centers dominant 1)))
-                   (int (first (.get centers dominant 2)))]})))
-
-(defn cluster-at [mat x y [sizex sizey]]
-  (util/with-release
-    [samples32f (Mat.)
-     labels (Mat.)
-     centers (Mat.)
-     cutout (.clone (mat-rect mat
-                              (max 0 (min x (- (.rows mat) sizex)))
-                              (max 0 (min y (- (.rows mat) sizey)))
-                              sizex sizey))]
-    (let [k 2
-          samples (.reshape cutout 1 (* (.cols cutout) (.rows cutout)))
-          criteria (TermCriteria. TermCriteria/COUNT 1000 1)]
-      (.convertTo samples samples32f CvType/CV_32F (/ 1.0 255.0))
-      (Core/kmeans samples32f k labels criteria 10 Core/KMEANS_PP_CENTERS centers)
-      (read-clusters labels centers))))
-
-
-(defn mean-at [^Mat mat x y [sizex sizey]]
-  (util/with-release
-    [m (mat-rect mat x y sizex sizey)]
-    (seq (.-val (Core/mean m)))))
 
 (defn sample-points [corners size]
   (let [[ctl ctr cbr cbl] corners
@@ -126,35 +77,37 @@
 
 (defn read-board [ctx]
   (if-not @reading
+
     (try
       (reset! reading true)
-      (let [{{:keys [homography samplepoints flattened]} :view
-             {:keys [raw flattened]} :camera
+      (let [{{:keys [homography samplepoints]} :view
+             {:keys [raw flattened flattened-pimage]} :camera
              {:keys [size]} :goban} ctx
             new-flat (or flattened (Mat.))]
-        (when homography
-          (Imgproc/warpPerspective raw new-flat homography (ref-size size))
+        (if homography
+          (do
+            (Imgproc/warpPerspective raw new-flat homography (ref-size size))
 
-          (let [board
-                (vec
-                  (map
-                    (comp
-                      vec
-                      (fn [row]
-                        (map
-                          (fn [[px py]]
-                            nil
-                            (let [[b e w] (eval-net new-flat px py)]
-                              (cond
-                                (> b 0.5) :b
-                                (> w 0.7) :w)))
-                          row)))
-                    samplepoints))]
-            (->
-              ctx
-              (assoc-in [:camera :flattened] new-flat)
-              (assoc-in [:camera :flattened-pimage] (util/mat-to-pimage new-flat))
-              (assoc :board board))))
+            (let [board
+                  (mapv
+                    (fn [row]
+                      (mapv
+                        (fn [[px py]]
+                          (let [[b e w] (eval-net new-flat px py)]
+                            (cond
+                              (> b 0.5) :b
+                              (> w 0.7) :w)))
+                        row))
+                    samplepoints)]
+              (->
+                ctx
+                (assoc-in [:camera :flattened] new-flat)
+                (assoc-in [:camera :flattened-pimage]
+                  (util/mat-to-pimage new-flat
+                    (:bufimg flattened-pimage)
+                    (:pimg flattened-pimage)))
+                (assoc :board board))))
+          ctx)
         )
       (finally
         (reset! reading false)))
@@ -168,34 +121,17 @@
 
 
 (defn gather-reference [context homography]
-  (util/with-release
-    [imgmean (MatOfDouble.)
-     imgstddev (MatOfDouble.)]
-    (let [{{:keys [size]}             :goban
-           {:keys [raw]}              :camera
-           {:keys [samplecorners shift samplesize reference]} :view} context
-          samplesize (or samplesize [7 7])
-          samplecorners (or samplecorners (target-points size))
-          samplepoints (sample-points samplecorners size)
-          ref (Mat.)]
-      #_(Imgproc/cvtColor raw ref Imgproc/COLOR_BGR2HLS_FULL)
-      (Imgproc/warpPerspective raw ref homography (ref-size size))
+  (let [{{:keys [size]} :goban} context
+        samplecorners (target-points size)
+        samplepoints (sample-points samplecorners size)]
+    {:homography homography
+     :shift [0 0]
+     :samplecorners samplecorners
+     :samplepoints samplepoints}))
 
-      (Core/meanStdDev ref imgmean imgstddev)
-      {:homography    homography
-       :shift         [0 0]
-       :samplesize    samplesize
-       :samplecorners samplecorners
-       :samplepoints  samplepoints
-       :refmean       (seq (.toArray imgmean))
-       :refstddev     (seq (.toArray imgstddev))
-       :reference
-                      (vec (pmap (fn [row]
-                                   (vec (map (fn [[x y]] (mean-at ref x y samplesize)) row))) samplepoints))})))
-
-(defn update-reference [ctx & [force]]
+(defn update-reference [ctx]
   (let [{{:keys [homography]} :view :as context} @ctx]
-    (when (and homography (or force (not (-> context :view :reference))))
+    (when homography
       (swap! ctx assoc :view (gather-reference context homography)))))
 
 (defn update-homography [ctx]
@@ -235,7 +171,7 @@
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
 
-  (let [{{:keys [homography samplesize samplepoints]} :view
+  (let [{{:keys [homography samplepoints]} :view
          {:keys [raw flattened-pimage]} :camera
          {:keys [size]} :goban
          board :board}  @ctx
@@ -257,7 +193,7 @@
 
         (when flattened-pimage
           (q/image-mode :corner)
-          (q/image flattened-pimage 0 0 (* local-block-size (inc size)) (* local-block-size (inc size)))
+          (q/image (:pimg flattened-pimage) 0 0 (* local-block-size (inc size)) (* local-block-size (inc size)))
 
           (q/stroke-weight 1)
 
@@ -268,8 +204,7 @@
           ;; Draw overlay
           (doseq [[y row] (map-indexed vector samplepoints)
                   [x [px py]] (map-indexed vector row)]
-            (let [v (get-in board [y x])
-                  [sx sy sw sh] (sample-coords px py samplesize)]
+            (let [v (get-in board [y x])]
               (q/fill 0 0)
               (q/stroke 0 0)
               (q/stroke-weight 1)
@@ -277,7 +212,6 @@
               (apply q/stroke [0 255 0])
               (q/stroke-weight 1)
               (q/fill 0 0)
-              #_(q/rect sx sy sw sh)
               (q/rect
                 (- (* local-mult px) (/ local-block-size 2)) (- (* local-mult py) (/ local-block-size 2))
                 local-block-size local-block-size)
@@ -286,7 +220,7 @@
                 (q/fill (case v :w 255 :b 0 :na (q/color 255 0 0)) 255)
                 (q/stroke (if (= v :w) 0 255) 255)
                 (q/stroke-weight 1)
-                (q/ellipse (* local-mult (+ sx (/ sw 2))) (* local-mult (+ sy (/ sh 2))) 12 12)))))
+                (q/ellipse (* local-mult px) (* local-mult py) 20 20)))))
 
 
 
@@ -297,18 +231,7 @@
         (ui/shadow-text "<K> Kifu Recording" tx 150)
         ))))
 
-(defmethod ui/mouse-dragged :view [ctx]
-  #_(let [[szx szy] (-> @ctx :view :samplesize)
-        px (- (q/mouse-x) (/ szx 2))
-        py (- (q/mouse-y) (/ szy 2))
-        size (-> @ctx :goban :size)]
-    (swap!
-      ctx update-in [:view]
-      (fn [view p]
-        (let [corners (util/update-closest-point (:samplecorners view) p)
-              points (sample-points corners size)]
-          (assoc view :samplecorners corners :samplepoints points)))
-      [px py])))
+(defmethod ui/mouse-dragged :view [ctx])
 
 (defmethod ui/mouse-pressed :view [ctx]
 
@@ -342,24 +265,6 @@
     45 (swap! ctx update-in [:view :samplesize] (partial map dec))
     75 (ui/transition ctx :kifu)
     (println "Key code not handled: " (q/key-code))))
-
-
-
-(defn cluster-demo [#_ctx]
-  (let [img (Mat/zeros 200 200 CvType/CV_8UC3)]
-    (Core/rectangle img (Point. 0 0) (Point. 200 200) (Scalar. 0 255 0) -1)
-    (Core/rectangle img (Point. 100 0) (Point. 180 200) (Scalar. 0 0 255) -1)
-
-    (let [clusters (cluster-at img 0 0 [200 200])
-          _ (Core/rectangle img (Point. 99 0) (Point. 150 150) (Scalar. 0 0 255) -1)
-          clusters2 (cluster-at img 0 0 [200 200])]
-      #_(println clusters)
-      #_(swap! ctx assoc-in [:view :sample-img] (util/mat-to-pimage img))
-      #_(swap! ctx assoc-in [:view :cluster-img] (util/mat-to-pimage (second (first clusters))))
-      #_(swap! ctx assoc-in [:view :cluster-img-2] (util/mat-to-pimage (second (second clusters))))
-      #_(println clusters)
-      (util/hamming-dist (:signature clusters) (:signature clusters2))
-      )))
 
 (comment
   [[nil :b nil nil nil nil nil :b nil nil nil nil nil nil :w :b :b nil nil]

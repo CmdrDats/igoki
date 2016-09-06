@@ -95,13 +95,17 @@
       (swap! simctx
              update :camera assoc
              :raw (-> context :camera :raw)
-             :pimg (util/mat-to-pimage (-> context :camera :raw)))
+             :pimg (util/mat-to-pimage (-> context :camera :raw)
+                     (-> context :camera :pimg :bufimg)
+                     (-> context :camera :pimg :pimg)))
       (let [m (.clone (-> context :sim :background))]
         (draw-board m)
         (swap! simctx
                update :camera assoc
                :raw m
-               :pimg (util/mat-to-pimage m))))))
+               :pimg (util/mat-to-pimage m
+                       (-> context :camera :pimg :bufimg)
+                       (-> context :camera :pimg :pimg)))))))
 
 (defmethod ui/draw :simulation [ctx]
 
@@ -119,14 +123,14 @@
       (ui/shadow-text "Image not built yet, please wait..." 10 25)
         (= mode :replay)
         (do
-          (q/image pimg 0 0 (q/width) (q/height))
+          (q/image (:pimg pimg) 0 0 (q/width) (q/height))
           (ui/shadow-text "Esc: Back to simulation" tx 50)
           (ui/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
           (ui/shadow-text "L: Load captured zip" tx 100)
           )
         :else
         (do
-          (q/image pimg 0 0 (q/width) (q/height))
+          (q/image (:pimg pimg) 0 0 (q/width) (q/height))
           (ui/shadow-text "Tab: Cycle Size" tx 50)
           (ui/shadow-text "B: Black " tx 75)
           (ui/shadow-text "W: White" tx 100)
@@ -166,11 +170,12 @@
 
 (defn step-file-index [ctx nextfn]
   (try
-    (let [{{:keys [file index]} :replay} @ctx
+    (let [{{:keys [file index]} :replay
+           {:keys [pimg]} :camera} @ctx
           nextindex (nextfn index)
           image (util/zip-read-file file (str nextindex ".jpg"))
           raw (Highgui/imdecode (MatOfByte. image) Highgui/IMREAD_UNCHANGED)
-          pimg (util/mat-to-pimage raw)]
+          pimg (util/mat-to-pimage raw (:bufimg pimg) (:pimg pimg))]
       (swap!
         ctx
         (fn [c]
