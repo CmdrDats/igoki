@@ -278,6 +278,7 @@
     (find-points ui/ctx)))
 
 (defmethod ui/draw :goban [ctx]
+  (q/frame-rate 20)
   (q/fill 128 64 78)
   (q/rect 0 0 (q/width) (q/height))
 
@@ -322,28 +323,37 @@
         (when (and flat flat-view?)
           (q/image (:pimg flat) 0 0 (q/width) (q/height)))))))
 
+(defn update-corners [ctx points]
+  (swap! ctx update :goban
+    (fn [goban]
+      (assoc
+        goban
+        :points points
+        :edges (util/update-edges points))))
+  (reverse-transform ctx))
+
 
 (defmethod ui/mouse-dragged :goban [ctx]
   (when-let [c ^PImage (-> @ctx :camera :pimg :pimg)]
     (let [px (/ (* (q/mouse-x) (.width c)) (q/width))
-          py (/ (* (- (q/mouse-y) 5) (.height c)) (q/height))]
-      (swap!
-        ctx update-in [:goban]
-        (fn [{:keys [points] :as goban} p]
-          (let [points (if (> (count points) 3)
-                         (util/update-closest-point points p)
-                         (vec (conj points p)))
-                edges (util/update-edges points)]
-            (assoc goban :points points :edges edges))
-          )
-        [px py])
-      (reverse-transform ctx))))
+          py (/ (* (- (q/mouse-y) 5) (.height c)) (q/height))
+          p [px py]
+          points (-> @ctx :goban :points)
+          points
+          (if (> (count points) 3)
+            (util/update-closest-point points p)
+            (vec (conj points p)))]
+      (update-corners ctx points))))
 
 (defmethod ui/mouse-pressed :goban [ctx]
   (ui/mouse-dragged ctx))
 
 (defmethod ui/mouse-released :goban [ctx]
   (reverse-transform ctx))
+
+(defn cycle-corners [ctx]
+
+  (update-corners ctx (vec (take 4 (drop 1 (cycle (-> @ctx :goban :points)))))))
 
 (defmethod ui/key-pressed :goban [ctx]
   (case
@@ -364,6 +374,7 @@
     53 (do (sim/stop) (ui/switch-read-loop ctx 4))
     83 (start-simulation ctx)
     32 (swap! ctx update-in [:goban :flat-view?] (fnil not false))
+    67 (cycle-corners ctx)
     (println "Unhandled key-down: " (q/key-code))))
 
 (comment

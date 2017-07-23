@@ -51,7 +51,7 @@
       ctx
       (fn [c]
         (-> c
-            (update :kifu assoc :submit {:latch 2 :board board})
+            (update :kifu assoc :submit {:latch 1 :board board})
             (update :camera assoc :read-delay 300))))))
 
 (defn board-history [{:keys [current-branch-path movenumber moves] :as game}]
@@ -102,10 +102,11 @@
 (defn camera-updated [wk ctx old new]
   (view/camera-updated wk ctx old new)
   (let [{{{:keys [latch board] :as submit} :submit
-          :keys [filename camidx] :as game} :kifu
+          :keys [filename camidx last-dump] :as game} :kifu
          {:keys [raw]}                      :camera
          cboard                             :board} @ctx
-        updatelist @captured-boardlist]
+        updatelist @captured-boardlist
+        t (System/nanoTime)]
     (cond
       (nil? submit) nil
       (not= cboard board)
@@ -123,15 +124,27 @@
       (do
         (snd/play-sound :submit)
         (println "Debounce success - move submitted")
-        (dump-camera filename camidx raw updatelist)
+
         (let [new (inferrence/infer-moves game updatelist (last updatelist))]
           (if (and new (not= (:kifu-board new) (:kifu-board game)))
             (do
               (snd/play-sound :click)
               (reset! captured-boardlist [])
-              (swap! ctx assoc :kifu (assoc (dissoc new :submit) :camidx ((fnil inc 0) camidx))))
-            (swap! ctx update :kifu #(assoc (dissoc % :submit) :camidx ((fnil inc 0) camidx)))))
-        (swap! ctx update :camera dissoc :read-delay)))))
+              (swap! ctx assoc :kifu (assoc (dissoc new :submit) :cam-update true)))
+            (swap! ctx update :kifu #(assoc (dissoc % :submit) :cam-update true))))
+        (swap! ctx update :camera dissoc :read-delay)))
+
+    ;; Dump camera on a regular basis, ignore time if board is updated.
+    #_(println last-dump t (- t last-dump) (> (- t last-dump 20e9)))
+    (when (or (get-in @ctx [:kifu :cam-update])
+            (nil? last-dump)
+            (> (- t last-dump) 20e9 ))
+      (dump-camera filename camidx raw updatelist)
+      (swap! ctx update :kifu
+        #(-> %
+             (assoc :cam-update false :last-dump t)
+             (update :camidx (fnil inc 0)))))
+    ))
 
 (defn add-initial-points [node board]
   (let [initial
@@ -206,6 +219,12 @@
    4 {:white [255 255 0] :black [255 255 0]}
    5 {:white [0 255 255] :black [0 255 255]}
    6 {:white [255 0 255] :black [255 0 255]}})
+
+(defn find-last-move [ctx]
+  (let [{{:keys [movenumber] :as game} :kifu} @ctx
+        visiblepath (if movenumber (take movenumber (mapcat identity (:current-branch-path game))))
+        actionlist (if visiblepath (sgf/current-branch-node-list [visiblepath] (:moves game)))]
+    (last actionlist)))
 
 (defmethod ui/draw :kifu [ctx]
   (q/stroke-weight 1)
@@ -323,6 +342,9 @@
 
 
     (when (:comment lastmove)
+      (when (not= (:comment-spoken game) visiblepath)
+        (swap! ctx assoc-in [:kifu :comment-spoken] visiblepath)
+        (.exec (Runtime/getRuntime) (str "say " (:comment lastmove))))
       (q/text-align :left :top)
 
       (q/fill 255)

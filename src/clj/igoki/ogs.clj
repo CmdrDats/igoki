@@ -10,11 +10,13 @@
     [igoki.util :as util]
     [igoki.sound.announce :as announce]
     [igoki.sound.sound :as snd])
-  (:import (io.socket.client Socket IO Ack)
+  (:import (io.socket.client Socket IO Ack IO$Options)
            (io.socket.emitter Emitter$Listener)
            (org.json JSONObject)
            (java.util Date)
-           (java.text SimpleDateFormat)))
+           (java.text SimpleDateFormat)
+           (org.slf4j.bridge SLF4JBridgeHandler)
+           (java.util.logging LogManager Level)))
 
 ;; http://docs.ogs.apiary.io/
 ;; https://ogs.readme.io/docs/real-time-api
@@ -29,7 +31,7 @@
 (defn ogs-auth
   [conn]
   (client/post
-    (str url "/oauth2/access_token")
+    (str url "/oauth2/token/")
     {:connection-manager cm
      :form-params (-> conn (assoc :grant_type "password") (dissoc :url))
      :insecure? true
@@ -41,6 +43,12 @@
    :insecure? true
    :headers   {"Authorization" (str "Bearer " (-> auth :body :access_token))}
    :as :json})
+
+(defn config
+  [auth]
+  (client/get
+    (str url "/api/v1/ui/config/")
+    (ogs-headers auth)))
 
 (defn me
   [auth]
@@ -111,7 +119,13 @@
              (call [xs] (apply callback-fn (seq xs)))))))
 
 (defn setup-socket []
-  (let [sock (IO/socket "https://ggs.online-go.com")]
+  (let [sock (IO/socket "https://online-go.com/"
+               (let [options (IO$Options.)]
+                 (set! (.-transports options) (into-array String ["websocket"]))
+                 (println (seq (.-transports options)))
+                 options)
+               )
+        #_(IO/socket "http://online-go.com/socket.io")]
     (doseq [e [Socket/EVENT_CONNECT Socket/EVENT_CONNECT_ERROR
                Socket/EVENT_CONNECT_TIMEOUT Socket/EVENT_DISCONNECT
                Socket/EVENT_ERROR Socket/EVENT_MESSAGE
@@ -307,11 +321,16 @@
        :password      ""})
     )
   (def auth (ogs-auth (read-string (slurp ".creds"))))
+  (def authconfig (:body (config auth)))
   (def socket (setup-socket))
+  (socket-emit socket "authenticate"
+    {:auth (:chat_auth authconfig)
+     :player_id (:id (:user authconfig))
+     :username (:username (:user authconfig))})
 
   (def player (:body (me auth)))
   #_(def game (:body (client/get (str url "/api/v1/games/3374557") (ogs-headers auth))))
   #_(def ctx (atom {}))
-  (connect-record ui/ctx socket "4327788" auth)
+  (connect-record ui/ctx socket "9477367" auth)
   (socket-emit socket "game/connect" {:game_id (:id game) :player_id (:id player) :chat false})
   (socket-emit socket "game/move" {:game_id (:id game) :move "rg" :player_id (:id player) :auth (:auth game)}))

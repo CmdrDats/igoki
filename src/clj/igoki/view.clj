@@ -2,7 +2,7 @@
   (:require [igoki.ui :as ui]
             [igoki.util :as util]
             [quil.core :as q])
-  (:import (org.opencv.core MatOfPoint2f Mat Rect Size)
+  (:import (org.opencv.core MatOfPoint2f Mat Rect Size Core)
            (org.opencv.calib3d Calib3d)
            (org.opencv.imgproc Imgproc)
            (java.util UUID)
@@ -87,6 +87,10 @@
         (if homography
           (do
             (Imgproc/warpPerspective raw new-flat homography (ref-size size))
+            (let [brightness (/ (apply + (take 3 (seq (.val (Core/mean new-flat))))) 3.0)]
+              (.convertTo new-flat new-flat -1 1 (- 140 brightness))
+              (Core/normalize new-flat new-flat 0 255 Core/NORM_MINMAX))
+
 
             (let [board
                   (mapv

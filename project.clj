@@ -13,7 +13,7 @@
    [de.schlichtherle.truezip/truezip-file "7.7.9"]
    [de.schlichtherle.truezip/truezip-driver-zip "7.7.9"]
    [kuusisto/tinysound "1.1.1"]
-   [io.socket/socket.io-client "0.6.2"]
+   [io.socket/socket.io-client "0.9.0"]
    [org.clojure/tools.logging "0.3.1"]
    [log4j "1.2.16"]
    [org.slf4j/slf4j-api "1.6.2"]

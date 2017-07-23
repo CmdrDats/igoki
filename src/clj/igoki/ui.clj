@@ -122,26 +122,40 @@
       m)))
 
 (defn camera-read [ctx video]
-  (when-not (.isOpened video)
-    (println "Error: Camera not opened"))
-  (when-not (-> @ctx :camera :stopped)
-    (try
-      (let [frame (or (-> @ctx :camera :frame) (Mat.))]
-        (.read video frame)
+  (let [camera (:camera @ctx)]
+    (when-not (.isOpened video)
+      (println "Error: Camera not opened"))
+    (when-not (:stopped camera)
+      (try
+        (let [frame (or (:frame camera) (Mat.))]
+          (doseq [l (:pre-read-listeners camera)]
+            (l ctx))
 
-        (swap!
-          ctx update :camera
-          #(assoc %
-            :raw frame
-            ;; TODO: this chows memory - better to have a hook on update for each specific
-            ;; view - this will only be needed on the first screen.
-            :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg])))))
-      (Thread/sleep (or (-> @ctx :camera :read-delay) 1000))
-      (catch Exception e
-        (println "exception thrown")
-        (.printStackTrace e)
-        #_(stop-read-loop ctx)
-        #_(throw e)))))
+          (.read video frame)
+
+          (doseq [l (:post-read-listeners camera)]
+            (l ctx))
+
+          (swap!
+            ctx update :camera
+            #(assoc %
+               :raw frame
+               ;; TODO: this chows memory - better to have a hook on update for each specific
+               ;; view - this will only be needed on the first screen.
+               :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg])))))
+        (Thread/sleep (or (-> @ctx :camera :read-delay) 1000))
+        (catch Exception e
+          (println "exception thrown")
+          (.printStackTrace e)
+          #_(stop-read-loop ctx)
+          #_(throw e))))))
+
+(defn add-camera-listeners [ctx pre-fn post-fn]
+  (swap! ctx update :camera
+    (fn [cam]
+      (-> cam
+          (update :pre-read-listeners conj pre-fn)
+          (update :post-read-listeners conj post-fn)))))
 
 (defn read-loop [ctx camidx]
   (let [^VideoCapture video (VideoCapture. camidx)]
