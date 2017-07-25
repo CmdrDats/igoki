@@ -77,7 +77,6 @@
 
 (defn read-board [ctx]
   (if-not @reading
-
     (try
       (reset! reading true)
       (let [{{:keys [homography samplepoints]} :view
@@ -119,8 +118,7 @@
 
 
 
-(defn camera-updated [wk ctx _ {:keys [raw]}]
-  #_(println "Camera updated")
+(defn camera-updated [ctx]
   (swap! ctx read-board))
 
 
@@ -150,15 +148,6 @@
         (assoc-in ctx [:view :homography] homography)
         ctx))))
 
-(defmethod ui/construct :view [ctx]
-  (util/add-watch-path ctx :view [:camera :raw] camera-updated)
-  (swap! ctx update-homography)
-  (swap! ctx read-board)
-  (update-reference ctx))
-
-(defmethod ui/destruct :view [ctx]
-  (remove-watch ctx :view))
-
 ;; Super naive implementation - needs work.
 (defn closest-samplepoint [samplepoints [x y :as p]]
   (first
@@ -171,123 +160,3 @@
       nil
       (mapcat identity samplepoints))))
 
-(defmethod ui/draw :view [ctx]
-  (q/fill 128 64 78)
-  (q/rect 0 0 (q/width) (q/height))
-
-  (let [{{:keys [homography samplepoints]} :view
-         {:keys [raw flattened-pimage]} :camera
-         {:keys [size]} :goban
-         board :board}  @ctx
-        local-block-size 35.0
-        local-mult (/ local-block-size block-size)
-        tx (+ (* size local-block-size) 40)]
-    (cond
-      (nil? homography)
-      (ui/shadow-text "Could not locate board? <Backspace> to go back" 10 25)
-      (nil? raw)
-      (ui/shadow-text "No source image" 10 25)
-      :else
-      (do
-        (q/fill 255)
-        (q/stroke 255)
-
-        (when-not flattened-pimage
-          (ui/shadow-text "No flattened board image, check source?" 25 25))
-
-        (when flattened-pimage
-          (q/image-mode :corner)
-          (q/image (:pimg flattened-pimage) 0 0 (* local-block-size (inc size)) (* local-block-size (inc size)))
-
-          (q/stroke-weight 1)
-
-          (q/stroke 0 255 0)
-          (q/fill 0 0 0 0)
-
-
-          ;; Draw overlay
-          (doseq [[y row] (map-indexed vector samplepoints)
-                  [x [px py]] (map-indexed vector row)]
-            (let [v (get-in board [y x])]
-              (q/fill 0 0)
-              (q/stroke 0 0)
-              (q/stroke-weight 1)
-
-              (apply q/stroke [0 255 0])
-              (q/stroke-weight 1)
-              (q/fill 0 0)
-              (q/rect
-                (- (* local-mult px) (/ local-block-size 2)) (- (* local-mult py) (/ local-block-size 2))
-                local-block-size local-block-size)
-
-              (when-not (nil? v)
-                (q/fill (case v :w 255 :b 0 :na (q/color 255 0 0)) 255)
-                (q/stroke (if (= v :w) 0 255) 255)
-                (q/stroke-weight 1)
-                (q/ellipse (* local-mult px) (* local-mult py) 20 20)))))
-
-
-
-        (q/fill 128)
-        (ui/shadow-text "Play around corners + center" tx 25)
-        (ui/shadow-text "to check sampling is correct" tx 50)
-        (ui/shadow-text "<Backspace> Back to calibration" tx 100)
-        (ui/shadow-text "<K> Kifu Recording" tx 150)
-        ))))
-
-(defmethod ui/mouse-dragged :view [ctx])
-
-(defmethod ui/mouse-pressed :view [ctx]
-
-  (let [[szx szy] (-> @ctx :view :samplesize)
-        local-block-size 35.0
-        local-mult (/ local-block-size block-size)
-        [px py] (map
-                  (comp dec int #(/ % block-size))
-                  (closest-samplepoint (-> @ctx :view :samplepoints) [(/ (q/mouse-x) local-mult) (/ (q/mouse-y) local-mult)]))]
-    (cond
-      (= (q/mouse-button) :left)
-      (swap! ctx assoc-in [:board py px] :w)
-      (= (q/mouse-button) :right)
-      (swap! ctx assoc-in [:board py px] :b)
-      :else
-      (swap! ctx update-in [:board py px] #(if (nil? %) :na nil))
-      )))
-
-(defmethod ui/mouse-released :view [ctx]
-  )
-
-(defmethod ui/key-pressed :view [ctx]
-  (case
-    (q/key-code)
-    8 (ui/transition ctx :goban)
-    38 (swap! ctx update-in [:view :shift 1] dec)
-    40 (swap! ctx update-in [:view :shift 1] inc)
-    37 (swap! ctx update-in [:view :shift 0] dec)
-    39 (swap! ctx update-in [:view :shift 0] inc)
-    61 (swap! ctx update-in [:view :samplesize] (partial map inc))
-    45 (swap! ctx update-in [:view :samplesize] (partial map dec))
-    75 (ui/transition ctx :kifu)
-    (println "Key code not handled: " (q/key-code))))
-
-(comment
-  [[nil :b nil nil nil nil nil :b nil nil nil nil nil nil :w :b :b nil nil]
-   [:w :w :b :b nil nil :b nil :b :b :b nil nil :w :b nil :b nil nil]
-   [nil :b :w :b nil :b nil :b :w :w nil :b :w nil :w :b nil nil nil]
-   [nil :w :w :w :b :b :b :w :w nil nil :b :w :w :b :b :b :b nil]
-   [nil nil nil nil :w :w :w :w nil :w :b nil :b :w nil :w :w :b nil]
-   [nil nil :w :w nil :w nil :b nil :b nil :b :b :w nil nil nil :w nil]
-   [nil :w :w :b :b :w :b nil :b nil :b nil :b :b :w :w :w nil nil]
-   [nil :b :w :w :w :b :w :w :w :b :w :w :b :b :b :b :w :w nil]
-   [nil nil :b nil :b :b :b :b :b :b :w :b :w :b :b :w :b :w nil]
-   [nil :b :b nil :b nil nil :w :b :w :w nil :w :w :w :w :b :w nil]
-   [:b :w :w :w nil nil :w nil :w :b :b nil :w nil :w :b :b :b nil]
-   [nil nil nil nil nil :b :w :w :w :w :w :w nil :b :w :w :w :b nil]
-   [nil nil :w :b nil nil nil nil nil nil nil nil :b nil :b :w :b :b nil]
-   [nil nil :w :b nil nil :b nil nil nil nil :w nil :b :b :b nil nil nil]
-   [nil :w :b nil :b nil nil :b :b nil :b nil :b :b :w :w :b :b nil]
-   [nil :w :b :b nil nil nil :w :b nil :b :b :w :b nil :b :b :w nil]
-   [nil :w :b nil nil :b nil :b :w :w :b :w :w :w :b :b :w :w nil]
-   [nil :w :b :w :w nil nil :b :w :b :w :w nil nil :w :w nil nil nil]
-   [nil nil :w :b :b :b nil :b :w nil nil nil nil nil nil nil nil nil nil]]
-  )

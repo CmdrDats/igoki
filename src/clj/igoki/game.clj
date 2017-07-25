@@ -100,7 +100,7 @@
       )))
 
 (defn camera-updated [wk ctx old new]
-  (view/camera-updated wk ctx old new)
+  (view/camera-updated ctx)
   (let [{{{:keys [latch board] :as submit} :submit
           :keys [filename camidx last-dump] :as game} :kifu
          {:keys [raw]}                      :camera
@@ -500,7 +500,7 @@
   (case
     (q/key-code)
     67 (ui/transition ctx :goban)
-    86 (ui/transition ctx :view)
+    86 (ui/transition ctx :goban)
     82 (reset-kifu ctx)
     69 (export-sgf ctx)
     76 (load-sgf ctx)

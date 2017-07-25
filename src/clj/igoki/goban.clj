@@ -21,11 +21,19 @@
   (ui/stop-read-loop ctx)
   (sim/start-simulation ctx))
 
+(defn read-stones [ctx]
+  (when (-> @ctx :view :homography)
+    (view/camera-updated ctx)
+    (swap! ctx view/read-board)
+
+    (util/with-release [src (MatOfPoint2f.) dst (MatOfPoint2f.)]
+      (Core/perspectiveTransform (util/vec->mat src (apply concat (:samplepoints (:view @ui/ctx)))) dst (.inv (:homography (:view @ui/ctx))))
+      (swap! ctx assoc-in [:goban :camerapoints] (util/mat->seq dst)))))
+
 (defn reverse-transform [ctx]
   (when (= 4 (count (-> @ctx :goban :edges)))
     (swap! ctx view/update-homography)
     (let [context @ctx
-          tweaked-homography (-> context :goban :tweaked-homography)
           homography (-> context :view :homography)
           size (-> context :goban :size)
           d (dec size)
@@ -43,10 +51,10 @@
                  (util/point-along-line [topleft bottomleft] (/ t (dec size)))
                  (util/point-along-line [topright bottomright] (/ t (dec size)))])
               (range 0 size)))
-          (if tweaked-homography
-            (Core/perspectiveTransform pts pts (.inv tweaked-homography)))
           (Core/perspectiveTransform pts ref (.inv (-> @ui/ctx :view :homography)))
-          (swap! ctx assoc-in [:goban :lines] (partition 2 (util/mat->seq ref))))))))
+
+          (swap! ctx assoc-in [:goban :lines] (partition 2 (util/mat->seq ref)))
+          (view/update-reference ctx))))))
 
 (defn find-points-feature-detect [ctx]
   (let [{{:keys [homography shift reference]} :view
@@ -129,15 +137,11 @@
             (when h
               (Imgproc/warpPerspective flattened new-flat h (.size flattened)))
 
-            (when h
-              (swap! ctx assoc-in [:goban :tweaked-homography] h)
-
-
               #_(swap! ctx assoc-in [:goban :pimg]
                        (util/mat-to-pimage raw))
               (swap! ctx assoc-in [:goban :flat]
                      (util/mat-to-pimage img-matches nil nil))
-              (reverse-transform ctx))))))))
+              (reverse-transform ctx)))))))
 
 (defn mat->lines [^Mat mat]
   (for [x (range (.cols mat))]
@@ -155,7 +159,6 @@
     (group-by #(if (< mn (nth % 4) mx) avg opp) lines)))
 
 (defn line-group [[cx cy] [x1 y1 x2 y2 t :as l]]
-
   (let [r
         (if (< (/ Math/PI 4) t (* 3 (/ Math/PI 4)))
           [(Math/round (* t 5)) (Math/round (- x2 (/ (- y2 cy) (Math/tan t)))) cy]
@@ -251,10 +254,13 @@
     #_(util/write-mat pts)))
 
 
+
 (defn camera-updated [wk ctx old new]
   (try
     (when (-> @ctx :goban :flat-view?)
       (find-board ctx))
+
+    (read-stones ctx)
     (catch Exception e (.printStackTrace e))))
 
 (defmethod ui/construct :goban [ctx]
@@ -287,7 +293,9 @@
       (nil? c)
       (ui/shadow-text "Could not acquire image?" 10 25)
       :else
-      (let [{{:keys [size edges points lines flat flat-view?]} :goban} @ctx
+      (let [{{:keys [size edges points lines flat flat-view? camerapoints]} :goban
+             board :board} @ctx
+
             points (map (partial convert-point c) points)
             edges (map #(map (partial convert-point c) %) edges)]
         (q/image c 0 0 (q/width) (q/height))
@@ -300,8 +308,21 @@
         (ui/shadow-text "<S> Camera Sim" 10 150)
 
         (q/stroke 255 255 255 128)
-        (q/stroke-weight 1)
+        (q/stroke-weight 0.5)
+        (when (and camerapoints board size)
+          (doseq [[idx p] (map-indexed vector camerapoints)
+                  :let [[px py] (convert-point c p)
+                        stone (get-in board [(int (/ idx size)) (mod idx size)])]
+                  :when stone]
+            (if (= stone :b)
+              (do (q/fill 0 0 0) (q/stroke 255 255 255))
+              (do (q/fill 255 255 255) (q/stroke 0 0 0)))
+            (q/ellipse px py 10 10)
 
+            ))
+
+        (q/stroke 255 255 255 96)
+        (q/stroke-weight 1)
         (when lines
           (doseq [[p1 p2] lines]
             (q/line (convert-point c p1) (convert-point c p2)))
@@ -352,14 +373,13 @@
   (reverse-transform ctx))
 
 (defn cycle-corners [ctx]
-
   (update-corners ctx (vec (take 4 (drop 1 (cycle (-> @ctx :goban :points)))))))
 
 (defmethod ui/key-pressed :goban [ctx]
   (case
     (q/key-code)
     10
-    (ui/transition ctx :view)
+    (ui/transition ctx :kifu)
     9
     (do
       (swap!
