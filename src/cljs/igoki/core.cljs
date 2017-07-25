@@ -550,17 +550,21 @@
     [:img.logo
      {:src "/images/igoki96.png" :width 48}]
     [:div
-     [:div
-      [:h2 {:style {:margin-bottom "25px"}} "Welcome to igoki"]
-      #_[:a {:href "/about"} "go to about page"]
-      [board app]
-      [:div.clear]
-      [rc/button
-       :on-click #(rf/dispatch [:form/update :config [:visible] true])
-       :label "Game Config"]
-      [config-dialog]
+     [:div {:style {:margin "15px" :height "60px"}}
+      [:h2 {:style {:margin "10px":float "left"}} "Welcome to igoki"]
+      [:div
+       [rc/button :on-click #(comms/send :setup/webcam {}) :label "Webcam Frame"]
+       [rc/button :on-click #(comms/send :setup/projector {}) :label "Projector Frame"]]
+      [:div {:clear "all"}]]
+     #_[:a {:href "/about"} "go to about page"]
+     [board app]
+     [:div.clear]
+     [rc/button
+      :on-click #(rf/dispatch [:form/update :config [:visible] true])
+      :label "Game Config"]
+     [config-dialog]
 
-      #_[:img {:src "/cap.png"}]]]]])
+     #_[:img {:src "/cap.png"}]]]])
 
 (defn about-page []
   [:div [:h2 "About igoki"]

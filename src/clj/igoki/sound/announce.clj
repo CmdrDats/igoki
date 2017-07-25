@@ -25,7 +25,7 @@
   Susaoki, Susogakari, Tagai sen, Taisha, Takefu, Te, Teai, Tenuki, Tesuji, Tobi,
   Tetchu, Tsuke, Tsuke-koshi, Tsuki, Tsume-biraki, Warikomi,
   Wariuchi, Komoku, Hoshi, Sansan, Mokuhazushi, Takamoku, Oomokuhazushi,
-  Ootakamoku, Gonogo, Tengen, Hoshishita, Hoshiwaki, NiNolchi,
+  Ootakamoku, Gonogo, Tengen, Hoshishita, Hoshiwaki, NiNoIchi,
   Hidariue, migiue, hidarishita, migishita, keima kakari,
   ikken takagakari, ogeima takagakari, niken takagakari"
   )

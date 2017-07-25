@@ -6,6 +6,7 @@
             [environ.core :refer [env]]
             [igoki.ui :as ui]
             [igoki.util :as util]
+            [igoki.projector :as projector]
             [taoensso.sente :as sente]
             [taoensso.sente.server-adapters.http-kit :refer (sente-web-server-adapter)]
             [clojure.set :as set])
@@ -76,6 +77,18 @@
                :corners [[100 100] [100 200] [200 200] [200 100]]
                :viewing :start})))
   (reply req :camera/updatelist @cameralist))
+
+(defmethod -event-msg-handler
+  :setup/webcam
+  [{:keys [?data] :as req}]
+  (ui/read-loop ui/ctx 0)
+  (ui/start (ui/transition ui/ctx :goban)))
+
+(defmethod -event-msg-handler
+  :setup/projector
+  [{:keys [?data] :as req}]
+  (println "Hi")
+  (projector/start-cframe))
 
 ;;;; Sente event router (our `event-msg-handler` loop)
 
