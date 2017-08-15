@@ -25,8 +25,8 @@
 (def cm (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10 :threads 3 :insecure? true}))
 
 (comment
-  (def cm (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 2 :threads 3 :insecure? true}))
-  )
+  (def cm (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 2 :threads 3 :insecure? true})))
+
 
 (defn ogs-auth
   [conn]
@@ -123,8 +123,8 @@
                (let [options (IO$Options.)]
                  (set! (.-transports options) (into-array String ["websocket"]))
                  (println (seq (.-transports options)))
-                 options)
-               )
+                 options))
+
         #_(IO/socket "http://online-go.com/socket.io")]
     (doseq [e [Socket/EVENT_CONNECT Socket/EVENT_CONNECT_ERROR
                Socket/EVENT_CONNECT_TIMEOUT Socket/EVENT_DISCONNECT
@@ -241,8 +241,8 @@
                              "game/move" {:game_id   (:game_id gameinfo)
                                           :move      (first white)
                                           :player_id (-> player :info :id)
-                                          :auth      (:auth player)})))
-            ))))))
+                                          :auth      (:auth player)})))))))))
+
 
 (defn connect-record [ctx socket gameid auth & [auth2]]
   (let [game (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth)))
@@ -303,6 +303,7 @@
 
 
 
+
 (comment
   (.on Socket/EVENT_CONNECT
        (proxy [Emitter$Listener] []
@@ -318,8 +319,8 @@
       {:client_id     ""
        :client_secret ""
        :username      ""
-       :password      ""})
-    )
+       :password      ""}))
+
   (def auth (ogs-auth (read-string (slurp ".creds"))))
   (def authconfig (:body (config auth)))
   (def socket (setup-socket))
@@ -331,6 +332,6 @@
   (def player (:body (me auth)))
   #_(def game (:body (client/get (str url "/api/v1/games/3374557") (ogs-headers auth))))
   #_(def ctx (atom {}))
-  (connect-record ui/ctx socket "9477367" auth)
+  (connect-record ui/ctx socket "9567247" auth)
   (socket-emit socket "game/connect" {:game_id (:id game) :player_id (:id player) :chat false})
   (socket-emit socket "game/move" {:game_id (:id game) :move "rg" :player_id (:id player) :auth (:auth game)}))

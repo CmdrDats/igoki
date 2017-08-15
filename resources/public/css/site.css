@@ -1,6 +1,10 @@
-.gobancontainer {
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
-}
+
+.colour1 { background-color: #14281D; }
+.colour2 { background-color: #31731A; }
+.colour3 { background-color: #6E633D; }
+.colour4 { background-color: #C2A878; }
+.colour5 { background-color: #F1F5F2; }
+.font-color { color: #2C2D2C; }
 
 .goban {
     overflow: hidden;
@@ -11,6 +15,11 @@
 .gobansvg {
     width: 100%;
     height: 100%;
+}
+
+.header {
+    background-color: #F1F5F2;
+    padding: 20px;
 }
 
 .board .matrix table td .stone .marker {
@@ -44,4 +53,22 @@
     margin-left: 15px;
     margin-right: 5px;
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
+}
+
+body {
+    font-family: Georgia;
+    background-color: #31731A;
+    color: #2C2D2C;
+    padding: 0;
+    margin: 0;
+}
+
+button {
+    background-color: #C2A878;
+    border: 0px;
+    margin: 5px;
+    padding: 10px;
+    font-size: 1em;
+    color: #2C2D2C;
+    font-family: Georgia;
 }

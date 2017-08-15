@@ -16,9 +16,11 @@
 
 (defn start []
   (ui/read-loop ui/ctx 0)
+  (ui/re)
   (ui/start (ui/transition ui/ctx :goban)))
 
 (defn -main [& args]
   (server/start ui/ctx)
+
   (when (Desktop/isDesktopSupported)
     (.browse (Desktop/getDesktop) (URI. "http://localhost:3000"))))

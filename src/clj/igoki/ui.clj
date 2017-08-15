@@ -19,7 +19,7 @@
   ([^String s x y]
    (shadow-text s x y :left :bottom))
   ([^String s x y align-horiz]
-    (shadow-text s x y align-horiz :bottom))
+   (shadow-text s x y align-horiz :bottom))
   ([^String s x y align-horiz align-vert]
    (q/text-align (or align-horiz :left) (or align-vert :bottom))
    (q/fill 0 196)
@@ -158,22 +158,25 @@
           (update :post-read-listeners conj post-fn)))))
 
 (defn read-loop [ctx camidx]
-  (let [^VideoCapture video (VideoCapture. camidx)]
-    (swap! ctx update :camera assoc
-           :video video
-           :stopped false)
-    (doto
-      (Thread.
-        ^Runnable
-        #(when-not (-> @ctx :camera :stopped)
-          (camera-read ctx video)
-          (recur)))
-      (.setDaemon true)
-      (.start))))
+  (when-not (-> @ctx :camera :stopped)
+    (let [^VideoCapture video (VideoCapture. camidx)]
+      (swap! ctx update
+        :camera assoc
+        :video video
+        :stopped false)
+      (doto
+        (Thread.
+          ^Runnable
+          #(when-not (-> @ctx :camera :stopped)
+             (camera-read ctx video)
+             (recur)))
+        (.setDaemon true)
+        (.start)))))
 
 (defn switch-read-loop [ctx camidx]
   (stop-read-loop ctx)
   (Thread/sleep (* 2 (or (-> @ctx :camera :read-delay) 1000)))
+  (swap! ctx assoc-in [:camera :stopped] false)
   (read-loop ctx camidx))
 
 (defn save-dialog [success-fn]

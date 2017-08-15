@@ -129,12 +129,7 @@
      [:meta {:charset "utf-8"}]
      [:meta {:name "viewport"
              :content "width=device-width, initial-scale=1"}]
-     (include-css (if (env :dev) "css/site.css" "css/site.min.css"))
-     (include-css "css/bootstrap.css")
-     (include-css "css/material-design-iconic-font.min.css")
-     (include-css "css/re-com.css")
-     (include-css "css/roboto-italic.css")
-     (include-css "css/roboto-condensed.css")]
+     (include-css "css/site.css")]
     [:body
      mount-target
      (include-js "js/app.js")]))

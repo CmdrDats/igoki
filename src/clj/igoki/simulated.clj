@@ -63,8 +63,8 @@
                 extent (+ grid-start (* cellsize (dec size)))]
 
             (Core/line m (Point. coord grid-start) (Point. coord extent) (Scalar. 0 0 0))
-            (Core/line m (Point. grid-start coord) (Point. extent coord) (Scalar. 0 0 0))
-            ))
+            (Core/line m (Point. grid-start coord) (Point. extent coord) (Scalar. 0 0 0))))
+
 
         (doseq [[x y] (xu/star-points size)]
           (Core/circle m (Point. (+ grid-start (* x cellsize))
@@ -121,24 +121,24 @@
     (cond
       (nil? pimg)
       (ui/shadow-text "Image not built yet, please wait..." 10 25)
-        (= mode :replay)
-        (do
-          (q/image (:pimg pimg) 0 0 (q/width) (q/height))
-          (ui/shadow-text "Esc: Back to simulation" tx 50)
-          (ui/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
-          (ui/shadow-text "L: Load captured zip" tx 100)
-          )
-        :else
-        (do
-          (q/image (:pimg pimg) 0 0 (q/width) (q/height))
-          (ui/shadow-text "Tab: Cycle Size" tx 50)
-          (ui/shadow-text "B: Black " tx 75)
-          (ui/shadow-text "W: White" tx 100)
-          (ui/shadow-text "A: Alternating" tx 125)
-          (ui/shadow-text "C: Clear" tx 150)
-          (ui/shadow-text "R: Reset board. " tx 175)
-          (ui/shadow-text "L: Load zip. " tx 200)
-          ))))
+      (= mode :replay)
+      (do
+        (q/image (:pimg pimg) 0 0 (q/width) (q/height))
+        (ui/shadow-text "Esc: Back to simulation" tx 50)
+        (ui/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
+        (ui/shadow-text "L: Load captured zip" tx 100))
+
+      :else
+      (do
+        (q/image (:pimg pimg) 0 0 (q/width) (q/height))
+        (ui/shadow-text "Tab: Cycle Size" tx 50)
+        (ui/shadow-text "B: Black " tx 75)
+        (ui/shadow-text "W: White" tx 100)
+        (ui/shadow-text "A: Alternating" tx 125)
+        (ui/shadow-text "C: Clear" tx 150)
+        (ui/shadow-text "R: Reset board. " tx 175)
+        (ui/shadow-text "L: Load zip. " tx 200)))))
+
 
 (defn next-stone [{:keys [next mode]}]
   (case mode
@@ -217,8 +217,8 @@
     39 (step-file-index simctx inc)
     ;; L
     76 (ui/load-dialog #(load-zip simctx (.getAbsolutePath %)) (str (System/getProperty "user.dir") "/capture"))
-    (println "Unhandled key-down: " (q/key-code))
-    ))
+    (println "Unhandled key-down: " (q/key-code))))
+
 
 
 

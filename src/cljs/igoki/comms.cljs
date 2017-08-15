@@ -1,16 +1,10 @@
 (ns igoki.comms
   (:require
-    [cljs.core.async :as async :refer (<! >! put! chan)]
     [taoensso.encore :as encore]
-    [taoensso.sente :as sente :refer (cb-success?)]
-    [re-frame.core :as rf]))
+    [taoensso.sente :as sente :refer (cb-success?)]))
 
 (defn ->output! [fmt & args]
-  (let [output-el (.getElementById js/document "output")
-        msg (apply encore/format fmt args)]
-    (println msg)
-    (aset output-el "value" (str "• " (.-value output-el) "\n" msg))
-    (aset output-el "scrollTop" (.-scrollHeight output-el))))
+  (.log js/console (apply encore/format fmt args)))
 
 (let [{:keys [chsk ch-recv send-fn state]}
       (sente/make-channel-socket! "/chsk" ; Note the same path as before
@@ -24,6 +18,7 @@
 
 (defn send
   ([eventtype message]
+   (.log js/console "Sending " eventtype " :: " message)
    (chsk-send! [eventtype message]))
   ([eventtype message timeout success-fn & [fail-fn]]
     (chsk-send!
@@ -38,17 +33,31 @@
           :id ; Dispatch on event-id
           )
 
+(defmethod -event-msg-handler
+  :default ; Default/fallback case (no other matching handler)
+  [{:as ev-msg :keys [id ?data ctx]}]
+  (->output! "Nothing to do for event: " id))
+
 (defn event-msg-handler
   "Wraps `-event-msg-handler` with logging, error catching, etc."
   [app {:as ev-msg :keys [id ?data event]}]
 
   (-event-msg-handler (assoc ev-msg :ctx app)))
 
-(defmethod -event-msg-handler
-  :default ; Default/fallback case (no other matching handler)
-  [{:as ev-msg :keys [id ?data]}]
-  (->output! "Dispatching: " id)
-  (rf/dispatch [id ?data]))
+
+(defonce router_ (atom nil))
+
+(defn stop-router! []
+  (when-let [stop-f @router_] (stop-f)))
+
+(defn start-router! [app]
+  (stop-router!)
+  (reset! router_
+    (sente/start-client-chsk-router!
+      ch-chsk (partial event-msg-handler app))))
+
+
+
 
 (defmethod -event-msg-handler :chsk/state
   [{:as ev-msg :keys [?data]}]
@@ -64,19 +73,19 @@
 (defmethod -event-msg-handler :chsk/handshake
   [{:as ev-msg :keys [?data]}]
   (let [[?uid ?csrf-token ?handshake-data] ?data]
-    (rf/dispatch [:camera/list])
     (->output! "Handshake: %s" ?data)))
+
 
 (defmethod -event-msg-handler :kifu/updated
   [{:as ev-msg :keys [?data ctx]}]
   (->output! (str "Message data: " ?data))
   (swap! ctx assoc-in [:board :contents] ?data))
 
-(defonce router_ (atom nil))
-(defn  stop-router! [] (when-let [stop-f @router_] (stop-f)))
-(defn start-router! [app]
-  (stop-router!)
-  (reset! router_
-          (sente/start-client-chsk-router!
-            ch-chsk (partial event-msg-handler app))))
+(defmethod -event-msg-handler :ogs/creds
+  [{:as ev-msg :keys [?data ctx]}]
+  (swap! ctx assoc-in [:ogs :creds]))
+
+
+
+
 

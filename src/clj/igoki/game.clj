@@ -96,8 +96,8 @@
       (Highgui/imencode ".jpg" raw out)
       (util/zip-add-file filename (str camidx ".jpg") (ByteArrayInputStream. (.toArray out)))
       (util/zip-add-file-string filename (str camidx ".edn") (pr-str updatelist))
-      (println "Done writing jpg: " filename "/" (str camidx ".jpg"))
-      )))
+      (println "Done writing jpg: " filename "/" (str camidx ".jpg")))))
+
 
 (defn camera-updated [wk ctx old new]
   (view/camera-updated ctx)
@@ -138,13 +138,13 @@
     #_(println last-dump t (- t last-dump) (> (- t last-dump 20e9)))
     (when (or (get-in @ctx [:kifu :cam-update])
             (nil? last-dump)
-            (> (- t last-dump) 20e9 ))
+            (> (- t last-dump) 20e9))
       (dump-camera filename camidx raw updatelist)
       (swap! ctx update :kifu
         #(-> %
              (assoc :cam-update false :last-dump t)
-             (update :camidx (fnil inc 0)))))
-    ))
+             (update :camidx (fnil inc 0)))))))
+
 
 (defn add-initial-points [node board]
   (let [initial
@@ -201,7 +201,7 @@
   (when-not (-> @ctx :kifu)
     (TVFS/umount)
     (reset-kifu ctx))
-  (util/add-watch-path ctx :kifu-camera [:camera :raw] #'camera-updated )
+  (util/add-watch-path ctx :kifu-camera [:camera :raw] #'camera-updated)
   (util/add-watch-path ctx :kifu-board [:board] #'board-updated))
 
 (defmethod ui/destruct :kifu [ctx]
@@ -334,7 +334,7 @@
                 movecol (if (> movediff 20) (conj movecol (- 255 (* 255 (/ (- movediff 20) 20)))) movecol)]
             (apply q/fill movecol)
             #_(when (>= (inc movenumber) 100)
-              (q/fill 255 0 0))
+               (q/fill 255 0 0))
             (q/text-size 12)
             (q/text-align :center :center)
             (q/text (str movenum) (+ grid-start (* x cellsize)) (- (+ grid-start (* y cellsize)) 1))))))
@@ -405,14 +405,14 @@
     ;; If in the process of submitting, mark that stone.
     (when submit
       #_(let [[x y _ d] (:move submit)]
-        (q/stroke-weight 1)
-        (q/stroke 0 128)
-        (q/fill (if (= d :w) 255 0) 128)
-        (q/ellipse (+ grid-start (* x cellsize))
-                   (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))
-        (q/fill (if (= d :w) 0 255))
-        (q/text-align :center :center)
-        (q/text "?" (+ grid-start (* x cellsize)) (+ grid-start (* y cellsize)))))
+         (q/stroke-weight 1)
+         (q/stroke 0 128)
+         (q/fill (if (= d :w) 255 0) 128)
+         (q/ellipse (+ grid-start (* x cellsize))
+                    (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))
+         (q/fill (if (= d :w) 0 255))
+         (q/text-align :center :center)
+         (q/text "?" (+ grid-start (* x cellsize)) (+ grid-start (* y cellsize)))))
 
     ;; Mark the last move
     (when lastmove
@@ -472,7 +472,7 @@
 
 (defn move-backward [ctx]
   (-> ctx
-      (update-in [:kifu :movenumber] (fnil (comp (partial max 0) dec) 1) )
+      (update-in [:kifu :movenumber] (fnil (comp (partial max 0) dec) 1))
       (assoc-in [:kifu :dirty] true)
       (update-in [:kifu] inferrence/reconstruct)))
 
@@ -509,4 +509,3 @@
     39 (swap! ctx move-forward)
     80 (swap! ctx pass)
     (println "Key code not handled: " (q/key-code))))
-

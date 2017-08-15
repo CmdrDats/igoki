@@ -73,12 +73,12 @@
 
           ;; Draw entire current board state
           #_(doseq [[y row] (map-indexed vector (:board @ui/ctx))
-                  [x cell] (map-indexed vector row)]
-            (let [[x y] (nth (nth sample-points y) x)]
-              (case cell
-                :b (Core/circle projmat (Point. x y) 5 (Scalar. 255 255 255) 1)
-                :w (Core/circle projmat (Point. x y) 5 (Scalar. 255 255 255) -1)
-                nil)))
+                    [x cell] (map-indexed vector row)]
+             (let [[x y] (nth (nth sample-points y) x)]
+               (case cell
+                 :b (Core/circle projmat (Point. x y) 5 (Scalar. 255 255 255) 1)
+                 :w (Core/circle projmat (Point. x y) 5 (Scalar. 255 255 255) -1)
+                 nil)))
 
 
           (Imgproc/warpPerspective projmat newflat (.inv board-homography) (Size. (.width sketch) (.height sketch)))
@@ -89,8 +89,8 @@
               (q/stroke-weight 20)
               (q/point x y)
               (q/stroke-weight 0))))
-      #_(Core/circle (:raw camera) (Point. 540 265) 20 (Scalar. 255 0 0))))
-  )
+      #_(Core/circle (:raw camera) (Point. 540 265) 20 (Scalar. 255 0 0)))))
+
 
 (defn draw-checkerboard [{:keys [board]}]
   (doseq [[x y w h] board]
@@ -140,8 +140,8 @@
 
             {:keys [camera] :as context} @ui/ctx
             {:keys [homography board-homography proj-img] :as projcontext} @ctx
-            existing-corners (:corners projcontext)
-            ]
+            existing-corners (:corners projcontext)]
+
         (q/fill 255 255 255)
         (q/rect 0 0 (q/width) (q/height))
         (q/fill 0 0 0)
@@ -150,11 +150,11 @@
 
         ;; Draw screen intersection points
         #_(do
-          (q/stroke 255 0 0)
-          (q/stroke-weight 10)
-          (doseq [[x y] (:points checker)]
-            (q/point x y))
-          (q/stroke-weight 0))
+           (q/stroke 255 0 0)
+           (q/stroke-weight 10)
+           (doseq [[x y] (:points checker)]
+             (q/point x y))
+           (q/stroke-weight 0))
 
         #_(q/image (-> @ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
 
@@ -212,26 +212,26 @@
 
               (when board-homography
                 (println "Board Homography updated")
-                (swap! ctx assoc :board-homography board-homography))
-              )))
+                (swap! ctx assoc :board-homography board-homography)))))
+
 
         (when (:reading @ctx)
           (q/fill 0 0 0)
           (q/rect 0 0 (q/width) (q/height)))
         #_(when existing-corners
-          (util/with-release [clone (.clone (:raw camera))]
-            (Calib3d/drawChessboardCorners clone (:size checker) existing-corners true)
-            (swap! ui/ctx update :camera
-              assoc :pimg
-              (util/mat-to-pimage clone
-                (-> context :camera :pimg :bufimg)
-                  (-> context :camera :pimg :pimg))))))))
-  )
+           (util/with-release [clone (.clone (:raw camera))]
+             (Calib3d/drawChessboardCorners clone (:size checker) existing-corners true)
+             (swap! ui/ctx update :camera
+               assoc :pimg
+               (util/mat-to-pimage clone
+                 (-> context :camera :pimg :bufimg)
+                 (-> context :camera :pimg :pimg)))))))))
+
 
 (defn pre-cam-reading []
   #_(when (:proj-img @ctx)
-    (swap! ctx assoc :reading true)
-    (Thread/sleep 250)))
+     (swap! ctx assoc :reading true)
+     (Thread/sleep 250)))
 
 (defn post-cam-reading []
   #_(swap! ctx assoc :reading false))
@@ -264,7 +264,6 @@
     (.setDaemon true)
     (.start))
   #_(when (:sketch @ctx)
-    (doto (:sketch @ctx)
-      #_(.setExtendedState JFrame/MAXIMIZED_BOTH)
-      #_(.setUndecorated true))))
-
+     (doto (:sketch @ctx)
+       #_(.setExtendedState JFrame/MAXIMIZED_BOTH)
+       #_(.setUndecorated true))))

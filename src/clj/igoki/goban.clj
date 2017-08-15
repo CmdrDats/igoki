@@ -120,8 +120,8 @@
                       (fn [^DMatch m] (.pt ^KeyPoint (.get keypoints-scenelist (.trainIdx m))))
                       good-matches)))
 
-                h (if (>= (count good-matches) 4) (Calib3d/findHomography obj scene))
-                ]
+                h (if (>= (count good-matches) 4) (Calib3d/findHomography obj scene))]
+
             #_(println (count good-matches))
             (.fromList gm good-matches)
             (Features2d/drawMatches
@@ -137,8 +137,8 @@
             (when h
               (Imgproc/warpPerspective flattened new-flat h (.size flattened)))
 
-              #_(swap! ctx assoc-in [:goban :pimg]
-                       (util/mat-to-pimage raw))
+            #_(swap! ctx assoc-in [:goban :pimg]
+                     (util/mat-to-pimage raw))
               (swap! ctx assoc-in [:goban :flat]
                      (util/mat-to-pimage img-matches nil nil))
               (reverse-transform ctx)))))))
@@ -210,10 +210,10 @@
     #_(println (avg-theta (mat->lines pts2f)))
     #_(println (map theta (mat->lines pts2f)))
     #_(let [groups
-          (->>
-            (mat->lines pts2f)
-            group-lines
-            (map remove-outliers))])
+            (->>
+              (mat->lines pts2f)
+              group-lines
+              (map remove-outliers))])
     (let [lines (map (fn [[x1 y1 x2 y2 :as k]] [x1 y1 x2 y2 (theta k)]) (mat->lines pts2f))
           avg (avg-theta lines)]
       #_(println "=================================================")
@@ -235,7 +235,7 @@
 
 
     #_(doseq [[x1 y1 x2 y2] (partition 4 (:data (util/write-mat pts2f)))]
-      (Core/line bilat (Point. x1 y1) (Point. x2 y2) (Scalar. 0 255 0) 1))
+       (Core/line bilat (Point. x1 y1) (Point. x2 y2) (Scalar. 0 255 0) 1))
     #_(println (util/write-mat pts2f))
     #_(doseq [p (seq (.toArray pts2f))]
         (Core/line cropped p 2 (Scalar. 255 0 255) 3))
@@ -317,9 +317,9 @@
             (if (= stone :b)
               (do (q/fill 0 0 0) (q/stroke 255 255 255))
               (do (q/fill 255 255 255) (q/stroke 0 0 0)))
-            (q/ellipse px py 10 10)
+            (q/ellipse px py 10 10)))
 
-            ))
+
 
         (q/stroke 255 255 255 96)
         (q/stroke-weight 1)
