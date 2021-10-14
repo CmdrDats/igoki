@@ -68,16 +68,15 @@
   {:css-dirs ["resources/public/css"]}
   :source-paths ["src/clj" "src/cljc"]
   :resource-paths ["resources" "target/cljsbuild"]
-  :cljsbuild {:builds
-              {:app
-               {:source-paths ["src/cljs" "src/cljc"]
-                :figwheel {:on-jsload "igoki.core/mount-root"}
-                :compiler {:output-to "resources/public/js/app.js"
-                           :output-dir "resources/public/js/out"
-                           :asset-path   "js/out"
-                           :optimizations :none
-                           :pretty-print  true
-                           :main "igoki.core"}}}}
-
-
-  )
+  :cljsbuild
+  {:builds
+   {:app
+    {:source-paths ["src/cljs" "src/cljc"]
+     :figwheel {:on-jsload "igoki.core/mount-root"}
+     :compiler
+     {:output-to "resources/public/js/app.js"
+      :output-dir "resources/public/js/out"
+      :asset-path   "js/out"
+      :optimizations :none
+      :pretty-print  true
+      :main "igoki.core"}}}})

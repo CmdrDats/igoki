@@ -29,8 +29,14 @@
 
 (defn print-boards [& boards]
   (println
-    (apply str (interpose "\n" (apply map #(apply str
-                                                  (interpose " | " (for [m %&] (apply str (map (fn [i] (str " " (if i (name i) "."))) m))))) boards)))))
+    (apply str
+      (interpose "\n"
+        (apply map
+          #(apply str
+             (interpose " | "
+               (for [m %&]
+                 (apply str (map (fn [i] (str " " (if i (name i) "."))) m)))))
+          boards)))))
 
 (defn walk-boards [cellfn & boards]
   (apply map

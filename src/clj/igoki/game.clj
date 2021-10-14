@@ -5,17 +5,17 @@
     [igoki.util :as util]
     [igoki.sgf :as sgf]
     [igoki.inferrence :as inferrence]
-    [igoki.xutil :as xu]
     [quil.core :as q]
     [igoki.sound.sound :as snd])
-  (:import (java.awt Toolkit)
-           (java.io File ByteArrayInputStream)
-           (processing.core PImage)
-           (java.util Date UUID)
-           (java.text SimpleDateFormat)
-           (org.opencv.highgui Highgui)
-           (org.opencv.core MatOfByte)
-           (de.schlichtherle.truezip.file TVFS)))
+  (:import
+    (java.awt Toolkit)
+    (java.io File ByteArrayInputStream)
+    (processing.core PImage)
+    (java.util Date UUID)
+    (java.text SimpleDateFormat)
+    (org.opencv.highgui Highgui)
+    (org.opencv.core MatOfByte)
+    (de.schlichtherle.truezip.file TVFS)))
 
 ;; ========================================================
 ;; TODO: Display sibling branches
@@ -167,19 +167,21 @@
         camidx (or (-> context :kifu :camidx) 0)
         new-game
         (->
-          {:filename            camfile
-           :camidx              (inc camidx)
-           :moves               (add-initial-points
-                                  {:branches     []
-                                   :player-start ["B"]
-                                   :application  ["Igoki"]
-                                   :file-format  ["4"]
-                                   :gametype     ["1"]
-                                   :size         [(-> @ctx :goban :size)]
-                                   :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
-                                   :komi         ["5.5"]}
-                                  board)
-           :movenumber          0
+          {:filename camfile
+           :camidx (inc camidx)
+           :moves
+           (add-initial-points
+             {:branches []
+              :player-start ["B"]
+              :application ["Igoki"]
+              :file-format ["4"]
+              :gametype ["1"]
+              :size [(-> @ctx :goban :size)]
+              :date [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date.))]
+              :komi ["5.5"]}
+             board)
+
+           :movenumber 0
            :current-branch-path [[]]}
           inferrence/reconstruct)]
 
@@ -288,7 +290,7 @@
         (q/line grid-start coord extent coord)))
 
     ;; Draw star points
-    (doseq [[x y] (xu/star-points size)]
+    (doseq [[x y] (util/star-points size)]
       (q/stroke-weight 1)
       (q/stroke 0 32)
       (q/fill 0)

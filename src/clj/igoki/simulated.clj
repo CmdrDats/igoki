@@ -1,14 +1,12 @@
 (ns igoki.simulated
-  (:require [igoki.ui :as ui]
-            [quil.core :as q]
-            [igoki.util :as util]
-            [igoki.game :as game]
-            [igoki.xutil :as xu]
-            [clojure.java.io :as io])
-  (:import (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f MatOfByte)
-           (org.opencv.imgproc Imgproc)
-           (org.opencv.highgui Highgui)
-           (de.schlichtherle.truezip.fs FsEntryNotFoundException)))
+  (:require
+    [igoki.ui :as ui]
+    [quil.core :as q]
+    [igoki.util :as util])
+  (:import
+    (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f MatOfByte)
+    (org.opencv.highgui Highgui)
+    (de.schlichtherle.truezip.fs FsEntryNotFoundException)))
 
 ;; This view simulates a camera for testing igoki's behaviour without having a board and camera handy
 (defonce simctx (atom {:sketchconfig {:framerate 5 :size [640 480]}}))
@@ -33,8 +31,6 @@
 
 (defmethod ui/construct :simulation [ctx]
   (reset-board ctx 19))
-
-
 
 
 
@@ -66,7 +62,7 @@
             (Core/line m (Point. grid-start coord) (Point. extent coord) (Scalar. 0 0 0))))
 
 
-        (doseq [[x y] (xu/star-points size)]
+        (doseq [[x y] (util/star-points size)]
           (Core/circle m (Point. (+ grid-start (* x cellsize))
                                  (+ grid-start (* y cellsize))) 2 (Scalar. 0 0 0) 2))
 

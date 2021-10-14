@@ -1,2 +1,0 @@
-(ns igoki.neural)
-
