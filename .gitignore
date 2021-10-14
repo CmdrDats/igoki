@@ -13,3 +13,4 @@ resources/*.edn
 *.log
 node_modules
 resources/samples
+/.idea

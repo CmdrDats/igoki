@@ -10,13 +10,15 @@
     [igoki.util :as util]
     [igoki.sound.announce :as announce]
     [igoki.sound.sound :as snd])
-  (:import (io.socket.client Socket IO Ack IO$Options)
-           (io.socket.emitter Emitter$Listener)
-           (org.json JSONObject)
-           (java.util Date)
-           (java.text SimpleDateFormat)
-           (org.slf4j.bridge SLF4JBridgeHandler)
-           (java.util.logging LogManager Level)))
+
+  (:import
+    (io.socket.client Socket IO Ack IO$Options)
+    (io.socket.emitter Emitter$Listener)
+    (org.json JSONObject)
+    (java.util Date)
+    (java.text SimpleDateFormat)
+    (org.slf4j.bridge SLF4JBridgeHandler)
+    (java.util.logging LogManager Level)))
 
 ;; http://docs.ogs.apiary.io/
 ;; https://ogs.readme.io/docs/real-time-api
@@ -94,13 +96,12 @@
 
 
 (defn socket-listener [^Socket socket event lfn]
-  (.on socket
-       event
-       (proxy [Emitter$Listener] []
-         (call [xs]
-           (log/info "Socket event: " event)
-           #_(apply lfn (seq xs))
-           (apply lfn (map #(if (instance? JSONObject %) (json/decode (.toString %) keyword) %) (seq xs)))))))
+  (.on socket event
+    (proxy [Emitter$Listener] []
+      (call [xs]
+        (log/info "Socket event: " event)
+        #_(apply lfn (seq xs))
+        (apply lfn (map #(if (instance? JSONObject %) (json/decode (.toString %) keyword) %) (seq xs)))))))
 
 (defn socket-emit [sock event msg]
   (let [m (JSONObject.)]

@@ -15,4 +15,4 @@
   (ui/start (ui/transition ui/ctx :goban)))
 
 (defn -main [& args]
-  )
+  (start))
