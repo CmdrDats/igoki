@@ -3,24 +3,21 @@
     [igoki.ui]
     [igoki.goban]
     [igoki.view]
-    [igoki.game])
-  (:require [igoki.util :as util :refer [-->]]
-            [igoki.ui :as ui])
+    [igoki.game]
+    [igoki.util :as util :refer [-->]])
   (:gen-class)
-  (:import (org.opencv.objdetect CascadeClassifier)
-           (org.opencv.highgui Highgui VideoCapture)
-           (org.opencv.core MatOfRect Core Rect Point Scalar Mat Size MatOfPoint MatOfKeyPoint MatOfPoint2f Point3 TermCriteria MatOfPoint3 CvType MatOfPoint3f)
-           (java.awt.image BufferedImage WritableRaster DataBufferByte)
-           (java.awt Color Graphics KeyboardFocusManager KeyEventDispatcher Font RenderingHints)
-           (java.io File)
-           (javax.imageio ImageIO)
-           (javax.swing JFrame JPanel)
-           (org.opencv.imgproc Imgproc)
-           (org.opencv.features2d FeatureDetector)
-           (java.util List LinkedList ArrayList)
-           (org.opencv.calib3d Calib3d)
-           (java.awt.event KeyEvent MouseListener MouseEvent)
-           (org.opencv.ml CvStatModel)))
+  (:import
+    (org.opencv.objdetect CascadeClassifier)
+    (org.opencv.highgui Highgui VideoCapture)
+    (org.opencv.core MatOfRect Core Rect Point Scalar Mat Size MatOfPoint MatOfKeyPoint MatOfPoint2f Point3 TermCriteria MatOfPoint3 CvType MatOfPoint3f)
+    (java.awt.image BufferedImage WritableRaster DataBufferByte)
+    (java.awt Color Graphics KeyboardFocusManager KeyEventDispatcher Font RenderingHints)
+    (java.io File)
+    (javax.imageio ImageIO)
+    (javax.swing JFrame JPanel)
+    (org.opencv.imgproc Imgproc)
+    (org.opencv.calib3d Calib3d)
+    (java.awt.event KeyEvent MouseListener MouseEvent)))
 
 ;; This namespace represents some of the early igoki work, mostly to detect the actual Go Board.
 ;; it has been deprecated in favour of simply doing manual calibration due to the complexity

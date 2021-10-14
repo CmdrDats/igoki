@@ -227,8 +227,7 @@
 
 
 ;; == Board construction ==
-(defmulti
-  step-action
+(defmulti step-action
   (fn [b k v]
     (cond
       (#{:annotator :black-rank :black-team :copyright :date :event :game-name :game-comment

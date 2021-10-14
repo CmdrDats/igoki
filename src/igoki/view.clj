@@ -1,17 +1,18 @@
 (ns igoki.view
-  (:require [igoki.ui :as ui]
-            [igoki.util :as util]
-            [quil.core :as q])
-  (:import (org.opencv.core MatOfPoint2f Mat Rect Size Core)
-           (org.opencv.calib3d Calib3d)
-           (org.opencv.imgproc Imgproc)
-           (java.util UUID)
-           (org.opencv.highgui Highgui)
-           (java.io File)
-           (org.deeplearning4j.util ModelSerializer)
-           (org.canova.image.loader ImageLoader)
-           (org.deeplearning4j.nn.multilayer MultiLayerNetwork)
-           (org.nd4j.linalg.api.ndarray INDArray)))
+  (:require
+    [igoki.ui :as ui]
+    [igoki.util :as util])
+  (:import
+    (org.opencv.core MatOfPoint2f Mat Rect Size Core)
+    (org.opencv.calib3d Calib3d)
+    (org.opencv.imgproc Imgproc)
+    (java.util UUID)
+    (org.opencv.highgui Highgui)
+    (java.io File)
+    (org.deeplearning4j.util ModelSerializer)
+    (org.canova.image.loader ImageLoader)
+    (org.deeplearning4j.nn.multilayer MultiLayerNetwork)
+    (org.nd4j.linalg.api.ndarray INDArray)))
 
 ;; Moving average
 ;; 'dirty' flags on positions (set against previous x frames as reference)

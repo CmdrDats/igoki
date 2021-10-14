@@ -8,9 +8,7 @@
     [quil.core :as q]
     [igoki.sound.sound :as snd])
   (:import
-    (java.awt Toolkit)
     (java.io File ByteArrayInputStream)
-    (processing.core PImage)
     (java.util Date UUID)
     (java.text SimpleDateFormat)
     (org.opencv.highgui Highgui)

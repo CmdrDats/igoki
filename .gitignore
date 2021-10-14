@@ -14,3 +14,4 @@ resources/*.edn
 node_modules
 resources/samples
 /.idea
+/igoki.iml

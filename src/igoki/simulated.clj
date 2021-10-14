@@ -51,9 +51,11 @@
       #_(.setTo m (Scalar. 92 179 220))
       (let [{{:keys [size board next]} :sim} @simctx
             [cellsize grid-start] (grid-spec m)
-            [mx my] (if (q/focused)
-                      [(* (/ (.rows m) (q/height)) (q/mouse-x))
-                       (* (/ (.cols m) (q/width)) (q/mouse-y))] [2000 2000])]
+            [mx my]
+            (if (q/focused)
+              [(* (/ (.rows m) (q/height)) (q/mouse-x))
+               (* (/ (.cols m) (q/width)) (q/mouse-y))] [2000 2000])]
+
         (doseq [x (range size)]
           (let [coord (+ grid-start (* x cellsize))
                 extent (+ grid-start (* cellsize (dec size)))]

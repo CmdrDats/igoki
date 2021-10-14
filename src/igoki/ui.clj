@@ -1,14 +1,14 @@
 (ns igoki.ui
-  (:require [quil.core :as q]
-            [igoki.util :as util])
-  (:import (org.opencv.highgui VideoCapture Highgui)
-           (org.opencv.core Mat Core)
-           (javax.swing SwingUtilities JFrame JFileChooser)
-           (org.opencv.video Video)
-           (org.opencv.imgproc Imgproc)
-           (java.util LinkedList)
-           (kuusisto.tinysound TinySound)
-           (java.io File)))
+  (:require
+    [quil.core :as q]
+    [igoki.util :as util])
+
+  (:import
+    (org.opencv.highgui VideoCapture Highgui)
+    (org.opencv.core Mat Core)
+    (javax.swing SwingUtilities JFrame JFileChooser)
+    (org.opencv.imgproc Imgproc)
+    (java.util LinkedList)))
 
 (defn setup [ctx]
   (q/smooth)

@@ -1,18 +1,15 @@
 (ns igoki.projector
-  (:require [igoki.ui :as ui]
-            [quil.core :as q]
-            [quil.sketch :as qsk]
-            [igoki.util :as util]
-            [igoki.view :as view]
-            [igoki.game :as game]
-            [igoki.sgf :as sgf])
-  (:import (javax.swing JFrame)
-           (java.io File)
-           (javax.imageio ImageIO)
-           (org.opencv.calib3d Calib3d)
-           (org.opencv.imgproc Imgproc)
-           (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)
-           (processing.core PApplet)))
+  (:require
+    [igoki.ui :as ui]
+    [quil.core :as q]
+    [igoki.util :as util]
+    [igoki.view :as view]
+    [igoki.game :as game]
+    [igoki.sgf :as sgf])
+  (:import
+    (org.opencv.calib3d Calib3d)
+    (org.opencv.imgproc Imgproc)
+    (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)))
 
 (defonce ctx
   (atom
