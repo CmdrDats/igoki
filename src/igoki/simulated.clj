@@ -1,12 +1,14 @@
 (ns igoki.simulated
   (:require
     [igoki.ui :as ui]
-    [quil.core :as q]
+    [igoki.litequil :as lq]
     [igoki.util :as util])
   (:import
     (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f MatOfByte)
     (org.opencv.highgui Highgui)
-    (de.schlichtherle.truezip.fs FsEntryNotFoundException)))
+    (de.schlichtherle.truezip.fs FsEntryNotFoundException)
+    (javax.swing JFrame JPanel)
+    (java.awt.event MouseEvent)))
 
 ;; This view simulates a camera for testing igoki's behaviour without having a board and camera handy
 (defonce simctx (atom {:sketchconfig {:framerate 5 :size [640 480]}}))
@@ -29,11 +31,6 @@
 (defn reset-board [ctx size]
   (swap! ctx update :sim assoc :size size :board (blank-board size) :next :b :mode :alt))
 
-(defmethod ui/construct :simulation [ctx]
-  (reset-board ctx 19))
-
-
-
 (defn stone-colors [c]
   (if (= c :w)
     [(Scalar. 255 255 255) (Scalar. 28 28 28)]
@@ -46,15 +43,17 @@
       (Core/circle m (Point. x y) (/ cellsize 2) bcolor 2))))
 
 (defn draw-board [^Mat m]
-  (try
+ (try
     (when (and m (.rows m))
       #_(.setTo m (Scalar. 92 179 220))
       (let [{{:keys [size board next]} :sim} @simctx
             [cellsize grid-start] (grid-spec m)
+            mpos (lq/mouse-position)
             [mx my]
-            (if (q/focused)
-              [(* (/ (.rows m) (q/height)) (q/mouse-x))
-               (* (/ (.cols m) (q/width)) (q/mouse-y))] [2000 2000])]
+            (if mpos
+              [(* (/ (.rows m) (lq/height)) (.getX mpos))
+               (* (/ (.cols m) (lq/width)) (.getY mpos))]
+              [2000 2000])]
 
         (doseq [x (range size)]
           (let [coord (+ grid-start (* x cellsize))
@@ -94,48 +93,14 @@
              update :camera assoc
              :raw (-> context :camera :raw)
              :pimg (util/mat-to-pimage (-> context :camera :raw)
-                     (-> context :camera :pimg :bufimg)
-                     (-> context :camera :pimg :pimg)))
+                     (-> context :camera :pimg :bufimg)))
       (let [m (.clone (-> context :sim :background))]
         (draw-board m)
         (swap! simctx
                update :camera assoc
                :raw m
                :pimg (util/mat-to-pimage m
-                       (-> context :camera :pimg :bufimg)
-                       (-> context :camera :pimg :pimg)))))))
-
-(defmethod ui/draw :simulation [ctx]
-
-  (simulate)
-
-  (let [{{:keys [^Mat raw pimg]} :camera
-         {:keys [frame index]} :replay
-         mode :mode} @ctx
-        [cellsize grid-start] (if raw (grid-spec raw) [])
-        tx (q/height)]
-    (q/fill 128 64 78)
-    (q/rect 0 0 (q/width) (q/height))
-    (cond
-      (nil? pimg)
-      (ui/shadow-text "Image not built yet, please wait..." 10 25)
-      (= mode :replay)
-      (do
-        (q/image (:pimg pimg) 0 0 (q/width) (q/height))
-        (ui/shadow-text "Esc: Back to simulation" tx 50)
-        (ui/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
-        (ui/shadow-text "L: Load captured zip" tx 100))
-
-      :else
-      (do
-        (q/image (:pimg pimg) 0 0 (q/width) (q/height))
-        (ui/shadow-text "Tab: Cycle Size" tx 50)
-        (ui/shadow-text "B: Black " tx 75)
-        (ui/shadow-text "W: White" tx 100)
-        (ui/shadow-text "A: Alternating" tx 125)
-        (ui/shadow-text "C: Clear" tx 150)
-        (ui/shadow-text "R: Reset board. " tx 175)
-        (ui/shadow-text "L: Load zip. " tx 200)))))
+                       (-> context :camera :pimg :bufimg)))))))
 
 
 (defn next-stone [{:keys [next mode]}]
@@ -145,14 +110,16 @@
     :erase nil
     (if (= next :w) :b :w)))
 
-(defmethod ui/mouse-pressed :simulation [ctx]
-  (swap!
-    ctx
+(defn mouse-pressed [ctx ^MouseEvent e]
+  (swap! ctx
     (fn [{{:keys [raw]} :camera :keys [sim] :as c}]
       (let [[cs gs] (grid-spec raw)
-            [px py] (stone-point [(* (/ (.rows raw) (q/height)) (q/mouse-x))
-                                  (* (/ (.cols raw) (q/width)) (q/mouse-y))] gs cs)
+            [px py] (stone-point [(* (/ (.rows raw) (lq/height)) (lq/mouse-x e))
+                                  (* (/ (.cols raw) (lq/width)) (lq/mouse-y e))] gs cs)
             current (get-in sim [:board py px] :outside)]
+        (println "[cs gs]" [cs gs])
+        (println "[px py]" [px py])
+        (println "current" current)
         (cond
           (= current :outside) c
           :else
@@ -173,7 +140,7 @@
           nextindex (nextfn index)
           image (util/zip-read-file file (str nextindex ".jpg"))
           raw (Highgui/imdecode (MatOfByte. image) Highgui/IMREAD_UNCHANGED)
-          pimg (util/mat-to-pimage raw (:bufimg pimg) (:pimg pimg))]
+          pimg (util/mat-to-pimage raw (:bufimg pimg))]
       (swap!
         ctx
         (fn [c]
@@ -191,9 +158,8 @@
   (swap! ctx assoc :mode :replay :replay {:file file :index 0})
   (step-file-index ctx identity))
 
-(defmethod ui/key-pressed :simulation [ctx]
-  (case
-    (q/key-code)
+(defn key-pressed [ctx e]
+  (case (lq/key-code e)
     9
     (swap!
       ctx update-in [:sim :size]
@@ -215,16 +181,54 @@
     39 (step-file-index simctx inc)
     ;; L
     76 (ui/load-dialog #(load-zip simctx (.getAbsolutePath %)) (str (System/getProperty "user.dir") "/capture"))
-    (println "Unhandled key-down: " (q/key-code))))
+    (println "Unhandled key-down: " (lq/key-code e))))
 
 
 
+(defn setup [ctx]
+  (lq/smooth)
+  (lq/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
+  (lq/background 200))
 
+(defn paint [ctx]
+  (simulate)
+  (let [{{:keys [^Mat raw pimg]} :camera
+         {:keys [frame index]} :replay
+         mode :mode} @ctx
+        [cellsize grid-start] (if raw (grid-spec raw) [])
+        tx (- (lq/width) 180)]
+    (lq/color 128 64 78)
+    (lq/rect 0 0 (lq/width) (lq/height))
+    (cond
+      (nil? pimg)
+      (lq/shadow-text "Image not built yet, please wait..." 10 25)
+      (= mode :replay)
+      (do
+        (lq/image (:bufimg pimg) 0 0 (lq/width) (lq/height))
+        (lq/shadow-text "Esc: Back to simulation" tx 50)
+        (lq/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
+        (lq/shadow-text "L: Load captured zip" tx 100))
+
+      :else
+      (do
+        (lq/image (:bufimg pimg) 0 0 (lq/width) (lq/height))
+        (lq/shadow-text "Tab: Cycle Size" tx 50)
+        (lq/shadow-text "B: Black " tx 75)
+        (lq/shadow-text "W: White" tx 100)
+        (lq/shadow-text "A: Alternating" tx 125)
+        (lq/shadow-text "C: Clear" tx 150)
+        (lq/shadow-text "R: Reset board. " tx 175)
+        (lq/shadow-text "L: Load zip. " tx 200)))))
 
 (defn start-simulation [ctx]
-  (swap! simctx assoc
-         :stopped false
-         :sim {:background (Highgui/imread "./resources/wooden-background.jpg")})
+  (swap! simctx
+    (fn [s]
+      (->
+        s
+        (assoc :stopped false)
+        (update :sim assoc :background (Highgui/imread "./resources/wooden-background.jpg")))))
+  (reset-board simctx 19)
+
   (doto
     (Thread.
       #(when-not
@@ -233,9 +237,20 @@
           (swap! ctx update :camera assoc :raw raw :pimg pimg)
           (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
           (recur))))
+    (.setDaemon true)
     (.start))
-  (ui/start (ui/transition simctx :simulation)))
+
+  (let [sketch
+        (lq/sketch
+          {:title "Simulation"
+           :size [640 480]
+           :draw (partial #'paint simctx)
+           :setup (partial #'setup simctx)
+           :mouse-pressed (partial #'mouse-pressed simctx)
+           :key-pressed (partial #'key-pressed simctx)})]
+    (swap! simctx assoc :sketch sketch)))
 
 (defn stop []
   (swap! simctx assoc :stopped true)
-  (q/with-sketch (-> @simctx :sketch) (q/exit)))
+  (when-let [frame (get-in @simctx [:sketch :frame])]
+    (.dispose ^JFrame frame)))

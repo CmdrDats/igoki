@@ -1,11 +1,11 @@
 (ns igoki.projector
   (:require
     [igoki.ui :as ui]
-    [quil.core :as q]
     [igoki.util :as util]
     [igoki.view :as view]
     [igoki.game :as game]
-    [igoki.sgf :as sgf])
+    [igoki.sgf :as sgf]
+    [igoki.litequil :as lq])
   (:import
     (org.opencv.calib3d Calib3d)
     (org.opencv.imgproc Imgproc)
@@ -79,19 +79,19 @@
 
 
           (Imgproc/warpPerspective projmat newflat (.inv board-homography) (Size. (.width sketch) (.height sketch)))
-          (swap! ctx assoc :proj-img (util/mat-to-pimage newflat (:bufimg proj-img) (:pimg proj-img)))
+          (swap! ctx assoc :proj-img (util/mat-to-pimage newflat (:bufimg proj-img)))
 
           #_(doseq [[x y] (util/mat->seq target)]
-              (q/stroke 0 0 255)
-              (q/stroke-weight 20)
-              (q/point x y)
-              (q/stroke-weight 0))))
+              (lq/color 0 0 255)
+              (lq/stroke-weight 20)
+              (lq/point x y)
+              (lq/stroke-weight 0))))
       #_(Core/circle (:raw camera) (Point. 540 265) 20 (Scalar. 255 0 0)))))
 
 
 (defn draw-checkerboard [{:keys [board]}]
   (doseq [[x y w h] board]
-    (q/rect x y w h)))
+    (lq/rect x y w h)))
 
 (defn checker [x y width height xblocks yblocks]
   (let [bw (/ width xblocks)
@@ -120,44 +120,42 @@
       corners-mat)))
 
 (defmethod ui/draw :calibration-pattern [ctx]
-  (q/frame-rate 10)
-  #_(println (q/current-frame-rate))
+  (lq/frame-rate 10)
   ;; If camera is reading, render black and quit.
   (if (:reading @ctx)
     (do
-      (q/fill 0 0 0)
-      (q/rect 0 0 (q/width) (q/height)))
+      (lq/background 0 0 0)
+      (lq/rect 0 0 (lq/width) (lq/height)))
     (do
-      (q/fill 0 0 0)
-      (q/rect 0 0 (q/width) (q/height))
+      (lq/background 0 0 0)
+      (lq/rect 0 0 (lq/width) (lq/height))
 
-      (let [[w h] [(q/width) (q/height)]
+      (let [[w h] [(lq/width) (lq/height)]
             [gw gh] [(/ w 2) (/ h 2)]
             checker (checker (- gw (/ gw 2)) (- gh (/ gh 2)) gw gh 10 8)
 
             {:keys [camera] :as context} @ui/ctx
             {:keys [homography board-homography proj-img] :as projcontext} @ctx
-            existing-corners (:corners projcontext)]
+            existing-corners (:corners projcontext)
+            img (:bufimg proj-img)]
 
-        (q/fill 255 255 255)
-        (q/rect 0 0 (q/width) (q/height))
-        (q/fill 0 0 0)
+        (lq/background 255 255 255)
+        (lq/rect 0 0 (lq/width) (lq/height))
+        (lq/background 0 0 0)
         #_(when-not homography)
         (draw-checkerboard checker)
 
         ;; Draw screen intersection points
         #_(do
-           (q/stroke 255 0 0)
-           (q/stroke-weight 10)
+           (lq/color 255 0 0)
            (doseq [[x y] (:points checker)]
-             (q/point x y))
-           (q/stroke-weight 0))
+             (lq/ellipse x y 5 5)))
 
-        #_(q/image (-> @ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
+        #_(lq/image (-> @ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
 
 
         (when proj-img
-          (q/image (:pimg proj-img) 0 0))
+          (lq/image img 0 0 (.getWidth img) (.getHeight img)))
 
         (when (and (not existing-corners) (:raw camera))
           (util/with-release [gray (Mat.)]
@@ -178,8 +176,7 @@
                   #_(swap! ui/ctx update :camera
                       assoc :pimg
                       (util/mat-to-pimage (:raw camera)
-                        (-> context :camera :pimg :bufimg)
-                        (-> context :camera :pimg :pimg)))
+                        (-> context :camera :pimg :bufimg)))
                   (swap! ctx assoc :corners corners))))))
 
         (when (and existing-corners (not homography))
@@ -202,10 +199,8 @@
                   board-homography (Calib3d/findHomography projector-space board-space Calib3d/FM_RANSAC 3)]
 
               (doseq [[x y] (util/mat->seq projector-space)]
-                (q/stroke 255 0 0)
-                (q/stroke-weight 40)
-                (q/point x y)
-                (q/stroke-weight 0))
+                (lq/color 255 0 0)
+                (lq/ellipse x y 10 10))
 
               (when board-homography
                 (println "Board Homography updated")
@@ -213,16 +208,15 @@
 
 
         (when (:reading @ctx)
-          (q/fill 0 0 0)
-          (q/rect 0 0 (q/width) (q/height)))
+          (lq/background 0 0 0)
+          (lq/rect 0 0 (lq/width) (lq/height)))
         #_(when existing-corners
            (util/with-release [clone (.clone (:raw camera))]
              (Calib3d/drawChessboardCorners clone (:size checker) existing-corners true)
              (swap! ui/ctx update :camera
                assoc :pimg
                (util/mat-to-pimage clone
-                 (-> context :camera :pimg :bufimg)
-                 (-> context :camera :pimg :pimg)))))))))
+                 (-> context :camera :pimg :bufimg)))))))))
 
 
 (defn pre-cam-reading []

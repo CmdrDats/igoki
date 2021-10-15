@@ -3,12 +3,12 @@
     [igoki.util :as util]
     [igoki.ui :as ui]
     [igoki.view :as view]
-    [quil.core :as q]
-    [igoki.simulated :as sim])
+    [igoki.simulated :as sim]
+    [igoki.litequil :as lq])
   (:import
-    (processing.core PImage)
     (org.opencv.core Mat MatOfPoint2f Core Scalar TermCriteria Size Point)
-    (org.opencv.imgproc Imgproc)))
+    (org.opencv.imgproc Imgproc)
+    (java.awt.image BufferedImage)))
 
 (defn start-simulation [ctx]
   (sim/stop)
@@ -144,7 +144,7 @@
       (doseq [p (seq (.toArray pts2f))]
         (Core/circle cropped p 2 (Scalar. 255 0 255) 3)))
     (swap! ctx assoc-in [:goban :flat]
-           (util/mat-to-pimage bilat nil nil))
+      (util/mat-to-pimage bilat nil))
     #_(util/write-mat pts)))
 
 
@@ -167,72 +167,74 @@
 (defmethod ui/destruct :goban [ctx]
   (remove-watch ctx :goban-camera))
 
-(defn convert-point [pimg [px py]]
-  [(/ (* px (q/width)) (.width pimg))
-   (/ (* py (q/height)) (.height pimg))])
+(defn convert-point [bufimg [px py]]
+  [(/ (* px (lq/width)) (.getWidth bufimg))
+   (/ (* py (lq/height)) (.getHeight bufimg))])
 
 (def pn ["A19" "T19" "T1" "A1"])
 
 (defmethod ui/draw :goban [ctx]
-  (q/frame-rate 20)
-  (q/fill 128 64 78)
-  (q/rect 0 0 (q/width) (q/height))
+  (lq/frame-rate 20)
+  (lq/background 128 64 78)
+  (lq/rect 0 0 (lq/width) (lq/height))
 
-  (let [c (-> @ctx :camera :pimg :pimg)]
+  (let [c (-> @ctx :camera :pimg :bufimg)]
     (cond
       (nil? c)
-      (ui/shadow-text "Could not acquire image?" 10 25)
+      (lq/shadow-text "Could not acquire image?" 10 25)
+
       :else
       (let [{{:keys [size edges points lines flat flat-view? camerapoints]} :goban
              board :board} @ctx
 
             points (map (partial convert-point c) points)
             edges (map #(map (partial convert-point c) %) edges)]
-        (q/image c 0 0 (q/width) (q/height))
-        (ui/shadow-text "Please select the corners of the board" 10 25)
+        (lq/image c 0 0 (lq/width) (lq/height))
+        (lq/shadow-text "Please select the corners of the board" 10 25)
 
-        (ui/shadow-text "<Tab> Cycle 9x9, 13x13 and 19x19. " 10 50)
-        (ui/shadow-text "<Enter> Confirm Calibration" 10 75)
-        (ui/shadow-text "<Space> Toggle flat view" 10 100)
-        (ui/shadow-text "<1..5> Camera Sources" 10 125)
-        (ui/shadow-text "<S> Camera Sim" 10 150)
+        (lq/shadow-text "<Tab> Cycle 9x9, 13x13 and 19x19. " 10 50)
+        (lq/shadow-text "<Enter> Confirm Calibration" 10 75)
+        (lq/shadow-text "<Space> Toggle flat view" 10 100)
+        (lq/shadow-text "<1..5> Camera Sources" 10 125)
+        (lq/shadow-text "<S> Camera Sim" 10 150)
 
-        (q/stroke 255 255 255 128)
-        (q/stroke-weight 0.5)
+        (lq/color 255 255 255 128)
+        (lq/stroke-weight 0.5)
         (when (and camerapoints board size)
           (doseq [[idx p] (map-indexed vector camerapoints)
                   :let [[px py] (convert-point c p)
                         stone (get-in board [(int (/ idx size)) (mod idx size)])]
                   :when stone]
             (if (= stone :b)
-              (do (q/fill 0 0 0) (q/stroke 255 255 255))
-              (do (q/fill 255 255 255) (q/stroke 0 0 0)))
-            (q/ellipse px py 10 10)))
+              (do (lq/background 0 0 0) (lq/color 255 255 255))
+              (do (lq/background 255 255 255) (lq/color 0 0 0)))
+            (lq/ellipse px py 10 10)))
 
 
 
-        (q/stroke 255 255 255 96)
-        (q/stroke-weight 1)
+        (lq/color 255 255 255 96)
+        (lq/stroke-weight 1)
         (when lines
           (doseq [[p1 p2] lines]
-            (q/line (convert-point c p1) (convert-point c p2)))
-          (ui/shadow-text
+            (lq/line (convert-point c p1) (convert-point c p2)))
+          (lq/shadow-text
             (str size "x" size)
             (/ (reduce + (map first points)) 4)
             (/ (reduce + (map second points)) 4)
             :center :bottom))
 
-        (q/stroke 78 64 255 128)
-        (q/stroke-weight 2)
+        (lq/color 78 64 255 128)
+        (lq/stroke-weight 2)
         (doseq [[p1 p2] edges]
-          (q/line p1 p2))
+          (lq/line p1 p2))
 
-        (q/text-align :center :bottom)
+
         (doseq [[p [x y]] (map-indexed vector points)]
-          (q/text (get pn p) x (- y 5))
-          (q/ellipse x y 2 2))
+          (lq/text (get pn p) x (- y 5)
+            {:align [:center :bottom]})
+          (lq/ellipse x y 2 2))
         (when (and flat flat-view?)
-          (q/image (:pimg flat) 0 0 (q/width) (q/height)))))))
+          (lq/image (:bufimg flat) 0 0 (lq/width) (lq/height)))))))
 
 (defn update-corners [ctx points]
   (swap! ctx update :goban
@@ -244,10 +246,10 @@
   (reverse-transform ctx))
 
 
-(defmethod ui/mouse-dragged :goban [ctx]
-  (when-let [c ^PImage (-> @ctx :camera :pimg :pimg)]
-    (let [px (/ (* (q/mouse-x) (.width c)) (q/width))
-          py (/ (* (- (q/mouse-y) 5) (.height c)) (q/height))
+(defmethod ui/mouse-dragged :goban [ctx e]
+  (when-let [c ^BufferedImage (-> @ctx :camera :pimg :bufimg)]
+    (let [px (/ (* (lq/mouse-x) (.getWidth c)) (lq/width))
+          py (/ (* (- (lq/mouse-y) 5) (.getHeight c)) (lq/height))
           p [px py]
           points (-> @ctx :goban :points)
           points
@@ -256,18 +258,17 @@
             (vec (conj points p)))]
       (update-corners ctx points))))
 
-(defmethod ui/mouse-pressed :goban [ctx]
-  (ui/mouse-dragged ctx))
+(defmethod ui/mouse-pressed :goban [ctx e]
+  (ui/mouse-dragged ctx e))
 
-(defmethod ui/mouse-released :goban [ctx]
+(defmethod ui/mouse-released :goban [ctx e]
   (reverse-transform ctx))
 
 (defn cycle-corners [ctx]
   (update-corners ctx (vec (take 4 (drop 1 (cycle (-> @ctx :goban :points)))))))
 
-(defmethod ui/key-pressed :goban [ctx]
-  (case
-    (q/key-code)
+(defmethod ui/key-pressed :goban [ctx e]
+  (case (lq/key-code e)
     10
     (ui/transition ctx :kifu)
     9
@@ -285,9 +286,12 @@
     83 (start-simulation ctx)
     32 (swap! ctx update-in [:goban :flat-view?] (fnil not false))
     67 (cycle-corners ctx)
-    (println "Unhandled key-down: " (q/key-code))))
+    (println "Unhandled key-down: " (lq/key-code e))))
+
+
 
 (comment
+  ;; What was this again? maybe delete.
   (let [f
         (fn [[x1 y1 x2 y2]]
           (* (/ 180 Math/PI) (Math/atan2 (- x2 x1) (- y2 y1))))

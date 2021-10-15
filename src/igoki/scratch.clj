@@ -5,7 +5,6 @@
     [igoki.view]
     [igoki.game]
     [igoki.util :as util :refer [-->]])
-  (:gen-class)
   (:import
     (org.opencv.objdetect CascadeClassifier)
     (org.opencv.highgui Highgui VideoCapture)

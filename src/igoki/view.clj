@@ -1,7 +1,8 @@
 (ns igoki.view
   (:require
     [igoki.ui :as ui]
-    [igoki.util :as util])
+    [igoki.util :as util]
+    [clojure.java.io :as io])
   (:import
     (org.opencv.core MatOfPoint2f Mat Rect Size Core)
     (org.opencv.calib3d Calib3d)
@@ -21,9 +22,17 @@
 
 ;; Stone detection, neural network
 
-(defn load-net [nm]
-  (ModelSerializer/restoreMultiLayerNetwork (File. (str nm ".cnet"))))
-(def net (load-net "resources/supersimple"))
+(defn load-net [^File nm]
+  (ModelSerializer/restoreMultiLayerNetwork nm))
+
+(def net
+  (let [tmp (File/createTempFile "igoki" "cnet")
+        cnet (io/input-stream (io/resource "supersimple.cnet"))]
+    (io/copy cnet tmp)
+    (let [net (load-net tmp)]
+      (.delete tmp)
+      net)))
+
 (def loader (ImageLoader. 10 10 3))
 (def block-size 10)
 
@@ -108,8 +117,7 @@
                 (assoc-in [:camera :flattened] new-flat)
                 (assoc-in [:camera :flattened-pimage]
                   (util/mat-to-pimage new-flat
-                    (:bufimg flattened-pimage)
-                    (:pimg flattened-pimage)))
+                    (:bufimg flattened-pimage)))
                 (assoc :board board))))
           ctx)
         )

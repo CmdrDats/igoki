@@ -39,7 +39,7 @@
         _ (println imgfile)
         raw (load-raw imgfile)
         oldpimg (-> @ctx :camera :pimg)
-        pimg (util/mat-to-pimage raw (:bufimg oldpimg) (:pimg oldpimg))]
+        pimg (util/mat-to-pimage raw (:bufimg oldpimg))]
     (swap! ctx
       #(-> %
         (assoc :goban {:points [] :size 19}

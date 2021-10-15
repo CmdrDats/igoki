@@ -1,36 +1,22 @@
 (ns igoki.ui
   (:require
-    [quil.core :as q]
-    [igoki.util :as util])
+    [igoki.util :as util]
+    [igoki.litequil :as lq])
 
   (:import
     (org.opencv.highgui VideoCapture Highgui)
     (org.opencv.core Mat Core)
     (javax.swing SwingUtilities JFrame JFileChooser)
     (org.opencv.imgproc Imgproc)
-    (java.util LinkedList)))
+    (java.util LinkedList)
+    (java.awt.event WindowStateListener WindowEvent)))
 
 (defn setup [ctx]
-  (q/smooth)
-  (q/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
-  (q/background 200))
+  (lq/smooth)
+  (lq/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
+  (lq/background 200))
 
-(defn shadow-text
-  ([^String s x y]
-   (shadow-text s x y :left :bottom))
-  ([^String s x y align-horiz]
-   (shadow-text s x y align-horiz :bottom))
-  ([^String s x y align-horiz align-vert]
-   (q/text-align (or align-horiz :left) (or align-vert :bottom))
-   (q/fill 0 196)
-   (q/text-size 20)
-   (q/text s (inc x) (inc y))
-
-   (q/fill 255)
-   (q/text-size 20)
-   (q/text s x y)))
-
-(defn state [ctx] (:state @ctx))
+(defn state [ctx & _] (:state @ctx))
 
 (defmulti construct state)
 (defmethod construct :default [ctx])
@@ -40,24 +26,24 @@
 
 (defmulti draw state)
 (defmethod draw :default [ctx]
-  (q/fill 255 64 78)
-  (q/rect 0 0 (q/width) (q/height))
-  (shadow-text (str "State not implemented: " (:state @ctx)) 10 25))
+  (lq/color 255 64 78)
+  (lq/rect 0 0 (lq/width) (lq/height))
+  (lq/shadow-text (str "State not implemented: " (:state @ctx)) 10 25))
 
 (defmulti mouse-dragged state)
-(defmethod mouse-dragged :default [ctx])
+(defmethod mouse-dragged :default [ctx e])
 
 (defmulti mouse-pressed state)
-(defmethod mouse-pressed :default [ctx])
+(defmethod mouse-pressed :default [ctx e])
 
 (defmulti mouse-released state)
-(defmethod mouse-released :default [ctx])
+(defmethod mouse-released :default [ctx e])
 
 (defmulti mouse-moved state)
-(defmethod mouse-moved :default [ctx])
+(defmethod mouse-moved :default [ctx e])
 
 (defmulti key-pressed state)
-(defmethod key-pressed :default [ctx])
+(defmethod key-pressed :default [ctx e])
 
 (defn transition [ctx new-state]
   (destruct ctx)
@@ -67,18 +53,17 @@
 
 (defn start [ctx]
   (let [sketch
-        (q/sketch
-          :renderer :java2d
-          :title "Goban panel"
-          :setup (partial setup ctx)
-          :draw (partial #'draw ctx)
-          :size (or (-> @ctx :sketchconfig :size) [1280 720])
-          :features [:resizable]
-          :mouse-dragged (partial #'mouse-dragged ctx)
-          :mouse-pressed (partial #'mouse-pressed ctx)
-          :mouse-released (partial #'mouse-released ctx)
-          :mouse-moved (partial #'mouse-moved ctx)
-          :key-pressed (partial #'key-pressed ctx))]
+        (lq/sketch
+          {:title "igoki"
+           :setup (partial setup ctx)
+           :draw (partial #'draw ctx)
+           :size (or (-> @ctx :sketchconfig :size) [1280 720])
+           :mouse-dragged (partial #'mouse-dragged ctx)
+           :mouse-pressed (partial #'mouse-pressed ctx)
+           :mouse-released (partial #'mouse-released ctx)
+           :mouse-moved (partial #'mouse-moved ctx)
+           :key-pressed (partial #'key-pressed ctx)})]
+
     (swap! ctx assoc :sketch sketch)))
 
 ;; Following code doesn't belong in here, but can move it out in due time.
@@ -94,7 +79,7 @@
       update :camera
       #(assoc %
         :raw frame
-        :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg]))))
+        :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]))))
     (.release video)))
 
 (defn read-file [ctx fname]
@@ -103,7 +88,7 @@
       ctx update :camera
       #(assoc %
         :raw frame
-        :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg]))))))
+        :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]))))))
 
 (defn stop-read-loop [ctx]
   (if-let [video ^VideoCapture (-> @ctx :camera :video)]
@@ -142,7 +127,7 @@
                :raw frame
                ;; TODO: this chows memory - better to have a hook on update for each specific
                ;; view - this will only be needed on the first screen.
-               :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]) (get-in % [:pimg :pimg])))))
+               :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg])))))
         (Thread/sleep (or (-> @ctx :camera :read-delay) 1000))
         (catch Exception e
           (println "exception thrown")

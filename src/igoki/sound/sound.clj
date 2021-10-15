@@ -1,6 +1,7 @@
 (ns igoki.sound.sound
-  (:import (javax.sound.sampled AudioSystem LineListener LineEvent LineEvent$Type)
-           (java.util.concurrent CountDownLatch)))
+  (:import
+    (javax.sound.sampled AudioSystem LineListener LineEvent LineEvent$Type)
+    (java.util.concurrent CountDownLatch)))
 
 (def get-clip
   (memoize

@@ -1,8 +1,9 @@
 (ns igoki.sound.announce
-  (:require [clojure.string :as str]
-            [igoki.sgf :as sgf]
-            [clojure.java.io :as io]
-            [igoki.sound.sound :as snd]))
+  (:require
+    [clojure.string :as str]
+    [igoki.sgf :as sgf]
+    [clojure.java.io :as io]
+    [igoki.sound.sound :as snd]))
 
 (comment
   ;; Words..

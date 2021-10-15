@@ -1,10 +1,11 @@
 (ns igoki.util
-  (:require [clojure.java.io :as io])
-  (:import (org.opencv.core Mat Size CvType Point MatOfPoint2f MatOfPoint)
-           (java.awt.image BufferedImage DataBufferByte)
-           (processing.core PImage PConstants)
-           (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
-           (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)))
+  (:require
+    [clojure.java.io :as io])
+  (:import
+    (org.opencv.core Mat Size CvType Point MatOfPoint2f MatOfPoint)
+    (java.awt.image BufferedImage DataBufferByte)
+    (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
+    (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)))
 
 (defn star-points [size]
   (case size
@@ -28,20 +29,9 @@
     (.get frame 0 0 data)
     image))
 
-(defn bufimage-to-pimage [^BufferedImage bimg ^PImage pimg]
-  (let [img
-        (if (and pimg (= (.-width pimg) (.getWidth bimg)) (= (.-height pimg) (.getHeight bimg)))
-          pimg
-          (PImage. (.getWidth bimg) (.getHeight bimg) PConstants/ARGB))]
-    (.getRGB bimg 0 0 (.-width img) (.-height img) (.-pixels img) 0 (.-width img))
-    (.updatePixels img)
-    img))
-
-(defn mat-to-pimage [^Mat frame ^BufferedImage oldbuffer ^PImage oldpimg]
+(defn mat-to-pimage [^Mat frame ^BufferedImage oldbuffer]
   (when (and (> (.rows frame) 0) (> (.cols frame) 0))
-    (let [buf (mat-to-buffered-image frame oldbuffer)
-          pimg (bufimage-to-pimage buf oldpimg)]
-      {:bufimg buf :pimg pimg})))
+    {:bufimg (mat-to-buffered-image frame oldbuffer)}))
 
 (defmacro with-release
   "A let block, calling .release on each provided binding at the end, in a finally block."
