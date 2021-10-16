@@ -3,7 +3,8 @@
     [seesaw.core :as s]
     [seesaw.mig :as mig]
     [igoki.ui :as ui]
-    [igoki.goban :as goban]))
+    [igoki.goban :as goban]
+    [igoki.game :as game]))
 
 (s/native!)
 
@@ -37,8 +38,8 @@
       :tip "Simulation (dev tools)"
       :content "Simulation"}]))
 
-(defn goban-panel []
-  "Goban")
+(defn game-panel []
+  (game/game-panel ui/ctx))
 
 (defn tree-panel []
   (s/tabbed-panel
@@ -63,7 +64,7 @@
 
         gt
         (s/top-bottom-split
-          (goban-panel)
+          (game-panel)
           (tree-panel)
           :border 0
           :resize-weight 0.5

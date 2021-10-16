@@ -198,16 +198,6 @@
     (dump-camera (:filename new-game) camidx (-> context :camera :raw) [board])
     (swap! ctx assoc :kifu new-game)))
 
-(defmethod ui/construct :kifu [ctx]
-  (when-not (-> @ctx :kifu)
-    (TVFS/umount)
-    (reset-kifu ctx))
-  (util/add-watch-path ctx :kifu-camera [:camera :raw] #'camera-updated)
-  (util/add-watch-path ctx :kifu-board [:board] #'board-updated))
-
-(defmethod ui/destruct :kifu [ctx]
-  (remove-watch ctx :kifu-camera)
-  (remove-watch ctx :kifu-board))
 
 
 
@@ -227,7 +217,64 @@
         actionlist (if visiblepath (sgf/current-branch-node-list [visiblepath] (:moves game)))]
     (last actionlist)))
 
-(defmethod ui/draw :kifu [ctx]
+
+(defn export-sgf [ctx]
+  (ui/save-dialog #(spit % (sgf/sgf (-> @ctx :kifu :moves)))))
+
+(defn load-sgf [ctx]
+  (ui/load-dialog
+    (fn [^File f]
+      (println "Opening sgf: " (.getAbsolutePath f))
+      (swap! ctx assoc :kifu
+             (inferrence/reconstruct {:moves (sgf/read-sgf (.getAbsolutePath f)) :movenumber 0 :current-branch-path []})))))
+
+(defn toggle-branches [ctx]
+  (swap! ctx update-in [:kifu :show-branches] not))
+
+(defn move-backward [ctx]
+  (-> ctx
+      (update-in [:kifu :movenumber] (fnil (comp (partial max 0) dec) 1))
+      (assoc-in [:kifu :dirty] true)
+      (update-in [:kifu] inferrence/reconstruct)))
+
+(defn move-forward [ctx]
+  (let [{:keys [movenumber current-branch-path moves]} (:kifu ctx)
+        path (vec (take movenumber (mapcat identity current-branch-path)))
+        {:keys [branches] :as node} (last (sgf/current-branch-node-list [path] moves))
+        new-branch-path (if (<= (count path) movenumber) [(conj path 0)] current-branch-path)]
+    ctx
+    (if (zero? (count branches))
+      ctx
+      (-> ctx
+          (update-in [:kifu :movenumber] (fnil inc 1))
+          (assoc-in [:kifu :dirty] true)
+          (assoc-in [:kifu :current-branch-path] new-branch-path)
+          (update-in [:kifu] inferrence/reconstruct)))))
+
+(defn pass [context]
+  (let [{:keys [kifu]} context]
+    (assoc context
+      :kifu
+      (inferrence/play-move kifu [-1 -1 nil ({:white :w :black :b} (-> kifu :constructed :player-turn))]))))
+
+
+
+
+
+
+(defn construct [ctx]
+  (when-not (-> @ctx :kifu)
+    (TVFS/umount)
+    (reset-kifu ctx))
+  (util/add-watch-path ctx :kifu-camera [:camera :raw] #'camera-updated)
+  (util/add-watch-path ctx :kifu-board [:board] #'board-updated))
+
+(defn destruct [ctx]
+  (remove-watch ctx :kifu-camera)
+  (remove-watch ctx :kifu-board))
+
+
+(defn draw [ctx]
   (lq/stroke-weight 1)
   (lq/color 0)
   (lq/background 128 64 78)
@@ -235,9 +282,9 @@
 
   ;; Draw the board
   (let [{{:keys [submit kifu-board constructed movenumber] :as game} :kifu
-         {:keys [pimg]}                                      :camera
-         board                                                       :board
-         {:keys [size]}                                              :goban} @ctx
+         {:keys [pimg]} :camera
+         board :board
+         {:keys [size]} :goban} @ctx
         cellsize (/ (lq/height) (+ size 2))
         grid-start (+ cellsize (/ cellsize 2))
         tx (+ (lq/height) (/ cellsize 2))
@@ -330,7 +377,7 @@
           (lq/color 0)
           (lq/background (if (= stone :white) 255 0))
           (lq/ellipse (+ grid-start (* x cellsize))
-                     (+ grid-start (* y cellsize)) (- cellsize 2) (- cellsize 2))
+            (+ grid-start (* y cellsize)) (- cellsize 2) (- cellsize 2))
 
           (lq/background (if (= stone :white) 0 255)))
 
@@ -339,7 +386,7 @@
           (lq/color 220 179 92)
           (lq/background 220 179 92)
           (lq/ellipse (+ grid-start (* x cellsize))
-                     (+ grid-start (* y cellsize)) 20 20)
+            (+ grid-start (* y cellsize)) 20 20)
 
           (lq/background 0))
 
@@ -415,16 +462,16 @@
     ;; If in the process of submitting, mark that stone.
     (when submit
       #_(let [[x y _ d] (:move submit)]
-         (lq/stroke-weight 1)
-         (lq/stroke 0 128)
-         (lq/background (if (= d :w) 255 0) 128)
-         (lq/ellipse
-           (+ grid-start (* x cellsize))
-           (+ grid-start (* y cellsize))
-           (- cellsize 3) (- cellsize 3))
-         (lq/background (if (= d :w) 0 255))
-         (lq/text "?" (+ grid-start (* xcellsize)) (+ grid-start (* y cellsize))
-           {:align [:center :center]})))
+          (lq/stroke-weight 1)
+          (lq/stroke 0 128)
+          (lq/background (if (= d :w) 255 0) 128)
+          (lq/ellipse
+            (+ grid-start (* x cellsize))
+            (+ grid-start (* y cellsize))
+            (- cellsize 3) (- cellsize 3))
+          (lq/background (if (= d :w) 0 255))
+          (lq/text "?" (+ grid-start (* xcellsize)) (+ grid-start (* y cellsize))
+            {:align [:center :center]})))
 
     ;; Mark the last move
     (when lastmove
@@ -468,48 +515,10 @@
         (lq/color 255 0 0)
         (lq/background 0 0)
         (lq/ellipse (+ grid-start (* x cellsize))
-                   (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))))))
+          (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))))))
 
-(defn export-sgf [ctx]
-  (ui/save-dialog #(spit % (sgf/sgf (-> @ctx :kifu :moves)))))
 
-(defn load-sgf [ctx]
-  (ui/load-dialog
-    (fn [^File f]
-      (println "Opening sgf: " (.getAbsolutePath f))
-      (swap! ctx assoc :kifu
-             (inferrence/reconstruct {:moves (sgf/read-sgf (.getAbsolutePath f)) :movenumber 0 :current-branch-path []})))))
-
-(defn toggle-branches [ctx]
-  (swap! ctx update-in [:kifu :show-branches] not))
-
-(defn move-backward [ctx]
-  (-> ctx
-      (update-in [:kifu :movenumber] (fnil (comp (partial max 0) dec) 1))
-      (assoc-in [:kifu :dirty] true)
-      (update-in [:kifu] inferrence/reconstruct)))
-
-(defn move-forward [ctx]
-  (let [{:keys [movenumber current-branch-path moves]} (:kifu ctx)
-        path (vec (take movenumber (mapcat identity current-branch-path)))
-        {:keys [branches] :as node} (last (sgf/current-branch-node-list [path] moves))
-        new-branch-path (if (<= (count path) movenumber) [(conj path 0)] current-branch-path)]
-    ctx
-    (if (zero? (count branches))
-      ctx
-      (-> ctx
-          (update-in [:kifu :movenumber] (fnil inc 1))
-          (assoc-in [:kifu :dirty] true)
-          (assoc-in [:kifu :current-branch-path] new-branch-path)
-          (update-in [:kifu] inferrence/reconstruct)))))
-
-(defn pass [context]
-  (let [{:keys [kifu]} context]
-    (assoc context
-      :kifu
-      (inferrence/play-move kifu [-1 -1 nil ({:white :w :black :b} (-> kifu :constructed :player-turn))]))))
-
-(defmethod ui/key-pressed :kifu [ctx e]
+(defn key-typed [ctx e]
   (case (lq/key-code e)
     67 (ui/transition ctx :goban)
     86 (ui/transition ctx :goban)
@@ -521,3 +530,15 @@
     39 (swap! ctx move-forward)
     80 (swap! ctx pass)
     (println "Key code not handled: " (lq/key-code e))))
+
+
+(defn game-panel [ctx]
+  (:panel
+    (lq/sketch-panel
+      {:setup (partial #'construct ctx)
+       :close (partial #'destruct ctx)
+       :draw (partial #'draw ctx)
+       #_#_:mouse-dragged (partial #'mouse-dragged ctx)
+       #_#_:mouse-pressed (partial #'mouse-pressed ctx)
+       #_#_:mouse-released (partial #'mouse-released ctx)
+       :key-typed (partial #'key-typed ctx)})))
