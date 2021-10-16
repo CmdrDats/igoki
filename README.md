@@ -9,25 +9,25 @@ Bridge the gap between playing Go on a physical board and digitally.
  As you open igoki, this is what you'll see (after pointing your camera to your board and not your
  face)
  
- ![Initial Screen](resources/screen0.jpg)
+ ![Initial Screen](doc/images/screen0.jpg)
  
  Then you manually click on the four corners, starting with what you perceive as top-left (A19) and going clockwise
  
  I usually poke my finger on the board so that I don't have to do mental gymnastics.
  
- ![Corners Selected](resources/screen1.jpg)
+ ![Corners Selected](doc/images/screen1.jpg)
  
  Notice that the light grid is slightly off. Don't mind that, [Issue #12](https://github.com/CmdrDats/igoki/issues/12) will clear that up a bit -
  It's only to show you the size, not where it will pick up the points. That's the next step. Hit `enter`
  and you should see
  
- ![Diff View](resources/screen2.jpg)
+ ![Diff View](doc/images/screen2.jpg)
  
  The mysteriously black screen shows you the difference between when you got to the screen and currently
  on camera. This is to filter out board grain, shadows and other weirdnesses. Place some stones around
  the board (particularly around the 4 corners and center), and you'll see
  
- ![Diff Calibrated](resources/screen3.jpg)
+ ![Diff Calibrated](doc/images/screen3.jpg)
  
  Because my view is quite top-down, it all works out easily, but you'll have to adjust the sampling a
  bit to compensate if you have a lower perspective view of your board (thanks 3D). Issues [#26](https://github.com/CmdrDats/igoki/issues/26) and [#10](https://github.com/CmdrDats/igoki/issues/10)
@@ -35,7 +35,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  Remove the stones and hit `K` to start your game!
  
- ![Kifu](resources/screen4.jpg)
+ ![Kifu](doc/images/screen4.jpg)
  
  Here you see the interpreted board (empty at the moment) and the camera view - you can head back to
  the diff or calibration view if things are a bit messed up, just don't reset the diff in the middle of your game!
@@ -44,7 +44,7 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  After a few moves
  
- ![Game has begun](resources/screen5.jpg)
+ ![Game has begun](doc/images/screen5.jpg)
  
  You'll see the move numbers and the last move marked. Feel free to pick up the last stone and explore
  branches, exporting to SGF will save all the branches you create.
@@ -52,16 +52,16 @@ Bridge the gap between playing Go on a physical board and digitally.
  If you go back and forth in history, it will highlight any stones that are different (not present,
  or incorrectly present) in red and insist that you fix it before it will branch or continue your game.
  
- ![Back to the past](resources/screen6.jpg)
+ ![Back to the past](doc/images/screen6.jpg)
  
  When you've fixed it, you can perhaps play out a different branch
  
- ![New branch](resources/screen7.jpg)
+ ![New branch](doc/images/screen7.jpg)
  
  And when you go back, and switch on the `show branches` mode with `M`, you'll see that both branches
  are indeed recorded
  
- ![Branch mode](resources/screen8.jpg)
+ ![Branch mode](doc/images/screen8.jpg)
  
  If you play on either branch, it will continue to show you the next play so that you can see where
  to place the next piece. This makes it possible to load an SGF and review it directly on your board.
