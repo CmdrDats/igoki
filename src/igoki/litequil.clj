@@ -2,36 +2,56 @@
   (:import
     (javax.swing JPanel JFrame SwingUtilities WindowConstants)
     (java.awt Graphics2D Container Component Dimension Color Stroke Image BasicStroke RenderingHints Font Rectangle Polygon)
-    (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent WindowStateListener)
+    (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent WindowStateListener WindowListener WindowAdapter)
     (java.awt.geom Ellipse2D$Double Rectangle2D)))
 
 ;; We desperately need to move off Processing. It doesn't compose well, so this implements the same
 ;; abstractions we use in quil, but directly in a jpanel, which will let us do more UI things
 ;; in basic Swing later.
 
+(def ^:dynamic *sketch* (atom nil))
 (def ^:dynamic ^JPanel panel nil)
 (def ^:dynamic ^Graphics2D g2d nil)
 
-(defn input-action [local-panel options e k]
+(defn input-action [s local-panel options e k]
   (let [afn (get options k)]
     (if afn
       (with-bindings
-        {#'panel local-panel
+        {#'*sketch* s
+         #'panel local-panel
          #'g2d (.getGraphics local-panel)}
         (afn e)))))
 
+(defn frame-sleep [sketch-atom]
+  (let [{:keys [last-frametime frame-rate]} @sketch-atom
+        ;; frame rate is frames per sec
+        ;; 10 = 10 frames for 1000 millis 1000/10 = 100ms ideal time per frame
+        target-time (/ 1000 frame-rate)
+        now (System/currentTimeMillis)
+        time-sleep (- target-time (- now (or last-frametime now)))]
+    (println "frame-rate: " [frame-rate target-time time-sleep])
+    (when (pos? time-sleep)
+      (Thread/sleep time-sleep))
+
+    (swap! sketch-atom assoc :last-frametime now)))
+
 (defn sketch [options]
   (let [{:keys [title size draw setup]} options
-
         local-frame (JFrame. ^String title)
+
+        sketch-atom (atom {:options options :frame local-frame :stopped false :frame-rate 10})
+
         local-panel
         (proxy [JPanel] []
           (paint [^Graphics2D local-g2d]
             (when draw
               (with-bindings
-                {#'panel this
+                {#'*sketch* sketch-atom
+                 #'panel this
                  #'g2d local-g2d}
                 (draw)))))]
+
+    (swap! sketch-atom assoc :panel local-panel)
 
     (.setFocusable local-panel true)
     (when size
@@ -42,47 +62,55 @@
     (.addMouseListener local-panel
       (proxy [MouseListener] []
         (mouseClicked [^MouseEvent e]
-          (input-action local-panel options e :mouse-clicked))
+          (input-action sketch-atom local-panel options e :mouse-clicked))
         (mousePressed [^MouseEvent e]
-          (input-action local-panel options e :mouse-pressed))
+          (input-action sketch-atom local-panel options e :mouse-pressed))
         (mouseReleased [^MouseEvent e]
-          (input-action local-panel options e :mouse-released))
+          (input-action sketch-atom local-panel options e :mouse-released))
         (mouseEntered [^MouseEvent e]
-          (input-action local-panel options e :mouse-entered))
+          (input-action sketch-atom local-panel options e :mouse-entered))
         (mouseExited [^MouseEvent e]
-          (input-action local-panel options e :mouse-exited))))
+          (input-action sketch-atom local-panel options e :mouse-exited))))
 
     (.addMouseMotionListener local-panel
       (proxy [MouseMotionListener] []
         (mouseDragged [^MouseEvent e]
-          (input-action local-panel options e :mouse-dragged))
+          (input-action sketch-atom local-panel options e :mouse-dragged))
         (mouseMoved [^MouseEvent e]
-          (input-action local-panel options e :mouse-moved))))
+          (input-action sketch-atom local-panel options e :mouse-moved))))
 
     (.addKeyListener local-panel
       (proxy [KeyListener] []
         (keyPressed [^KeyEvent e]
-          (input-action local-panel options e :key-pressed))
+          (input-action sketch-atom local-panel options e :key-pressed))
         (keyReleased [^KeyEvent e]
-          (input-action local-panel options e :key-released))
+          (input-action sketch-atom local-panel options e :key-released))
         (keyTyped [^KeyEvent e]
-          (input-action local-panel options e :key-typed))))
+          (input-action sketch-atom local-panel options e :key-typed))))
 
 
     (.add (.getContentPane local-frame) local-panel)
-    ;
+
+    (.addWindowListener local-frame
+      (proxy [WindowAdapter] []
+        (windowClosed [e]
+          (swap! sketch-atom assoc :stopped true))))
+
     (doto local-frame
       (.pack)
-      (.setDefaultCloseOperation WindowConstants/EXIT_ON_CLOSE)
+      (.setDefaultCloseOperation WindowConstants/DISPOSE_ON_CLOSE)
       (.setResizable true)
       (.setVisible true))
 
 
     (doto
       (Thread.
-        #(while (and (.isVisible local-frame))
-           (Thread/sleep 250)
-           (.repaint local-panel)))
+        (fn []
+          (while (and (.isVisible local-frame) (not (:stopped @sketch-atom)))
+            (frame-sleep sketch-atom)
+            (.repaint local-panel))
+          (println "Paint thread stopped."))
+        )
 
       (.setDaemon true)
       (.start))
@@ -91,13 +119,12 @@
 
     (when setup
       (with-bindings
-        {#'panel local-panel
+        {#'*sketch* sketch-atom
+         #'panel local-panel
          #'g2d (.getGraphics local-panel)}
         (setup)))
 
-    {:panel local-panel
-     :frame local-frame
-     :options options}))
+    sketch-atom))
 
 (defn smooth []
   (doto g2d
@@ -108,7 +135,10 @@
     (.setRenderingHint RenderingHints/KEY_INTERPOLATION
       RenderingHints/VALUE_INTERPOLATION_BICUBIC)))
 
-(defn frame-rate [rate])
+(defn frame-rate [rate-per-sec]
+  (when-not (or (nil? rate-per-sec) (zero? rate-per-sec))
+    (swap! *sketch* assoc :frame-rate rate-per-sec)))
+
 (defn width []
   (.getWidth panel))
 
