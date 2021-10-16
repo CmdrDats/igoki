@@ -51,11 +51,12 @@
   (construct ctx)
   ctx)
 
-(defn start [ctx]
+(defn start [ctx exit-fn]
   (let [sketch
         (lq/sketch
           {:title "igoki"
            :setup (partial setup ctx)
+           :close exit-fn
            :draw (partial #'draw ctx)
            :size (or (-> @ctx :sketchconfig :size) [1280 720])
            :mouse-dragged (partial #'mouse-dragged ctx)

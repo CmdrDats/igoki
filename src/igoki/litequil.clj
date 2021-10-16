@@ -29,14 +29,13 @@
         target-time (/ 1000 frame-rate)
         now (System/currentTimeMillis)
         time-sleep (- target-time (- now (or last-frametime now)))]
-    (println "frame-rate: " [frame-rate target-time time-sleep])
     (when (pos? time-sleep)
       (Thread/sleep time-sleep))
 
     (swap! sketch-atom assoc :last-frametime now)))
 
 (defn sketch [options]
-  (let [{:keys [title size draw setup]} options
+  (let [{:keys [title size draw setup close]} options
         local-frame (JFrame. ^String title)
 
         sketch-atom (atom {:options options :frame local-frame :stopped false :frame-rate 10})
@@ -94,7 +93,9 @@
     (.addWindowListener local-frame
       (proxy [WindowAdapter] []
         (windowClosed [e]
-          (swap! sketch-atom assoc :stopped true))))
+          (swap! sketch-atom assoc :stopped true)
+          (when close
+            (close)))))
 
     (doto local-frame
       (.pack)

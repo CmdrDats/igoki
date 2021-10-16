@@ -234,19 +234,21 @@
 (defn start-cframe []
   (reset! ctx
     {})
-  (ui/start ctx)
+  (ui/start ctx nil)
   (ui/add-camera-listeners
     ui/ctx
     (fn [ctx]
       (pre-cam-reading))
     (fn [ctx]
       (post-cam-reading)))
+
   (ui/transition ctx :calibration-pattern)
+
   (doto
     (Thread.
       ^Runnable
       (fn []
-        (while (not (.finished (:sketch @ctx)))
+        (while (not (:stopped (:sketch @ctx)))
           (try
             (update-projmat ctx)
             (catch Exception e

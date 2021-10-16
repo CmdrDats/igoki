@@ -12,7 +12,8 @@
 
 (defn start []
   (ui/read-loop ui/ctx 0)
-  (ui/start (ui/transition ui/ctx :goban)))
+  (ui/start (ui/transition ui/ctx :goban)
+    #(ui/stop-read-loop ui/ctx)))
 
 (defn -main [& args]
   (start))
