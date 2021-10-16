@@ -8,7 +8,7 @@
   :dependencies
   [[org.clojure/clojure "1.8.0"]
    [com.google.guava/guava "20.0"]
-
+   [seesaw "1.5.0"]
    [org.openpnp/opencv "2.4.11-1"]
    [cheshire "5.10.1"]
    [de.schlichtherle.truezip/truezip-file "7.7.10"]

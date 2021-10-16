@@ -3,7 +3,8 @@
     (javax.swing JPanel JFrame SwingUtilities WindowConstants)
     (java.awt Graphics2D Container Component Dimension Color Stroke Image BasicStroke RenderingHints Font Rectangle Polygon)
     (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent WindowStateListener WindowListener WindowAdapter)
-    (java.awt.geom Ellipse2D$Double Rectangle2D)))
+    (java.awt.geom Ellipse2D$Double Rectangle2D)
+    (javax.swing.event AncestorListener AncestorEvent)))
 
 ;; We desperately need to move off Processing. It doesn't compose well, so this implements the same
 ;; abstractions we use in quil, but directly in a jpanel, which will let us do more UI things
@@ -34,29 +35,20 @@
 
     (swap! sketch-atom assoc :last-frametime now)))
 
-(defn sketch [options]
-  (let [{:keys [title size draw setup close]} options
-        local-frame (JFrame. ^String title)
-
-        sketch-atom (atom {:options options :frame local-frame :stopped false :frame-rate 10})
-
+(defn sketch-panel [options]
+  (let [{:keys [draw setup close]} options
+        sketch-atom (atom {:options options :stopped false :frame-rate 10})
         local-panel
         (proxy [JPanel] []
-          (paint [^Graphics2D local-g2d]
+          (paintComponent [^Graphics2D local-g2d]
             (when draw
               (with-bindings
                 {#'*sketch* sketch-atom
                  #'panel this
                  #'g2d local-g2d}
                 (draw)))))]
-
-    (swap! sketch-atom assoc :panel local-panel)
-
     (.setFocusable local-panel true)
-    (when size
-      (let [[w h] size]
-        (.setSize local-panel (Dimension. w h))
-        (.setPreferredSize local-panel (Dimension. w h))))
+    (swap! sketch-atom assoc :panel local-panel)
 
     (.addMouseListener local-panel
       (proxy [MouseListener] []
@@ -88,9 +80,62 @@
           (input-action sketch-atom local-panel options e :key-typed))))
 
 
-    (.add (.getContentPane local-frame) local-panel)
+    (.addAncestorListener local-panel
+      (proxy [AncestorListener] []
+        (ancestorAdded [^AncestorEvent event]
+          (when
+            (and (.isVisible (.getAncestor event))
+              (not (:started @sketch-atom)))
 
-    (.addWindowListener local-frame
+            (swap! sketch-atom assoc :started true)
+
+            (when setup
+              (with-bindings
+                {#'*sketch* sketch-atom
+                 #'panel local-panel
+                 #'g2d (.getGraphics local-panel)}
+                (setup)))
+
+            (doto
+              (Thread.
+                (fn []
+                  (while (not (:stopped @sketch-atom))
+                    (frame-sleep sketch-atom)
+                    (when (.isVisible local-panel)
+                      (.repaint local-panel)))
+                  (println "Paint thread stopped.")))
+
+              (.setDaemon true)
+              (.start))))
+        (ancestorRemoved [event]
+          (println "CLOSED!!!")
+          (swap! sketch-atom assoc :stopped true)
+          (when close
+            (close)))
+
+        (ancestorMoved [event])))
+
+
+    {:sketch-atom sketch-atom
+     :panel local-panel}))
+
+(defn sketch [options]
+  (let [{:keys [title size draw setup close]} options
+        local-frame (JFrame. ^String title)
+
+        sk (sketch-panel options)
+        local-panel (:panel sk)
+        sketch-atom (:sketch-atom sk)]
+
+    (when size
+      (let [[w h] size]
+        (.setSize local-panel (Dimension. w h))
+        (.setPreferredSize local-panel (Dimension. w h))))
+
+    (.add (.getContentPane local-frame) ^JPanel local-panel)
+
+    ;; Might not be needed now?
+    #_(.addWindowListener local-frame
       (proxy [WindowAdapter] []
         (windowClosed [e]
           (swap! sketch-atom assoc :stopped true)
@@ -103,27 +148,7 @@
       (.setResizable true)
       (.setVisible true))
 
-
-    (doto
-      (Thread.
-        (fn []
-          (while (and (.isVisible local-frame) (not (:stopped @sketch-atom)))
-            (frame-sleep sketch-atom)
-            (.repaint local-panel))
-          (println "Paint thread stopped."))
-        )
-
-      (.setDaemon true)
-      (.start))
-
     (.grabFocus local-panel)
-
-    (when setup
-      (with-bindings
-        {#'*sketch* sketch-atom
-         #'panel local-panel
-         #'g2d (.getGraphics local-panel)}
-        (setup)))
 
     sketch-atom))
 
