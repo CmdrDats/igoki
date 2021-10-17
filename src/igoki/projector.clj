@@ -119,7 +119,7 @@
       (util/vec->mat corners-mat (reverse corners))
       corners-mat)))
 
-(defmethod ui/draw :calibration-pattern [ctx]
+(defn draw [ctx]
   (lq/frame-rate 10)
   ;; If camera is reading, render black and quit.
   (if (:reading @ctx)
@@ -142,8 +142,8 @@
         (lq/background 255 255 255)
         (lq/rect 0 0 (lq/width) (lq/height))
         (lq/background 0 0 0)
-        #_(when-not homography)
-        (draw-checkerboard checker)
+        (when-not homography
+          (draw-checkerboard checker))
 
         ;; Draw screen intersection points
         #_(do
@@ -231,18 +231,24 @@
   (reset! ctx {:sketch (:sketch @ctx)})
   (ui/transition ctx :calibration-pattern))
 
+
 (defn start-cframe []
   (reset! ctx
     {})
-  (ui/start ctx nil)
+
+  (let [sketch
+        (lq/sketch
+          {:title "Move on board in camera view (place paper on board for contrast)"
+           :draw (partial #'draw ctx)
+           :size (or (-> @ctx :sketchconfig :size) [1280 720])})]
+    (swap! ctx assoc :sketch sketch))
+
   (ui/add-camera-listeners
     ui/ctx
     (fn [ctx]
       (pre-cam-reading))
     (fn [ctx]
       (post-cam-reading)))
-
-  (ui/transition ctx :calibration-pattern)
 
   (doto
     (Thread.

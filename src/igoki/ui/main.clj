@@ -5,6 +5,7 @@
     [seesaw.dev :as sd]
     [igoki.ui :as ui]
     [igoki.calibration :as goban]
+    [igoki.projector :as projector]
     [igoki.game :as game]
     [igoki.simulated :as sim]))
 
@@ -22,7 +23,11 @@
     :hgap 15
     :align :left
     :items
-    [(s/button :text "Projector Window")
+    [(s/button :text "Projector Window"
+       :listen
+       [:action
+        (fn [e]
+          (projector/start-cframe))])
      (s/toggle :text "Dev Tools")
      (s/toggle :text "Show Branches"
        :listen

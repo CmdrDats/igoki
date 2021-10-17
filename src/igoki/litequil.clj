@@ -1,4 +1,5 @@
 (ns igoki.litequil
+  (:require [seesaw.core :as s])
   (:import
     (javax.swing JPanel JFrame SwingUtilities WindowConstants)
     (java.awt Graphics2D Container Component Dimension Color Stroke Image BasicStroke RenderingHints Font Rectangle Polygon)
@@ -121,7 +122,12 @@
 
 (defn sketch [options]
   (let [{:keys [title size draw setup close]} options
-        local-frame (JFrame. ^String title)
+        local-frame
+        (s/frame
+          :title title
+          :icon "igoki48.png"
+          :resizable? true
+          :on-close :dispose)
 
         sk (sketch-panel options)
         local-panel (:panel sk)
@@ -144,8 +150,6 @@
 
     (doto local-frame
       (.pack)
-      (.setDefaultCloseOperation WindowConstants/DISPOSE_ON_CLOSE)
-      (.setResizable true)
       (.setVisible true))
 
     (.grabFocus local-panel)
