@@ -2,7 +2,7 @@
   (:require
     [igoki.ui]
     [igoki.ui.main :as ui.main]
-    [igoki.goban]
+    [igoki.calibration]
     [igoki.view]
     [igoki.game]
     [igoki.ui :as ui]

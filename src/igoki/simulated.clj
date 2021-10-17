@@ -234,6 +234,7 @@
       #(when-not
         (-> @simctx :stopped)
         (let [{{:keys [raw pimg]} :camera} @simctx]
+          ;; TODO: this needs to write to a different 'camera' view so it doesn't clash with camera input.
           (swap! ctx update :camera assoc :raw raw :pimg pimg)
           (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
           (recur))))

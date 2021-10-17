@@ -3,7 +3,7 @@
     [seesaw.core :as s]
     [seesaw.mig :as mig]
     [igoki.ui :as ui]
-    [igoki.goban :as goban]
+    [igoki.calibration :as goban]
     [igoki.game :as game]))
 
 (s/native!)

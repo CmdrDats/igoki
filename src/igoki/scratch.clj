@@ -1,7 +1,7 @@
 (ns igoki.scratch
   (:require
     [igoki.ui]
-    [igoki.goban]
+    [igoki.calibration]
     [igoki.view]
     [igoki.game]
     [igoki.util :as util :refer [-->]])

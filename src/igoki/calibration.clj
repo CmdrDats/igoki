@@ -1,4 +1,4 @@
-(ns igoki.goban
+(ns igoki.calibration
   (:require
     [igoki.util :as util]
     [igoki.ui :as ui]
@@ -6,8 +6,7 @@
     [igoki.simulated :as sim]
     [igoki.litequil :as lq])
   (:import
-    (org.opencv.core Mat MatOfPoint2f Core Scalar TermCriteria Size Point)
-    (org.opencv.imgproc Imgproc)
+    (org.opencv.core MatOfPoint2f Core)
     (java.awt.image BufferedImage)))
 
 (defn start-simulation [ctx]
