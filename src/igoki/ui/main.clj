@@ -5,7 +5,8 @@
     [seesaw.dev :as sd]
     [igoki.ui :as ui]
     [igoki.calibration :as goban]
-    [igoki.game :as game]))
+    [igoki.game :as game]
+    [igoki.simulated :as sim]))
 
 (s/native!)
 
@@ -42,7 +43,8 @@
       :content "OGS"}
      {:title "Simulation"
       :tip "Simulation (dev tools)"
-      :content "Simulation"}]))
+      :content
+      (sim/simulation-panel ui/ctx)}]))
 
 (defn game-panel []
   (game/game-panel ui/ctx))

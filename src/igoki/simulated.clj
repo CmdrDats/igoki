@@ -51,8 +51,8 @@
             mpos (lq/mouse-position)
             [mx my]
             (if mpos
-              [(* (/ (.rows m) (lq/height)) (.getX mpos))
-               (* (/ (.cols m) (lq/width)) (.getY mpos))]
+              [(* (/ (float (.getX mpos)) (lq/width)) (.width m))
+               (* (/ (float (.getY mpos)) (lq/height)) (.height m))]
               [2000 2000])]
 
         (doseq [x (range size)]
@@ -114,8 +114,11 @@
   (swap! ctx
     (fn [{{:keys [raw]} :camera :keys [sim] :as c}]
       (let [[cs gs] (grid-spec raw)
-            [px py] (stone-point [(* (/ (.rows raw) (lq/height)) (lq/mouse-x e))
-                                  (* (/ (.cols raw) (lq/width)) (lq/mouse-y e))] gs cs)
+            mpos (lq/mouse-position)
+            [px py]
+            (stone-point
+              [(* (/ (float (.getX mpos)) (lq/width)) (.width raw))
+               (* (/ (float (.getY mpos)) (lq/height)) (.height raw))] gs cs)
             current (get-in sim [:board py px] :outside)]
         (println "[cs gs]" [cs gs])
         (println "[px py]" [px py])
@@ -194,12 +197,15 @@
   (simulate)
   (let [{{:keys [^Mat raw pimg]} :camera
          {:keys [frame index]} :replay
-         mode :mode} @ctx
+         :keys [stopped mode]} @ctx
         [cellsize grid-start] (if raw (grid-spec raw) [])
         tx (- (lq/width) 180)]
-    (lq/color 128 64 78)
+    (lq/background 128 64 78)
     (lq/rect 0 0 (lq/width) (lq/height))
     (cond
+      stopped
+      (lq/shadow-text "Select 'simulation' camera..." 20 35)
+
       (nil? pimg)
       (lq/shadow-text "Image not built yet, please wait..." 10 25)
       (= mode :replay)
@@ -239,17 +245,17 @@
           (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
           (recur))))
     (.setDaemon true)
-    (.start))
+    (.start)))
 
+(defn simulation-panel [ctx]
   (let [sketch
-        (lq/sketch
-          {:title "Simulation"
-           :size [640 480]
-           :draw (partial #'paint simctx)
+        (lq/sketch-panel
+          {:draw (partial #'paint simctx)
            :setup (partial #'setup simctx)
            :mouse-pressed (partial #'mouse-pressed simctx)
            :key-pressed (partial #'key-pressed simctx)})]
-    (swap! simctx assoc :sketch sketch)))
+    (swap! simctx assoc :sketch sketch)
+    (:panel sketch)))
 
 (defn stop []
   (swap! simctx assoc :stopped true)

@@ -26,31 +26,37 @@
       (swap! ctx assoc-in [:goban :camerapoints] (util/mat->seq dst)))))
 
 (defn reverse-transform [ctx]
-  (when (= 4 (count (-> @ctx :goban :edges)))
-    (swap! ctx view/update-homography)
-    (let [context @ctx
-          homography (-> context :view :homography)
-          size (-> context :goban :size)
-          d (dec size)
-          [topleft topright bottomright bottomleft] (view/target-points size)]
+  (cond
+    (not= 4
+      (count (-> @ctx :goban :edges)))
+    (swap! ctx assoc-in [:goban :lines] [])
 
-      (when homography
-        (util/with-release
-          [ref (MatOfPoint2f.)
-           pts (MatOfPoint2f.)]
-          (util/vec->mat
-            pts
-            (mapcat
-              (fn [t]
-                [(util/point-along-line [topleft topright] (/ t (dec size)))
-                 (util/point-along-line [bottomleft bottomright] (/ t (dec size)))
-                 (util/point-along-line [topleft bottomleft] (/ t (dec size)))
-                 (util/point-along-line [topright bottomright] (/ t (dec size)))])
-              (range 0 size)))
-          (Core/perspectiveTransform pts ref (.inv (-> @ui/ctx :view :homography)))
+    :else
+    (do
+      (swap! ctx view/update-homography)
+      (let [context @ctx
+            homography (-> context :view :homography)
+            size (-> context :goban :size)
+            d (dec size)
+            [topleft topright bottomright bottomleft] (view/target-points size)]
 
-          (swap! ctx assoc-in [:goban :lines] (partition 2 (util/mat->seq ref)))
-          (view/update-reference ctx))))))
+        (when homography
+          (util/with-release
+            [ref (MatOfPoint2f.)
+             pts (MatOfPoint2f.)]
+            (util/vec->mat
+              pts
+              (mapcat
+                (fn [t]
+                  [(util/point-along-line [topleft topright] (/ t (dec size)))
+                   (util/point-along-line [bottomleft bottomright] (/ t (dec size)))
+                   (util/point-along-line [topleft bottomleft] (/ t (dec size)))
+                   (util/point-along-line [topright bottomright] (/ t (dec size)))])
+                (range 0 size)))
+            (Core/perspectiveTransform pts ref (.inv (-> @ui/ctx :view :homography)))
+
+            (swap! ctx assoc-in [:goban :lines] (partition 2 (util/mat->seq ref)))
+            (view/update-reference ctx)))))))
 
 (defn camera-updated [wk ctx old new]
   (try
@@ -127,11 +133,6 @@
         (lq/image c 0 0 (lq/width) (lq/height))
         (lq/shadow-text "Please select the corners of the board" 10 25)
 
-        (lq/shadow-text "<Tab> Cycle 9x9, 13x13 and 19x19. " 10 50)
-        (lq/shadow-text "<Enter> Confirm Calibration" 10 75)
-        (lq/shadow-text "<Space> Toggle flat view" 10 100)
-        (lq/shadow-text "<1..5> Camera Sources" 10 125)
-        (lq/shadow-text "<S> Camera Sim" 10 150)
 
         (lq/color 255 255 255 128)
         (lq/stroke-weight 0.5)
@@ -201,7 +202,7 @@
 (defn set-camera [camera-idx]
   (sim/stop)
   (ui/stop-read-loop ui/ctx)
-
+  (update-corners ui/ctx [])
   (cond
     (neg? camera-idx) (sim/start-simulation ui/ctx)
     :else (ui/switch-read-loop ui/ctx camera-idx)))
@@ -233,6 +234,8 @@
        :listen
        [:action
         (fn [e]
+          (if (.getParent (.getSource e))
+            (.grabFocus (.getParent (.getSource e))))
           (set-camera (dec (.getSelectedIndex ^JComboBox (.getSource e)))))]
        :model
        (concat
