@@ -164,8 +164,8 @@
            true (update (dec (count branch-path)) conj newpoint)
            branch? (conj [])))])))
 
-(defn read-sgf [filename]
-  (let [f (slurp filename)
+(defn read-sgf [file]
+  (let [f (slurp file)
         new-node {:branches []}
         initial-state {:mode nil :action "" :node nil}]
     (loop [[game branch-path :as g] [new-node []]

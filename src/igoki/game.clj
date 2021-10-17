@@ -191,12 +191,12 @@
       (:filename new-game)
       (str camidx ".config.edn")
       (pr-str
-        {:board     (:board context)
-         :goban     (:goban context)
-         :view      (dissoc (:view context) :homography)
-         :kifu      new-game}))
+        {:board (:board context)
+         :goban (:goban context)
+         :view (dissoc (:view context) :homography)
+         :kifu new-game}))
     (dump-camera (:filename new-game) camidx (-> context :camera :raw) [board])
-    (swap! ctx assoc :kifu new-game)))
+    (swap! ctx assoc :kifu new-game :filename "game.sgf")))
 
 
 
@@ -219,17 +219,22 @@
 
 
 (defn export-sgf [ctx]
-  (ui/save-dialog #(spit % (sgf/sgf (-> @ctx :kifu :moves)))))
+  (ui/save-dialog
+    (:current-file @ctx)
+    #(spit % (sgf/sgf (-> @ctx :kifu :moves)))))
 
 (defn load-sgf [ctx]
   (ui/load-dialog
     (fn [^File f]
       (println "Opening sgf: " (.getAbsolutePath f))
-      (swap! ctx assoc :kifu
-             (inferrence/reconstruct {:moves (sgf/read-sgf (.getAbsolutePath f)) :movenumber 0 :current-branch-path []})))))
+      (swap! ctx assoc
+        :kifu
+        (inferrence/reconstruct
+          {:moves (sgf/read-sgf f) :movenumber 0 :current-branch-path []})
+        :current-file f))))
 
-(defn toggle-branches [ctx]
-  (swap! ctx update-in [:kifu :show-branches] not))
+(defn toggle-branches [ctx show-branches?]
+  (swap! ctx assoc-in [:kifu :show-branches] show-branches?))
 
 (defn move-backward [ctx]
   (-> ctx
@@ -259,7 +264,7 @@
 
 
 
-
+;; UI Code from here.
 
 
 (defn construct [ctx]
@@ -277,51 +282,37 @@
 (defn draw [ctx]
   (lq/stroke-weight 1)
   (lq/color 0)
-  (lq/background 128 64 78)
+  (lq/background 255 255 255)
   (lq/rect 0 0 (lq/width) (lq/height))
 
   ;; Draw the board
   (let [{{:keys [submit kifu-board constructed movenumber] :as game} :kifu
-         {:keys [pimg]} :camera
+         {:keys [pimg flattened-pimage]} :camera
          board :board
-         {:keys [size]} :goban} @ctx
+         {:keys [size ]} :goban} @ctx
         cellsize (/ (lq/height) (+ size 2))
         grid-start (+ cellsize (/ cellsize 2))
         tx (+ (lq/height) (/ cellsize 2))
         visiblepath (take movenumber (mapcat identity (:current-branch-path game)))
         actionlist (sgf/current-branch-node-list [visiblepath] (:moves game))
-        lastmove (last actionlist)]
-
-    ;; TODO: This should become its own panel and use a layout mechanism instead of manually calculating pixels.
-    (when pimg
-      ;; Placing this on the far side, below instructions
-      (lq/image (:bufimg pimg)
-        (lq/height)
-        (-
-          (lq/height)
-          (*
-            (- (lq/width) (lq/height))
-            (/
-              (.getHeight ^BufferedImage (:bufimg pimg))
-              (.getWidth ^BufferedImage (:bufimg pimg)))))
-        (lq/width)
-        (lq/height)))
+        lastmove (last actionlist)
+        canvas-size (max 250 (min (lq/width) (lq/height)))]
 
     (lq/shadow-text (str "Recording: Img #" (:camidx game)) tx 25)
     (when (:filename game)
       (lq/shadow-text (:filename game) tx 50))
     (lq/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
-    (lq/shadow-text "<R> Reset, <V> Back" tx 125)
-    (lq/shadow-text "<V> Back to camera diff view" tx 150)
-    (lq/shadow-text "<E> Export, <L> Load SGF" tx 175)
-    (lq/shadow-text "<M> Toggle show branches" tx 200)
     (lq/shadow-text "<P> Pass" tx 225)
 
-    (lq/background 220 179 92)
-    (lq/rect 0 0 (lq/height) (lq/height))
+
+    (when flattened-pimage
+      (lq/image (:bufimg flattened-pimage) 0 0 canvas-size canvas-size))
+
+    (lq/color 220 179 92 150)
+    (lq/fillrect 0 0 canvas-size canvas-size)
+
 
     (lq/stroke-weight 0.8)
-    #_(lq/stroke-cap :square)
     (lq/color 0 196)
     (lq/background 0)
 
@@ -401,7 +392,7 @@
             (lq/text (str movenum) (+ grid-start (* x cellsize)) (- (+ grid-start (* y cellsize)) 1)
               {:align [:center :center]})))))
 
-
+    ;; TODO: This should go out to its own panel.
     (when (:comment lastmove)
       (lq/color 255)
       (lq/text-size 12)
@@ -520,12 +511,6 @@
 
 (defn key-typed [ctx e]
   (case (lq/key-code e)
-    67 (ui/transition ctx :goban)
-    86 (ui/transition ctx :goban)
-    82 (reset-kifu ctx)
-    69 (export-sgf ctx)
-    76 (load-sgf ctx)
-    77 (toggle-branches ctx)
     37 (swap! ctx move-backward)
     39 (swap! ctx move-forward)
     80 (swap! ctx pass)

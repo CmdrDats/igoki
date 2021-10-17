@@ -2,6 +2,7 @@
   (:require
     [seesaw.core :as s]
     [seesaw.mig :as mig]
+    [seesaw.dev :as sd]
     [igoki.ui :as ui]
     [igoki.calibration :as goban]
     [igoki.game :as game]))
@@ -21,7 +22,12 @@
     :align :left
     :items
     [(s/button :text "Projector Window")
-     (s/toggle :text "Dev Tools")]))
+     (s/toggle :text "Dev Tools")
+     (s/toggle :text "Show Branches"
+       :listen
+       [:action
+        (fn [e]
+          (game/toggle-branches ui/ctx (s/value (.getSource e))))])]))
 
 (defn calibrate-panel []
   (goban/calibration-panel ui/ctx))
@@ -81,11 +87,48 @@
     :items
     [(s/menu :text "File"
        :items
-       [(s/menu-item :text "New SGF..." :mnemonic \n)
-        (s/menu-item :text "Open SGF" :mnemonic \o)
-        (s/menu-item :text "Save" :mnemonic \s)
+       [(s/action
+          :mnemonic \n
+          :name "New SGF..."
+          :key "menu N"
+          :handler
+          (fn [e]
+            (when
+              (s/confirm "Reset to new SGF recording, are you sure?"
+                :title "New SGF"
+                :type :warning
+                :option-type :yes-no)
+              (game/reset-kifu ui/ctx))))
+        (s/action
+          :mnemonic \o
+          :name "Open SGF"
+          :key "menu O"
+          :handler
+          (fn [e]
+            (game/load-sgf ui/ctx)))
+
+        (s/action
+          :mnemonic \s
+          :name "Save SGF"
+          :key "menu S"
+          :handler
+          (fn [e]
+            (game/export-sgf ui/ctx)))
+
+
         :separator
-        (s/menu-item :text "Exit" :mnemonic \x)])]))
+        (s/action
+          :mnemonic \x
+          :name "Exit"
+          :handler
+          (fn [e]
+            (when
+              (s/confirm "Exiting, are you sure?"
+                :title "Exit"
+                :type :warning
+                :option-type :yes-no)
+              (ui/stop-read-loop ui/ctx)
+              (System/exit 0))))])]))
 
 (defn frame-content []
   (let [b

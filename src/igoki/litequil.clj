@@ -200,6 +200,9 @@
   (.clearRect g2d x y w h)
   (.drawRect g2d x y w h))
 
+(defn fillrect [x y w h]
+  (.fillRect g2d x y w h))
+
 (defn ellipse [x y w h]
   (let [e (Ellipse2D$Double. (- x (/ w 2)) (- y (/ h 2)) w h)
         bg (.getBackground g2d)

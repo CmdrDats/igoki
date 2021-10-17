@@ -2,6 +2,20 @@
 
 Bridge the gap between playing Go on a physical board and digitally.
 
+## Heavy updates
+
+This project has been on hiatus for a number of years because of various personal reasons, but
+going full speed ahead again. I've pulled off all the web-view work I've done, since it's just a 
+cause for further delay in this project and really just a nice to have.
+
+I've finally ditched Quil entirely and am working to get a better swing-based interface going, which
+you'll see in the 0.2 pre-release that you should be able to download soon.
+
+*This means the below screenshots are inaccurate* - I'll update them once the UI is in a more stable
+place again.
+
+If you want to see the progres, I'm actively using the project board to manage it here [https://github.com/CmdrDats/igoki/projects/1]
+
 ## Sales pitch
  
  It's handy to see how this works before going into lots of words, so..
@@ -17,30 +31,12 @@ Bridge the gap between playing Go on a physical board and digitally.
  
  ![Corners Selected](doc/images/screen1.jpg)
  
- Notice that the light grid is slightly off. Don't mind that, [Issue #12](https://github.com/CmdrDats/igoki/issues/12) will clear that up a bit -
- It's only to show you the size, not where it will pick up the points. That's the next step. Hit `enter`
- and you should see
- 
- ![Diff View](doc/images/screen2.jpg)
- 
- The mysteriously black screen shows you the difference between when you got to the screen and currently
- on camera. This is to filter out board grain, shadows and other weirdnesses. Place some stones around
- the board (particularly around the 4 corners and center), and you'll see
- 
- ![Diff Calibrated](doc/images/screen3.jpg)
- 
- Because my view is quite top-down, it all works out easily, but you'll have to adjust the sampling a
- bit to compensate if you have a lower perspective view of your board (thanks 3D). Issues [#26](https://github.com/CmdrDats/igoki/issues/26) and [#10](https://github.com/CmdrDats/igoki/issues/10)
- will make this slightly better.
- 
- Remove the stones and hit `K` to start your game!
+ Hit `enter` and you should see
  
  ![Kifu](doc/images/screen4.jpg)
  
  Here you see the interpreted board (empty at the moment) and the camera view - you can head back to
  the diff or calibration view if things are a bit messed up, just don't reset the diff in the middle of your game!
- 
- (Coords start at B.. sorry, I'll fix that in [Issue #42](https://github.com/CmdrDats/igoki/issues/42))
  
  After a few moves
  

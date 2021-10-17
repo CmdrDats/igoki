@@ -1,7 +1,8 @@
 (ns igoki.ui
   (:require
     [igoki.util :as util]
-    [igoki.litequil :as lq])
+    [igoki.litequil :as lq]
+    [clojure.java.io :as io])
 
   (:import
     (org.opencv.highgui VideoCapture Highgui)
@@ -9,7 +10,7 @@
     (javax.swing SwingUtilities JFrame JFileChooser)
     (org.opencv.imgproc Imgproc)
     (java.util LinkedList)
-    (java.awt.event WindowStateListener WindowEvent)))
+    (javax.swing.filechooser FileFilter FileNameExtensionFilter)))
 
 (defn setup [ctx]
   (lq/smooth)
@@ -165,12 +166,17 @@
   (swap! ctx assoc-in [:camera :stopped] false)
   (read-loop ctx camidx))
 
-(defn save-dialog [success-fn]
+(defn save-dialog [current-file success-fn]
   (SwingUtilities/invokeLater
     #(let [frame (JFrame. "Save")
            chooser (JFileChooser.)]
       (try
         (.setAlwaysOnTop frame true)
+
+        (doto chooser
+          (.setSelectedFile (or current-file (io/file "game.sgf")))
+          (.setFileFilter (FileNameExtensionFilter. "SGF Files" (into-array ["sgf"]))))
+
         (when
           (= JFileChooser/APPROVE_OPTION (.showSaveDialog chooser frame))
           (success-fn (.getSelectedFile chooser)))
@@ -182,6 +188,9 @@
            chooser (if start-dir (JFileChooser. start-dir) (JFileChooser.))]
       (try
         (.setAlwaysOnTop frame true)
+        (doto chooser
+          (.setFileFilter (FileNameExtensionFilter. "SGF Files" (into-array ["sgf"]))))
+
         (when
           (= JFileChooser/APPROVE_OPTION (.showOpenDialog chooser frame))
           (success-fn (.getSelectedFile chooser)))

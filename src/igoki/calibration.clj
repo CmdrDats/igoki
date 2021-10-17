@@ -4,7 +4,8 @@
     [igoki.ui :as ui]
     [igoki.view :as view]
     [igoki.simulated :as sim]
-    [igoki.litequil :as lq])
+    [igoki.litequil :as lq]
+    [seesaw.core :as s])
   (:import
     (org.opencv.core MatOfPoint2f Core)
     (java.awt.image BufferedImage)))
@@ -65,20 +66,37 @@
   (reverse-transform ctx))
 
 
+(defn reset-board [ctx]
+  (swap! ctx assoc :goban
+    {:points []
+     :size   19}))
+
+(defn start-calibration [ctx]
+  (when-not (:goban @ctx)
+    (reset-board ctx))
+  (util/add-watch-path ctx :goban-camera [:camera] #'camera-updated))
+
+(defn stop-calibration [ctx]
+  (remove-watch ctx :goban-camera))
+
+(defn camera-image [ctx]
+  (get-in @ctx [:camera :pimg :bufimg]))
+
+(defn cycle-size [ctx]
+  (swap! ctx update-in [:goban :size]
+    (fn [s]
+      (case s 19 9 9 13 19)))
+  (reverse-transform ctx))
+
 ;; All UI code from here on out.
 
 (defn construct [ctx]
   (ui/setup ctx)
   (lq/frame-rate 20)
-
-  (util/add-watch-path ctx :goban-camera [:camera] #'camera-updated)
-  (when-not (:goban @ctx)
-    (swap! ctx assoc :goban
-           {:points []
-            :size   19})))
+  (start-calibration ctx))
 
 (defn destruct [ctx]
-  (remove-watch ctx :goban-camera))
+  (stop-calibration ctx))
 
 (defn convert-point [bufimg [px py]]
   [(/ (* px (lq/width)) (.getWidth bufimg))
@@ -90,7 +108,7 @@
   (lq/background 128 64 78)
   (lq/rect 0 0 (lq/width) (lq/height))
 
-  (let [c (-> @ctx :camera :pimg :bufimg)]
+  (let [c (camera-image ctx)]
     (cond
       (nil? c)
       (lq/shadow-text "Could not acquire image?" 10 25)
@@ -149,7 +167,7 @@
           (lq/image (:bufimg flat) 0 0 (lq/width) (lq/height)))))))
 
 (defn mouse-dragged [ctx e]
-  (when-let [c ^BufferedImage (-> @ctx :camera :pimg :bufimg)]
+  (when-let [c ^BufferedImage (camera-image ctx)]
     (let [px (/ (* (lq/mouse-x) (.getWidth c)) (lq/width))
           py (/ (* (- (lq/mouse-y) 5) (.getHeight c)) (lq/height))
           p [px py]
@@ -158,7 +176,7 @@
       (update-corners ctx points))))
 
 (defn mouse-pressed [ctx e]
-  (when-let [c ^BufferedImage (-> @ctx :camera :pimg :bufimg)]
+  (when-let [c ^BufferedImage (camera-image ctx)]
     (let [px (/ (* (lq/mouse-x) (.getWidth c)) (lq/width))
           py (/ (* (- (lq/mouse-y) 5) (.getHeight c)) (lq/height))
           p [px py]
@@ -175,17 +193,13 @@
 (defn cycle-corners [ctx]
   (update-corners ctx (vec (take 4 (drop 1 (cycle (-> @ctx :goban :points)))))))
 
+
+
 (defn key-typed [ctx e]
   (case (lq/key-code e)
     10
     (ui/transition ctx :kifu)
-    9
-    (do
-      (swap!
-        ctx update-in [:goban :size]
-        (fn [s]
-          (case s 19 9 9 13 19)))
-      (reverse-transform ctx))
+    9 (cycle-size ctx)
     49 (do (sim/stop) (ui/switch-read-loop ctx 0))
     50 (do (sim/stop) (ui/switch-read-loop ctx 1))
     51 (do (sim/stop) (ui/switch-read-loop ctx 2))
@@ -196,16 +210,35 @@
     67 (cycle-corners ctx)
     (println "Unhandled key-down: " (lq/key-code e))))
 
+(defn calibration-options [ctx]
+  (s/flow-panel
+    :items
+    ["Size: "
+     (s/combobox
+       :model ["9x9" "13x13" "19x19"])
+     [20 :by 10]
+     "Camera: "
+     (s/combobox
+       :model
+       (concat
+         ["Simulated"]
+         (for [x (range 5)]
+           (str "Camera " x))))]))
+
 (defn calibration-panel [ctx]
-  (:panel
-    (lq/sketch-panel
-      {:setup (partial #'construct ctx)
-       :close (partial #'destruct ctx)
-       :draw (partial #'draw ctx)
-       :mouse-dragged (partial #'mouse-dragged ctx)
-       :mouse-pressed (partial #'mouse-pressed ctx)
-       :mouse-released (partial #'mouse-released ctx)
-       :key-typed (partial #'key-typed ctx)})))
+  (s/border-panel
+    :south
+    (calibration-options ctx)
+    :center
+    (:panel
+      (lq/sketch-panel
+        {:setup (partial #'construct ctx)
+         :close (partial #'destruct ctx)
+         :draw (partial #'draw ctx)
+         :mouse-dragged (partial #'mouse-dragged ctx)
+         :mouse-pressed (partial #'mouse-pressed ctx)
+         :mouse-released (partial #'mouse-released ctx)
+         :key-typed (partial #'key-typed ctx)}))))
 
 
 (comment

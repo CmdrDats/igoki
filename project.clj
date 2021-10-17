@@ -1,4 +1,4 @@
-(defproject igoki "0.1.1"
+(defproject igoki "0.2"
   :description "Igoki, physical Go board/OGS interface"
   :url "http://github.com/CmdrDats/igoki"
   :license
@@ -6,8 +6,8 @@
    :url "http://www.eclipse.org/legal/epl-v10.html"}
 
   :dependencies
-  [[org.clojure/clojure "1.8.0"]
-   [com.google.guava/guava "20.0"]
+  [[org.clojure/clojure "1.10.3"]
+   #_[com.google.guava/guava "20.0"]
    [seesaw "1.5.0"]
    [org.openpnp/opencv "2.4.11-1"]
    [cheshire "5.10.1"]
