@@ -145,6 +145,7 @@
 (defn main-frame []
   (let [frame
         (s/frame
+          :icon "igoki48.png"
           :title "igoki"
           :size [1024 :by 768]
           :menubar (main-menu)
@@ -156,3 +157,8 @@
     {:title "igoki"
      :body
      [:button "Push me"]}))
+
+(defn refresh []
+  (s/config! @app-frame :menubar
+    (main-menu)
+    :content (frame-content)))

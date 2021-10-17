@@ -292,6 +292,8 @@
          {:keys [size ]} :goban} @ctx
         cellsize (/ (lq/height) (+ size 2))
         grid-start (+ cellsize (/ cellsize 2))
+        board-size (* cellsize (dec size))
+        extent (+ grid-start board-size)
         tx (+ (lq/height) (/ cellsize 2))
         visiblepath (take movenumber (mapcat identity (:current-branch-path game)))
         actionlist (sgf/current-branch-node-list [visiblepath] (:moves game))
@@ -306,7 +308,9 @@
 
 
     (when flattened-pimage
-      (lq/image (:bufimg flattened-pimage) 0 0 canvas-size canvas-size))
+      (lq/image (:bufimg flattened-pimage)
+        (- grid-start cellsize) (- grid-start cellsize)
+        (+ board-size (* cellsize 2)) (+ board-size (* cellsize 2))))
 
     (lq/color 220 179 92 150)
     (lq/fillrect 0 0 canvas-size canvas-size)
@@ -320,9 +324,7 @@
     (lq/text-font "helvetica-20pt")
 
     (doseq [x (range size)]
-      (let [coord (+ grid-start (* x cellsize))
-            extent (+ grid-start (* cellsize (dec size)))
-            x-offset (if (> x 7) 66 65)]
+      (let [coord (+ grid-start (* x cellsize))]
         (lq/text (str (inc x)) coord (- grid-start (/ cellsize 2))
           {:align [:center :bottom]})
         (lq/text (str (inc x)) coord (+ extent (/ cellsize 2))

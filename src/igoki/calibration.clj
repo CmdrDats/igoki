@@ -8,7 +8,8 @@
     [seesaw.core :as s])
   (:import
     (org.opencv.core MatOfPoint2f Core)
-    (java.awt.image BufferedImage)))
+    (java.awt.image BufferedImage)
+    (javax.swing JComboBox)))
 
 (defn start-simulation [ctx]
   (sim/stop)
@@ -81,6 +82,10 @@
 
 (defn camera-image [ctx]
   (get-in @ctx [:camera :pimg :bufimg]))
+
+(defn set-size [ctx size]
+  (swap! ctx assoc-in [:goban :size] size)
+  (reverse-transform ctx))
 
 (defn cycle-size [ctx]
   (swap! ctx update-in [:goban :size]
@@ -193,18 +198,18 @@
 (defn cycle-corners [ctx]
   (update-corners ctx (vec (take 4 (drop 1 (cycle (-> @ctx :goban :points)))))))
 
+(defn set-camera [camera-idx]
+  (sim/stop)
+  (ui/stop-read-loop ui/ctx)
 
+  (cond
+    (neg? camera-idx) (sim/start-simulation ui/ctx)
+    :else (ui/switch-read-loop ui/ctx camera-idx)))
 
 (defn key-typed [ctx e]
   (case (lq/key-code e)
     10
     (ui/transition ctx :kifu)
-    9 (cycle-size ctx)
-    49 (do (sim/stop) (ui/switch-read-loop ctx 0))
-    50 (do (sim/stop) (ui/switch-read-loop ctx 1))
-    51 (do (sim/stop) (ui/switch-read-loop ctx 2))
-    52 (do (sim/stop) (ui/switch-read-loop ctx 3))
-    53 (do (sim/stop) (ui/switch-read-loop ctx 4))
     83 (start-simulation ctx)
     32 (swap! ctx update-in [:goban :flat-view?] (fnil not false))
     67 (cycle-corners ctx)
@@ -215,15 +220,26 @@
     :items
     ["Size: "
      (s/combobox
-       :model ["9x9" "13x13" "19x19"])
+       :listen
+       [:action
+        (fn [e]
+          (let [sel (.getSelectedIndex ^JComboBox (.getSource e))]
+            (set-size ui/ctx (nth [9 13 19] sel))))]
+       :model ["9x9" "13x13" "19x19"]
+       :selected-index 2)
      [20 :by 10]
      "Camera: "
      (s/combobox
+       :listen
+       [:action
+        (fn [e]
+          (set-camera (dec (.getSelectedIndex ^JComboBox (.getSource e)))))]
        :model
        (concat
          ["Simulated"]
          (for [x (range 5)]
-           (str "Camera " x))))]))
+           (str "Camera " (inc x))))
+       :selected-index 1)]))
 
 (defn calibration-panel [ctx]
   (s/border-panel
