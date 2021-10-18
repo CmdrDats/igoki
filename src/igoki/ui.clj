@@ -73,7 +73,7 @@
 
 (defonce ctx (atom {}))
 (defn read-single [ctx camidx]
-  (let [video (VideoCapture. (int camidx) Videoio/CAP_DSHOW)
+  (let [video (VideoCapture. (int camidx) Videoio/CAP_ANY)
         frame (Mat.)]
     (Thread/sleep 500)
     (.read video frame)
@@ -147,7 +147,7 @@
 
 (defn read-loop [ctx camidx]
   (when-not (-> @ctx :camera :stopped)
-    (let [^VideoCapture video (VideoCapture. ^int camidx Videoio/CAP_DSHOW)]
+    (let [^VideoCapture video (VideoCapture. ^int camidx Videoio/CAP_ANY)]
       (swap! ctx update
         :camera assoc
         :video video

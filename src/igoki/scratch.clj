@@ -395,7 +395,7 @@
 
 
 (defn capture [camidx]
-  (let [camera (VideoCapture. ^int camidx Videoio/CAP_DSHOW)
+  (let [camera (VideoCapture. ^int camidx Videoio/CAP_ANY)
         frame (Mat.)]
     (.read camera frame)
 
