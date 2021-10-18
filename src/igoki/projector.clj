@@ -34,7 +34,7 @@
               sample-points (view/sample-points corner-points (:size goban))
               target (util/vec->mat target (apply concat sample-points))]
           (Core/perspectiveTransform target target (.inv board-homography))
-          (Core/rectangle projmat
+          (Imgproc/rectangle projmat
             (Point. 0 0)
             (Point. (+ x3 view/block-size) (+ y3 view/block-size))
             (Scalar. 0 0 0) -1)
@@ -46,7 +46,7 @@
             (doseq [[x y o c]
                     (game/board-diff kifu-board board)]
               (let [[px py] (nth (nth sample-points y) x)]
-                (Core/circle projmat (Point. px py) 5 (Scalar. 0 0 255)
+                (Imgproc/circle projmat (Point. px py) 5 (Scalar. 0 0 255)
                   (if (= o :b) 1 -1)))))
 
           ;; Highlight last move
@@ -55,7 +55,7 @@
             (doseq [coord m]
               (let [[x y] (sgf/convert-sgf-coord coord)
                     [px py] (nth (nth sample-points y) x)]
-                (Core/circle projmat (Point. px py) 5 (Scalar. 0 255 0)
+                (Imgproc/circle projmat (Point. px py) 5 (Scalar. 0 255 0)
                   (if black 1 -1)))))
 
           (when (:show-branches kifu)
@@ -65,8 +65,8 @@
               (let [[x y :as p] (sgf/convert-sgf-coord m)
                     [px py] (nth (nth sample-points y) x)]
                 #_(Core/circle projmat (Point. px py) 5 (Scalar. 255 255 255) -1)
-                (Core/putText projmat (str (char (+ 65 idx))) (Point. (- px 5) (+ py 5))
-                  Core/FONT_HERSHEY_PLAIN 0.7 (Scalar. 255 255 255) 1.5))))
+                (Imgproc/putText projmat (str (char (+ 65 idx))) (Point. (- px 5) (+ py 5))
+                  Imgproc/FONT_HERSHEY_PLAIN 0.7 (Scalar. 255 255 255) 1.5))))
 
           ;; Draw entire current board state
           #_(doseq [[y row] (map-indexed vector (:board @ui/ctx))
@@ -183,7 +183,9 @@
           (util/with-release
             [target (MatOfPoint2f.)]
             (let [target (util/vec->mat target (:points checker))
-                  homography (Calib3d/findHomography existing-corners target Calib3d/FM_RANSAC 3)]
+                  homography
+                  (Calib3d/findHomography ^MatOfPoint2f existing-corners ^MatOfPoint2f target
+                    Calib3d/FM_RANSAC 3.0)]
               (when homography
                 (println "Homography updated")
                 (swap! ctx assoc :homography homography)))))
@@ -196,7 +198,9 @@
                   projector-space (util/vec->mat projector-space (:points goban))
                   _ (Core/perspectiveTransform projector-space projector-space homography)
                   board-space (util/vec->mat board-space (view/target-points (:size goban)))
-                  board-homography (Calib3d/findHomography projector-space board-space Calib3d/FM_RANSAC 3)]
+                  board-homography
+                  (Calib3d/findHomography ^MatOfPoint2f projector-space ^MatOfPoint2f board-space
+                    Calib3d/FM_RANSAC 3.0)]
 
               (doseq [[x y] (util/mat->seq projector-space)]
                 (lq/color 255 0 0)

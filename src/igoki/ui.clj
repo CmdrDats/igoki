@@ -5,12 +5,13 @@
     [clojure.java.io :as io])
 
   (:import
-    (org.opencv.highgui VideoCapture Highgui)
     (org.opencv.core Mat Core)
     (javax.swing SwingUtilities JFrame JFileChooser)
     (org.opencv.imgproc Imgproc)
     (java.util LinkedList)
-    (javax.swing.filechooser FileFilter FileNameExtensionFilter)))
+    (javax.swing.filechooser FileNameExtensionFilter)
+    (org.opencv.imgcodecs Imgcodecs)
+    (org.opencv.videoio VideoCapture Videoio)))
 
 (defn setup [ctx]
   (lq/smooth)
@@ -72,7 +73,7 @@
 
 (defonce ctx (atom {}))
 (defn read-single [ctx camidx]
-  (let [video (VideoCapture. (int camidx))
+  (let [video (VideoCapture. (int camidx) Videoio/CAP_DSHOW)
         frame (Mat.)]
     (Thread/sleep 500)
     (.read video frame)
@@ -85,7 +86,7 @@
     (.release video)))
 
 (defn read-file [ctx fname]
-  (let [frame (Highgui/imread (str "resources/" fname))]
+  (let [frame (Imgcodecs/imread (str "resources/" fname))]
     (swap!
       ctx update :camera
       #(assoc %
@@ -146,7 +147,7 @@
 
 (defn read-loop [ctx camidx]
   (when-not (-> @ctx :camera :stopped)
-    (let [^VideoCapture video (VideoCapture. camidx)]
+    (let [^VideoCapture video (VideoCapture. ^int camidx Videoio/CAP_DSHOW)]
       (swap! ctx update
         :camera assoc
         :video video
@@ -185,7 +186,7 @@
 (defn load-dialog [success-fn & [start-dir]]
   (SwingUtilities/invokeLater
     #(let [frame (JFrame. "Load")
-           chooser (if start-dir (JFileChooser. start-dir) (JFileChooser.))]
+           chooser (if start-dir (JFileChooser. ^String start-dir) (JFileChooser.))]
       (try
         (.setAlwaysOnTop frame true)
         (doto chooser

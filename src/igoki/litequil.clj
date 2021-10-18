@@ -1,9 +1,9 @@
 (ns igoki.litequil
   (:require [seesaw.core :as s])
   (:import
-    (javax.swing JPanel JFrame SwingUtilities WindowConstants)
-    (java.awt Graphics2D Container Component Dimension Color Stroke Image BasicStroke RenderingHints Font Rectangle Polygon)
-    (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent WindowStateListener WindowListener WindowAdapter)
+    (javax.swing JPanel SwingUtilities)
+    (java.awt Graphics2D Dimension Color Image BasicStroke RenderingHints Font Polygon)
+    (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent)
     (java.awt.geom Ellipse2D$Double Rectangle2D)
     (javax.swing.event AncestorListener AncestorEvent)))
 

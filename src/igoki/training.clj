@@ -4,10 +4,10 @@
             [igoki.util :as util]
             [clojure.edn :as edn])
   (:import (java.io File FileInputStream)
-           (org.opencv.highgui Highgui)
            (org.opencv.core MatOfByte MatOfPoint2f Mat Size Rect Core)
            (org.opencv.calib3d Calib3d)
-           (org.opencv.imgproc Imgproc)))
+           (org.opencv.imgproc Imgproc)
+           (org.opencv.imgcodecs Imgcodecs)))
 
 (defn file-id [^File img]
   (let [nm (.getName img)]
@@ -27,7 +27,7 @@
     result))
 
 (defn load-raw [^File img]
-  (Highgui/imdecode (MatOfByte. (load-image img)) Highgui/IMREAD_UNCHANGED))
+  (Imgcodecs/imdecode (MatOfByte. (load-image img)) Imgcodecs/IMREAD_UNCHANGED))
 
 (defn load-next-sample [ctx folder]
   (let [imgfile
@@ -91,8 +91,8 @@
                   (do
                     (Core/transpose (.submat ^Mat flat r) sample)
                     (Core/flip sample sample rotname)
-                    (Highgui/imwrite nm sample))
-                  (Highgui/imwrite nm
+                    (Imgcodecs/imwrite nm sample))
+                  (Imgcodecs/imwrite nm
                     (.submat ^Mat flat r))))))))))
   samplepoints)
 
@@ -107,7 +107,9 @@
           origpoints (util/vec->mat origpoints points)
           samplecorners (target-points (:block-size settings) size)
           samplepoints (sample-points samplecorners size)
-          homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)]
+          homography
+          (Calib3d/findHomography ^MatOfPoint2f origpoints ^MatOfPoint2f target
+            Calib3d/FM_RANSAC 3.0)]
       (Imgproc/warpPerspective raw ref homography (ref-size (:block-size settings) size))
       (dump-points img (:sample-size settings) ref samplepoints (:board config) (.getName img)))))
 

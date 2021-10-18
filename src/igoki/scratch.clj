@@ -7,7 +7,6 @@
     [igoki.util :as util :refer [-->]])
   (:import
     (org.opencv.objdetect CascadeClassifier)
-    (org.opencv.highgui Highgui VideoCapture)
     (org.opencv.core MatOfRect Core Rect Point Scalar Mat Size MatOfPoint MatOfKeyPoint MatOfPoint2f Point3 TermCriteria MatOfPoint3 CvType MatOfPoint3f)
     (java.awt.image BufferedImage WritableRaster DataBufferByte)
     (java.awt Color Graphics KeyboardFocusManager KeyEventDispatcher Font RenderingHints)
@@ -16,7 +15,9 @@
     (javax.swing JFrame JPanel)
     (org.opencv.imgproc Imgproc)
     (org.opencv.calib3d Calib3d)
-    (java.awt.event KeyEvent MouseListener MouseEvent)))
+    (java.awt.event KeyEvent MouseListener MouseEvent)
+    (org.opencv.imgcodecs Imgcodecs)
+    (org.opencv.videoio VideoCapture Videoio)))
 
 ;; This namespace represents some of the early igoki work, mostly to detect the actual Go Board.
 ;; it has been deprecated in favour of simply doing manual calibration due to the complexity
@@ -77,7 +78,7 @@
   (when (= (.getID e) KeyEvent/KEY_PRESSED)
     (case (.getKeyCode e)
       67 (swap! appstate assoc :input :camera)
-      82 (swap! appstate assoc :input (Highgui/imread "resources/goboard.png"))
+      82 (swap! appstate assoc :input (Imgcodecs/imread "resources/goboard.png"))
       32 (toggle-freeze!)
       27 (reset-to-index!)
       49 (select-frame! 1)
@@ -318,7 +319,7 @@
          (doto (MatOfPoint2f.)
            (.fromList (map (fn [[x y]] (Point. x y)) goban-corners)))
          h (if (= (.rows target) (count goban-corners))
-             (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3))]
+             (Calib3d/findHomography ^MatOfPoint2f origpoints ^MatOfPoint2f target Calib3d/FM_RANSAC 3.0))]
 
 
         (if h
@@ -394,7 +395,7 @@
 
 
 (defn capture [camidx]
-  (let [camera (VideoCapture. camidx)
+  (let [camera (VideoCapture. ^int camidx Videoio/CAP_DSHOW)
         frame (Mat.)]
     (.read camera frame)
 

@@ -8,12 +8,12 @@
     (org.opencv.calib3d Calib3d)
     (org.opencv.imgproc Imgproc)
     (java.util UUID)
-    (org.opencv.highgui Highgui)
     (java.io File)
     (org.deeplearning4j.util ModelSerializer)
     (org.deeplearning4j.nn.multilayer MultiLayerNetwork)
     (org.nd4j.linalg.api.ndarray INDArray)
-    (org.datavec.image.loader ImageLoader)))
+    (org.datavec.image.loader ImageLoader)
+    (org.opencv.imgcodecs Imgcodecs)))
 
 ;; Moving average
 ;; 'dirty' flags on positions (set against previous x frames as reference)
@@ -79,7 +79,7 @@
         (doseq [[px [x y]] (map-indexed vector rows)]
           (let [r (Rect. (- x (/ block-size 2)) (- y (/ block-size 2)) block-size block-size)
                 p (get-in board [py px])]
-            (Highgui/imwrite (str "samples/" (if p (name p) "e") "-" px "-" py "-" id ".png") (.submat ^Mat flat r)))
+            (Imgcodecs/imwrite (str "samples/" (if p (name p) "e") "-" px "-" py "-" id ".png") (.submat ^Mat flat r)))
           ))
       samplepoints)))
 
@@ -153,7 +153,9 @@
     (let [{{:keys [points size]} :goban :as context} ctx
           target (util/vec->mat target (target-points size))
           origpoints (util/vec->mat origpoints points)
-          homography (Calib3d/findHomography origpoints target Calib3d/FM_RANSAC 3)]
+          homography
+          (Calib3d/findHomography ^MatOfPoint2f origpoints ^MatOfPoint2f target
+            Calib3d/FM_RANSAC 3.0)]
       (if homography
         (assoc-in ctx [:view :homography] homography)
         ctx))))

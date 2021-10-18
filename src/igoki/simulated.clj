@@ -4,11 +4,12 @@
     [igoki.litequil :as lq]
     [igoki.util :as util])
   (:import
-    (org.opencv.core Mat Size Core CvType Point Scalar MatOfPoint MatOfPoint2f MatOfByte)
-    (org.opencv.highgui Highgui)
+    (org.opencv.core Mat Point Scalar MatOfPoint MatOfByte)
     (de.schlichtherle.truezip.fs FsEntryNotFoundException)
-    (javax.swing JFrame JPanel)
-    (java.awt.event MouseEvent)))
+    (javax.swing JFrame)
+    (java.awt.event MouseEvent)
+    (org.opencv.imgproc Imgproc)
+    (org.opencv.imgcodecs Imgcodecs)))
 
 ;; This view simulates a camera for testing igoki's behaviour without having a board and camera handy
 (defonce simctx (atom {:sketchconfig {:framerate 5 :size [640 480]}}))
@@ -39,8 +40,8 @@
 (defn draw-stone [m x y c cellsize]
   (when c
     (let [[incolor bcolor] (stone-colors c)]
-      (Core/circle m (Point. x y) (/ cellsize 4) incolor (/ cellsize 2))
-      (Core/circle m (Point. x y) (/ cellsize 2) bcolor 2))))
+      (Imgproc/circle m (Point. x y) (/ cellsize 4) incolor (/ cellsize 2))
+      (Imgproc/circle m (Point. x y) (/ cellsize 2) bcolor 2))))
 
 (defn draw-board [^Mat m]
  (try
@@ -59,12 +60,12 @@
           (let [coord (+ grid-start (* x cellsize))
                 extent (+ grid-start (* cellsize (dec size)))]
 
-            (Core/line m (Point. coord grid-start) (Point. coord extent) (Scalar. 0 0 0))
-            (Core/line m (Point. grid-start coord) (Point. extent coord) (Scalar. 0 0 0))))
+            (Imgproc/line m (Point. coord grid-start) (Point. coord extent) (Scalar. 0 0 0))
+            (Imgproc/line m (Point. grid-start coord) (Point. extent coord) (Scalar. 0 0 0))))
 
 
         (doseq [[x y] (util/star-points size)]
-          (Core/circle m (Point. (+ grid-start (* x cellsize))
+          (Imgproc/circle m (Point. (+ grid-start (* x cellsize))
                                  (+ grid-start (* y cellsize))) 2 (Scalar. 0 0 0) 2))
 
         (doseq [[y rows] (map-indexed vector board)
@@ -73,14 +74,14 @@
             (draw-stone m (+ grid-start (* cellsize x)) (+ grid-start (* cellsize y)) v cellsize)))
 
         (let [[x y] (stone-point [mx my] grid-start cellsize)]
-          (Core/circle m (Point. (+ grid-start (* x cellsize))
+          (Imgproc/circle m (Point. (+ grid-start (* x cellsize))
                                  (+ grid-start (* y cellsize))) (/ cellsize 2) (Scalar. 0 0 255) 1))
 
         (draw-stone m mx my (-> @simctx :sim :next) cellsize)
 
         (util/with-release [pts (MatOfPoint.)]
           (util/vec->mat pts (map (fn [[x y]] [(+ (or mx 100) x) (+ (or my 100) y)]) [[0 0] [120 0] [120 55] [200 200] [55 120] [0 120] [0 0]]))
-          (Core/fillPoly m [pts] (Scalar. 96 90 29)))))
+          (Imgproc/fillPoly m [pts] (Scalar. 96 90 29)))))
 
     (catch Exception e
       (.printStackTrace e)))
@@ -142,7 +143,7 @@
            {:keys [pimg]} :camera} @ctx
           nextindex (nextfn index)
           image (util/zip-read-file file (str nextindex ".jpg"))
-          raw (Highgui/imdecode (MatOfByte. image) Highgui/IMREAD_UNCHANGED)
+          raw (Imgcodecs/imdecode (MatOfByte. image) Imgcodecs/IMREAD_UNCHANGED)
           pimg (util/mat-to-pimage raw (:bufimg pimg))]
       (swap!
         ctx
@@ -232,7 +233,7 @@
       (->
         s
         (assoc :stopped false)
-        (update :sim assoc :background (Highgui/imread "./resources/wooden-background.jpg")))))
+        (update :sim assoc :background (Imgcodecs/imread "./resources/wooden-background.jpg")))))
   (reset-board simctx 19)
 
   (doto

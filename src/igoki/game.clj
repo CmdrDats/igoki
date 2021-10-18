@@ -11,10 +11,9 @@
     (java.io File ByteArrayInputStream)
     (java.util Date UUID)
     (java.text SimpleDateFormat)
-    (org.opencv.highgui Highgui)
     (org.opencv.core MatOfByte)
     (de.schlichtherle.truezip.file TVFS)
-    (java.awt.image BufferedImage)))
+    (org.opencv.imgcodecs Imgcodecs)))
 
 ;; ========================================================
 ;; TODO: Display sibling branches
@@ -89,10 +88,10 @@
       (submit-move ctx))))
 
 (defn dump-camera [filename camidx raw updatelist]
-  (when filename
+  (when (and raw filename)
     (util/with-release [out (MatOfByte.)]
       (println "Writing jpg: " filename "/" (str camidx ".jpg"))
-      (Highgui/imencode ".jpg" raw out)
+      (Imgcodecs/imencode ".jpg" raw out)
       (util/zip-add-file filename (str camidx ".jpg") (ByteArrayInputStream. (.toArray out)))
       (util/zip-add-file-string filename (str camidx ".edn") (pr-str updatelist))
       (println "Done writing jpg: " filename "/" (str camidx ".jpg")))))

@@ -4,7 +4,7 @@
   (:import
     (org.opencv.core Mat Size CvType Point MatOfPoint2f MatOfPoint)
     (java.awt.image BufferedImage DataBufferByte)
-    (de.schlichtherle.truezip.file TFile TFileWriter TArchiveDetector)
+    (de.schlichtherle.truezip.file TFile TArchiveDetector)
     (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)))
 
 (defn star-points [size]
