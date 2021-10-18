@@ -89,19 +89,23 @@
 
 (defn simulate []
   (let [context @simctx]
+
     (if (= (:mode context) :replay)
-      (swap! simctx
-             update :camera assoc
-             :raw (-> context :camera :raw)
-             :pimg (util/mat-to-pimage (-> context :camera :raw)
-                     (-> context :camera :pimg :bufimg)))
-      (let [m (.clone (-> context :sim :background))]
-        (draw-board m)
+      (when (-> context :camera :raw)
         (swap! simctx
-               update :camera assoc
-               :raw m
-               :pimg (util/mat-to-pimage m
-                       (-> context :camera :pimg :bufimg)))))))
+          update :camera assoc
+          :raw (-> context :camera :raw)
+          :pimg (util/mat-to-pimage (-> context :camera :raw)
+                  (-> context :camera :pimg :bufimg))))
+      (when (-> context :sim :background)
+        (let [m (.clone (-> context :sim :background))]
+          (draw-board m)
+          (swap! simctx
+            update :camera assoc
+            :raw m
+            :pimg
+            (util/mat-to-pimage m
+              (-> context :camera :pimg :bufimg))))))))
 
 
 (defn next-stone [{:keys [next mode]}]

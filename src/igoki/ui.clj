@@ -119,18 +119,19 @@
           (doseq [l (:pre-read-listeners camera)]
             (l ctx))
 
-          (.read video frame)
+          (when
+            (.read video frame)
 
-          (doseq [l (:post-read-listeners camera)]
-            (l ctx))
+            (doseq [l (:post-read-listeners camera)]
+              (l ctx))
 
-          (swap!
-            ctx update :camera
-            #(assoc %
-               :raw frame
-               ;; TODO: this chows memory - better to have a hook on update for each specific
-               ;; view - this will only be needed on the first screen.
-               :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg])))))
+            (swap!
+              ctx update :camera
+              #(assoc %
+                 :raw frame
+                 ;; TODO: this chows memory - better to have a hook on update for each specific
+                 ;; view - this will only be needed on the first screen.
+                 :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]))))))
         (Thread/sleep (or (-> @ctx :camera :read-delay) 1000))
         (catch Exception e
           (println "exception thrown")

@@ -294,7 +294,7 @@
         board-size (* cellsize (dec size))
         extent (+ grid-start board-size)
         tx (+ (lq/height) (/ cellsize 2))
-        visiblepath (take movenumber (mapcat identity (:current-branch-path game)))
+        visiblepath (take (or movenumber 0) (mapcat identity (:current-branch-path game)))
         actionlist (sgf/current-branch-node-list [visiblepath] (:moves game))
         lastmove (last actionlist)
         canvas-size (max 250 (min (lq/width) (lq/height)))]
@@ -302,7 +302,7 @@
     (lq/shadow-text (str "Recording: Img #" (:camidx game)) tx 25)
     (when (:filename game)
       (lq/shadow-text (:filename game) tx 50))
-    (lq/shadow-text (str "Move " (inc movenumber) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
+    (lq/shadow-text (str "Move " (inc (or movenumber 0)) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
     (lq/shadow-text "<P> Pass" tx 225)
 
 
