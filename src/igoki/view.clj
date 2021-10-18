@@ -11,9 +11,9 @@
     (org.opencv.highgui Highgui)
     (java.io File)
     (org.deeplearning4j.util ModelSerializer)
-    (org.canova.image.loader ImageLoader)
     (org.deeplearning4j.nn.multilayer MultiLayerNetwork)
-    (org.nd4j.linalg.api.ndarray INDArray)))
+    (org.nd4j.linalg.api.ndarray INDArray)
+    (org.datavec.image.loader ImageLoader)))
 
 ;; Moving average
 ;; 'dirty' flags on positions (set against previous x frames as reference)
@@ -40,8 +40,9 @@
 (defn eval-net [flat px py]
   (let [smat (.submat flat (Rect. (- px (/ block-size 2)) (- py (/ block-size 2)) 10 10))
         img (util/mat-to-buffered-image smat nil)
-        ^INDArray d (.asRowVector loader img)
+        ^INDArray d (.asMatrix loader img)
         _ (.divi d 255.0)
+        d (.reshape d (int-array [1 300]))
         ^INDArray o (.output ^MultiLayerNetwork net d)]
     (.release smat)
     (for [i (range 3)]

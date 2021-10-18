@@ -1,4 +1,4 @@
-(defproject igoki "0.2"
+(defproject igoki "0.3"
   :description "Igoki, physical Go board/OGS interface"
   :url "http://github.com/CmdrDats/igoki"
   :license
@@ -23,10 +23,9 @@
    [org.slf4j/jul-to-slf4j "1.7.32"]
    [org.slf4j/slf4j-log4j12 "1.7.32"]
 
-   [org.nd4j/nd4j "0.4-rc3.10" :extension "pom"]
-   [org.nd4j/nd4j-native "0.4-rc3.10"]
-   [org.deeplearning4j/deeplearning4j-core "0.4-rc3.10"]
-   [org.nd4j/canova-api "0.0.0.16"]]
+   [org.nd4j/nd4j "1.0.0-M1.1" :extension "pom"]
+   [org.nd4j/nd4j-native-platform "1.0.0-M1.1"]
+   [org.deeplearning4j/deeplearning4j-core "1.0.0-M1.1"]]
 
   :main igoki.core
 
