@@ -1,13 +1,14 @@
-(ns igoki.training
-  (:require [clojure.java.io :as io]
-            [igoki.ui :as ui]
-            [igoki.util :as util]
-            [clojure.edn :as edn])
-  (:import (java.io File FileInputStream)
-           (org.opencv.core MatOfByte MatOfPoint2f Mat Size Rect Core)
-           (org.opencv.calib3d Calib3d)
-           (org.opencv.imgproc Imgproc)
-           (org.opencv.imgcodecs Imgcodecs)))
+(ns igoki.scratch.training
+  (:require
+    [clojure.java.io :as io]
+    [igoki.util :as util]
+    [clojure.edn :as edn])
+  (:import
+    (java.io File FileInputStream)
+    (org.opencv.core MatOfByte MatOfPoint2f Mat Size Rect Core)
+    (org.opencv.calib3d Calib3d)
+    (org.opencv.imgproc Imgproc)
+    (org.opencv.imgcodecs Imgcodecs)))
 
 (defn file-id [^File img]
   (let [nm (.getName img)]
@@ -132,9 +133,9 @@
       (generate-sample-points settings i))))
 
 (comment
-  (ui/stop-read-loop ui/ctx)
+  (ui/stop-read-loop igoki.core/ctx)
 
-  (load-next-sample ui/ctx "resources/samples/testing")
-  (let [c (swap! ui/ctx view/read-board)] :done)
-  (save-current-sample ui/ctx)
+  (load-next-sample igoki.core/ctx "resources/samples/testing")
+  (let [c (swap! igoki.core/ctx camera/read-board)] :done)
+  (save-current-sample igoki.core/ctx)
   (generate-all-samples {:block-size 10 :sample-size 5} "resources/samples/training"))

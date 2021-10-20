@@ -1,13 +1,12 @@
 (ns igoki.ui.main
   (:require
     [seesaw.core :as s]
-    [seesaw.mig :as mig]
-    [seesaw.dev :as sd]
-    [igoki.ui :as ui]
-    [igoki.calibration :as goban]
+    [igoki.ui.game :as ui.game]
+    [igoki.ui.calibration :as calibration]
     [igoki.projector :as projector]
     [igoki.game :as game]
-    [igoki.simulated :as sim]))
+    [igoki.simulated :as sim]
+    [igoki.camera :as camera]))
 
 (s/native!)
 
@@ -18,7 +17,7 @@
      "File 2"
      "File 3"]))
 
-(defn button-bar []
+(defn button-bar [ctx]
   (s/flow-panel
     :hgap 15
     :align :left
@@ -27,18 +26,15 @@
        :listen
        [:action
         (fn [e]
-          (projector/start-cframe))])
+          (projector/start-cframe ctx))])
      (s/toggle :text "Dev Tools")
      (s/toggle :text "Show Branches"
        :listen
        [:action
         (fn [e]
-          (game/toggle-branches ui/ctx (s/value (.getSource e))))])]))
+          (game/toggle-branches ctx (s/value (.getSource e))))])]))
 
-(defn calibrate-panel []
-  (goban/calibration-panel ui/ctx))
-
-(defn ogs-panel []
+(defn ogs-panel [ctx]
   (s/tabbed-panel
     :placement :bottom
     :overflow :scroll
@@ -49,12 +45,9 @@
      {:title "Simulation"
       :tip "Simulation (dev tools)"
       :content
-      (sim/simulation-panel ui/ctx)}]))
+      (sim/simulation-panel ctx)}]))
 
-(defn game-panel []
-  (game/game-panel ui/ctx))
-
-(defn tree-panel []
+(defn tree-panel [ctx]
   (s/tabbed-panel
     :placement :bottom
     :overflow :scroll
@@ -66,19 +59,19 @@
       :tip "Output log (dev tools)"
       :content "output log"}]))
 
-(defn primary-splits []
+(defn primary-splits [ctx]
   (let [cl
         (s/top-bottom-split
-          (calibrate-panel)
-          (ogs-panel)
+          (calibration/calibration-panel ctx)
+          (ogs-panel ctx)
           :border 0
           :resize-weight 0.5
           :divider-location 0.5)
 
         gt
         (s/top-bottom-split
-          (game-panel)
-          (tree-panel)
+          (ui.game/game-panel ctx)
+          (tree-panel ctx)
           :border 0
           :resize-weight 0.5
           :divider-location 0.5)]
@@ -89,7 +82,7 @@
 
 
 
-(defn main-menu []
+(defn main-menu [ctx]
   (s/menubar
     :items
     [(s/menu :text "File"
@@ -105,14 +98,14 @@
                 :title "New SGF"
                 :type :warning
                 :option-type :yes-no)
-              (game/reset-kifu ui/ctx))))
+              (game/reset-kifu ctx))))
         (s/action
           :mnemonic \o
           :name "Open SGF"
           :key "menu O"
           :handler
           (fn [e]
-            (game/load-sgf ui/ctx)))
+            (ui.game/load-sgf ctx)))
 
         (s/action
           :mnemonic \s
@@ -120,7 +113,7 @@
           :key "menu S"
           :handler
           (fn [e]
-            (game/export-sgf ui/ctx)))
+            (ui.game/export-sgf ctx)))
 
 
         :separator
@@ -134,14 +127,14 @@
                 :title "Exit"
                 :type :warning
                 :option-type :yes-no)
-              (ui/stop-read-loop ui/ctx)
+              (camera/stop-read-loop ctx)
               (System/exit 0))))])]))
 
-(defn frame-content []
+(defn frame-content [ctx]
   (let [b
         (s/border-panel
-          :north (button-bar)
-          :center (primary-splits))]
+          :north (button-bar ctx)
+          :center (primary-splits ctx))]
     (s/left-right-split
       (file-component)
       b
@@ -149,23 +142,23 @@
       :divider-location 0.1)))
 
 (defonce app-frame (atom nil))
-(defn main-frame []
+(defn main-frame [ctx]
   (let [frame
         (s/frame
           :icon "igoki48.png"
           :title "igoki"
           :size [1024 :by 768]
-          :menubar (main-menu)
+          :menubar (main-menu ctx)
           :on-close :exit)]
     (-> frame s/show!)
-    (s/config! frame :content (frame-content))
+    (s/config! frame :content (frame-content ctx))
     (reset! app-frame frame))
   #_(open
     {:title "igoki"
      :body
      [:button "Push me"]}))
 
-(defn refresh []
+(defn refresh [ctx]
   (s/config! @app-frame :menubar
-    (main-menu)
-    :content (frame-content)))
+    (main-menu ctx)
+    :content (frame-content ctx)))

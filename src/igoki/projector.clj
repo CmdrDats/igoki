@@ -1,45 +1,41 @@
 (ns igoki.projector
   (:require
-    [igoki.ui :as ui]
     [igoki.util :as util]
-    [igoki.view :as view]
     [igoki.game :as game]
     [igoki.sgf :as sgf]
-    [igoki.litequil :as lq])
+    [igoki.litequil :as lq]
+    [igoki.camera :as camera])
   (:import
     (org.opencv.calib3d Calib3d)
     (org.opencv.imgproc Imgproc)
     (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)))
 
-(defonce ctx
-  (atom
-    nil))
+(defonce proj-ctx
+  (atom nil))
 
 (defn update-projmat [ctx]
-  (let [{:keys [homography board-homography sketch] :as projcontext} @ctx
-        {:keys [camera proj-img kifu board] :as context} @ui/ctx
+  (let [{:keys [homography board-homography sketch] :as projcontext} @proj-ctx
+        {:keys [camera proj-img kifu board goban] :as context} @ctx
         {:keys [kifu-board]} kifu
         existing-corners (:corners projcontext)
         size (Size. 9 7)
-        goban (:goban @ui/ctx)
-        lastmove (game/find-last-move ui/ctx)]
+        lastmove (game/find-last-move ctx)]
     (when board-homography
       (util/with-release
         [target (MatOfPoint2f.)
-         projmat (Mat. (Size. (* (inc (:size goban)) view/block-size)
-                         (* (inc (:size goban)) view/block-size)) CvType/CV_8UC3)
+         projmat (Mat. (Size. (* (inc (:size goban)) camera/block-size)
+                         (* (inc (:size goban)) camera/block-size)) CvType/CV_8UC3)
          newflat (Mat.)]
-        (let [
-              [[x1 y1] [x2 y2] [x3 y3] [x4 y4] :as corner-points] (view/target-points (:size goban))
-              sample-points (view/sample-points corner-points (:size goban))
+        (let [[[x1 y1] [x2 y2] [x3 y3] [x4 y4] :as corner-points]
+              (camera/target-points (:size goban))
+
+              sample-points (camera/sample-points corner-points (:size goban))
               target (util/vec->mat target (apply concat sample-points))]
           (Core/perspectiveTransform target target (.inv board-homography))
           (Imgproc/rectangle projmat
             (Point. 0 0)
-            (Point. (+ x3 view/block-size) (+ y3 view/block-size))
+            (Point. (+ x3 camera/block-size) (+ y3 camera/block-size))
             (Scalar. 0 0 0) -1)
-          #_(Core/putText projmat "Hello World!" (Point. 30 100)
-              Core/FONT_HERSHEY_PLAIN 1.6 (Scalar. 0 255 0) 1)
 
           ;; Highlight differences between constructed and camera board (visual syncing)
           (when (and board kifu-board)
@@ -79,7 +75,7 @@
 
 
           (Imgproc/warpPerspective projmat newflat (.inv board-homography) (Size. (.width sketch) (.height sketch)))
-          (swap! ctx assoc :proj-img (util/mat-to-pimage newflat (:bufimg proj-img)))
+          (swap! proj-ctx assoc :proj-img (util/mat-to-pimage newflat (:bufimg proj-img)))
 
           #_(doseq [[x y] (util/mat->seq target)]
               (lq/color 0 0 255)
@@ -119,146 +115,127 @@
       (util/vec->mat corners-mat (reverse corners))
       corners-mat)))
 
-(defn draw [ctx]
+(defn look-for-checkerboard [proj-ctx camera]
+  (util/with-release [gray (Mat.)]
+    (let [corners (MatOfPoint2f.)
+          crit (TermCriteria. (bit-or TermCriteria/EPS TermCriteria/MAX_ITER) 30 0.1)]
+      (Imgproc/cvtColor (:raw camera) gray Imgproc/COLOR_BGR2GRAY)
+      (let [found
+            (Calib3d/findChessboardCorners gray (:size checker) corners
+              (+ Calib3d/CALIB_CB_ADAPTIVE_THRESH
+                Calib3d/CALIB_CB_NORMALIZE_IMAGE
+                Calib3d/CALIB_CB_FAST_CHECK))]
+        (.println System/out (str "Checking: " found))
+        (when found
+          (println "Found corners.")
+          (Imgproc/cornerSubPix gray corners (Size. 11 11) (Size. -1 -1) crit)
+          (fix-checker-orientation corners)
+          (swap! proj-ctx assoc :corners corners))))))
+
+(defn update-homography [proj-ctx existing-corners]
+  (util/with-release
+    [target (MatOfPoint2f.)]
+    (let [target (util/vec->mat target (:points checker))
+          homography
+          (Calib3d/findHomography ^MatOfPoint2f existing-corners ^MatOfPoint2f target
+            Calib3d/FM_RANSAC 3.0)]
+      (when homography
+        (println "Homography updated")
+        (swap! proj-ctx assoc :homography homography)))))
+
+(defn update-board-homography [ctx proj-ctx homography]
+  (util/with-release
+    [projector-space (MatOfPoint2f.)
+     board-space (MatOfPoint2f.)]
+    (let [goban (:goban @ctx)
+          projector-space (util/vec->mat projector-space (:points goban))
+          _ (Core/perspectiveTransform projector-space projector-space homography)
+          board-space (util/vec->mat board-space (camera/target-points (:size goban)))
+          board-homography
+          (Calib3d/findHomography ^MatOfPoint2f projector-space ^MatOfPoint2f board-space
+            Calib3d/FM_RANSAC 3.0)]
+
+      (doseq [[x y] (util/mat->seq projector-space)]
+        (lq/color 255 0 0)
+        (lq/ellipse x y 10 10))
+
+      (when board-homography
+        (println "Board Homography updated")
+        (swap! proj-ctx assoc :board-homography board-homography)))))
+
+(defn draw [ctx proj-ctx]
   (lq/frame-rate 10)
-  ;; If camera is reading, render black and quit.
-  (if (:reading @ctx)
-    (do
-      (lq/background 0 0 0)
-      (lq/rect 0 0 (lq/width) (lq/height)))
-    (do
-      (lq/background 0 0 0)
-      (lq/rect 0 0 (lq/width) (lq/height))
+  (lq/background 0 0 0)
+  (lq/rect 0 0 (lq/width) (lq/height))
 
-      (let [[w h] [(lq/width) (lq/height)]
-            [gw gh] [(/ w 2) (/ h 2)]
-            checker (checker (- gw (/ gw 2)) (- gh (/ gh 2)) gw gh 10 8)
+  (let [[w h] [(lq/width) (lq/height)]
+        [gw gh] [(/ w 2) (/ h 2)]
+        checker (checker (- gw (/ gw 2)) (- gh (/ gh 2)) gw gh 10 8)
 
-            {:keys [camera] :as context} @ui/ctx
-            {:keys [homography board-homography proj-img] :as projcontext} @ctx
-            existing-corners (:corners projcontext)
-            img (:bufimg proj-img)]
+        {:keys [camera goban] :as context} @ctx
+        {:keys [homography board-homography proj-img] :as projcontext} @proj-ctx
+        existing-corners (:corners projcontext)
+        img (:bufimg proj-img)]
 
-        (lq/background 255 255 255)
-        (lq/rect 0 0 (lq/width) (lq/height))
-        (lq/background 0 0 0)
-        (when-not homography
-          (draw-checkerboard checker))
+    (lq/background 255 255 255)
+    (lq/rect 0 0 (lq/width) (lq/height))
+    (lq/background 0 0 0)
+    (when-not homography
+      (draw-checkerboard checker))
 
-        ;; Draw screen intersection points
-        #_(do
-           (lq/color 255 0 0)
-           (doseq [[x y] (:points checker)]
-             (lq/ellipse x y 5 5)))
+    ;; Draw screen intersection points
+    #_(do
+        (lq/color 255 0 0)
+        (doseq [[x y] (:points checker)]
+          (lq/ellipse x y 5 5)))
 
-        #_(lq/image (-> @ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
+    #_(lq/image (-> @proj-ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
 
 
-        (when proj-img
-          (lq/image img 0 0 (.getWidth img) (.getHeight img)))
+    (when proj-img
+      (lq/image img 0 0 (.getWidth img) (.getHeight img)))
 
-        (when (and (not existing-corners) (:raw camera))
-          (util/with-release [gray (Mat.)]
-            (let [corners (MatOfPoint2f.)
-                  crit (TermCriteria. (bit-or TermCriteria/EPS TermCriteria/MAX_ITER) 30 0.1)]
-              (Imgproc/cvtColor (:raw camera) gray Imgproc/COLOR_BGR2GRAY)
-              (let [found
-                    (Calib3d/findChessboardCorners gray (:size checker) corners
-                      (+ Calib3d/CALIB_CB_ADAPTIVE_THRESH
-                        Calib3d/CALIB_CB_NORMALIZE_IMAGE
-                        Calib3d/CALIB_CB_FAST_CHECK))]
-                (.println System/out (str "Checking: " found))
-                (when found
-                  (println "Found corners.")
-                  (Imgproc/cornerSubPix gray corners (Size. 11 11) (Size. -1 -1) crit)
-                  (fix-checker-orientation corners)
-                  #_(Calib3d/drawChessboardCorners (:raw camera) size corners found)
-                  #_(swap! ui/ctx update :camera
-                      assoc :pimg
-                      (util/mat-to-pimage (:raw camera)
-                        (-> context :camera :pimg :bufimg)))
-                  (swap! ctx assoc :corners corners))))))
+    ;; There's no way this should be happening in the draw call.
+    (cond
+      (and (not existing-corners) (:raw camera))
+      (look-for-checkerboard proj-ctx camera)
 
-        (when (and existing-corners (not homography))
-          (util/with-release
-            [target (MatOfPoint2f.)]
-            (let [target (util/vec->mat target (:points checker))
-                  homography
-                  (Calib3d/findHomography ^MatOfPoint2f existing-corners ^MatOfPoint2f target
-                    Calib3d/FM_RANSAC 3.0)]
-              (when homography
-                (println "Homography updated")
-                (swap! ctx assoc :homography homography)))))
+      (and existing-corners (not homography))
+      (update-homography proj-ctx existing-corners)
 
-        (when (and homography (= 4 (count (-> @ui/ctx :goban :points))) (not board-homography))
-          (util/with-release
-            [projector-space (MatOfPoint2f.)
-             board-space (MatOfPoint2f.)]
-            (let [goban (-> @ui/ctx :goban)
-                  projector-space (util/vec->mat projector-space (:points goban))
-                  _ (Core/perspectiveTransform projector-space projector-space homography)
-                  board-space (util/vec->mat board-space (view/target-points (:size goban)))
-                  board-homography
-                  (Calib3d/findHomography ^MatOfPoint2f projector-space ^MatOfPoint2f board-space
-                    Calib3d/FM_RANSAC 3.0)]
-
-              (doseq [[x y] (util/mat->seq projector-space)]
-                (lq/color 255 0 0)
-                (lq/ellipse x y 10 10))
-
-              (when board-homography
-                (println "Board Homography updated")
-                (swap! ctx assoc :board-homography board-homography)))))
+      (and homography (= 4 (count (:points goban))) (not board-homography))
+      (update-board-homography ctx proj-ctx homography))
 
 
-        (when (:reading @ctx)
-          (lq/background 0 0 0)
-          (lq/rect 0 0 (lq/width) (lq/height)))
-        #_(when existing-corners
-           (util/with-release [clone (.clone (:raw camera))]
-             (Calib3d/drawChessboardCorners clone (:size checker) existing-corners true)
-             (swap! ui/ctx update :camera
-               assoc :pimg
-               (util/mat-to-pimage clone
-                 (-> context :camera :pimg :bufimg)))))))))
 
-
-(defn pre-cam-reading []
-  #_(when (:proj-img @ctx)
-     (swap! ctx assoc :reading true)
-     (Thread/sleep 250)))
-
-(defn post-cam-reading []
-  #_(swap! ctx assoc :reading false))
+    #_(when existing-corners
+        (util/with-release [clone (.clone (:raw camera))]
+          (Calib3d/drawChessboardCorners clone (:size checker) existing-corners true)
+          (swap! ui/ctx update :camera
+            assoc :pimg
+            (util/mat-to-pimage clone
+              (-> context :camera :pimg :bufimg)))))))
 
 (defn reset-ctx []
-  (reset! ctx {:sketch (:sketch @ctx)})
-  (ui/transition ctx :calibration-pattern))
+  (reset! proj-ctx {:sketch (:sketch @proj-ctx)}))
 
 
-(defn start-cframe []
-  (reset! ctx
-    {})
+(defn start-cframe [ctx]
+  (reset! proj-ctx {})
 
   (let [sketch
         (lq/sketch
           {:title "Move on board in camera view (place paper on board for contrast)"
-           :draw (partial #'draw ctx)
-           :size (or (-> @ctx :sketchconfig :size) [1280 720])})]
-    (swap! ctx assoc :sketch sketch))
+           :draw (partial #'draw proj-ctx ctx)
+           :size (or (-> @proj-ctx :sketchconfig :size) [1280 720])})]
+    (swap! proj-ctx assoc :sketch sketch))
 
-  (ui/add-camera-listeners
-    ui/ctx
-    (fn [ctx]
-      (pre-cam-reading))
-    (fn [ctx]
-      (post-cam-reading)))
 
   (doto
     (Thread.
       ^Runnable
       (fn []
-        (while (not (:stopped (:sketch @ctx)))
+        (while (not (:stopped (:sketch @proj-ctx)))
           (try
             (update-projmat ctx)
             (catch Exception e
@@ -266,7 +243,7 @@
           (Thread/sleep 500))))
     (.setDaemon true)
     (.start))
-  #_(when (:sketch @ctx)
-     (doto (:sketch @ctx)
+  #_(when (:sketch @proj-ctx)
+     (doto (:sketch @proj-ctx)
        #_(.setExtendedState JFrame/MAXIMIZED_BOTH)
        #_(.setUndecorated true))))

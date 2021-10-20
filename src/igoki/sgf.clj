@@ -164,13 +164,12 @@
            true (update (dec (count branch-path)) conj newpoint)
            branch? (conj [])))])))
 
-(defn read-sgf [file]
-  (let [f (slurp file)
-        new-node {:branches []}
+(defn read-sgf [sgf-string]
+  (let [new-node {:branches []}
         initial-state {:mode nil :action "" :node nil}]
     (loop [[game branch-path :as g] [new-node []]
            state initial-state
-           [c & o] f]
+           [c & o] sgf-string]
       (cond
         (nil? c)
         ;; TODO: This picks the first branch in an sgf as the root, might need to show a list

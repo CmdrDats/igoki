@@ -1,12 +1,11 @@
 (ns igoki.simulated
   (:require
-    [igoki.ui :as ui]
     [igoki.litequil :as lq]
-    [igoki.util :as util])
+    [igoki.util :as util]
+    [igoki.ui.util :as ui.util])
   (:import
     (org.opencv.core Mat Point Scalar MatOfPoint MatOfByte)
     (de.schlichtherle.truezip.fs FsEntryNotFoundException)
-    (javax.swing JFrame)
     (java.awt.event MouseEvent)
     (org.opencv.imgproc Imgproc)
     (org.opencv.imgcodecs Imgcodecs)))
@@ -188,7 +187,7 @@
     ;; Right
     39 (step-file-index simctx inc)
     ;; L
-    76 (ui/load-dialog #(load-zip simctx (.getAbsolutePath %)) (str (System/getProperty "user.dir") "/capture"))
+    76 (ui.util/load-dialog #(load-zip simctx (.getAbsolutePath %)) (str (System/getProperty "user.dir") "/capture"))
     (println "Unhandled key-down: " (lq/key-code e))))
 
 
@@ -263,6 +262,4 @@
     (:panel sketch)))
 
 (defn stop []
-  (swap! simctx assoc :stopped true)
-  (when-let [frame (get-in @simctx [:sketch :frame])]
-    (.dispose ^JFrame frame)))
+  (swap! simctx assoc :stopped true))

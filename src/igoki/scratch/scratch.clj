@@ -1,7 +1,6 @@
-(ns igoki.scratch
+(ns igoki.scratch.scratch
   (:require
-    [igoki.ui]
-    [igoki.calibration]
+    [igoki.camera]
     [igoki.view]
     [igoki.game]
     [igoki.util :as util :refer [-->]])
@@ -567,7 +566,7 @@
       ;; Finding interesting points.. This doesn't lend itself too well :/
       (Imgproc/cvtColor cropped cleaned Imgproc/COLOR_BGR2GRAY)
       (Imgproc/bilateralFilter cleaned bilat 5 (double 15) (double 15))
-      (Imgproc/goodFeaturesToTrack bilat pts 500 0.01 (- view/block-size 5))
+      (Imgproc/goodFeaturesToTrack bilat pts 500 0.01 (- camera/block-size 5))
       (.fromArray pts2f (.toArray pts))
       (Imgproc/cornerSubPix bilat pts2f (Size. 11 11) (Size. -1 -1)
         (TermCriteria. (bit-or TermCriteria/EPS TermCriteria/COUNT) 30 0.1))

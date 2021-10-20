@@ -3,9 +3,11 @@
     [clojure.java.io :as io])
   (:import
     (org.opencv.core Mat Size CvType Point MatOfPoint2f MatOfPoint)
+    (org.opencv.utils Converters)
     (java.awt.image BufferedImage DataBufferByte)
     (de.schlichtherle.truezip.file TFile TArchiveDetector)
-    (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)))
+    (java.io InputStream ByteArrayInputStream ByteArrayOutputStream)
+    (org.opencv.imgcodecs Imgcodecs)))
 
 (defn star-points [size]
   (case size
@@ -15,14 +17,20 @@
       [(+ 3 (* x 6)) (+ 3 (* y 6))])))
 
 (defn mat-to-buffered-image [^Mat frame ^BufferedImage bimg]
-  (let [type (case (.channels frame)
-               1 BufferedImage/TYPE_BYTE_GRAY
-               3 BufferedImage/TYPE_3BYTE_BGR)
+  (let [type
+        (case (.channels frame)
+          1 BufferedImage/TYPE_BYTE_GRAY
+          3 BufferedImage/TYPE_3BYTE_BGR)
+
         image
-        (if (and bimg (= type (.getType bimg))
-              (= (.getWidth bimg) (.width frame)) (= (.getHeight bimg) (.height frame)))
+        (cond
+          (and bimg (= type (.getType bimg))
+            (= (.getWidth bimg) (.width frame)) (= (.getHeight bimg) (.height frame)))
           bimg
+
+          :else
           (BufferedImage. (.width frame) (.height frame) type))
+
         raster (.getRaster image)
         data-buffer ^DataBufferByte (.getDataBuffer raster)
         data (.getData data-buffer)]
@@ -58,7 +66,12 @@
    (+ p1y (* (- p2y p1y) percent))])
 
 (defn update-edges [points]
-  (partition 2 (interleave points (take 4 (drop 1 (cycle points))))))
+  (cond
+    (< (count points) 4)
+    []
+
+    :else
+    (partition 2 (interleave points (take 4 (drop 1 (cycle points)))))))
 
 (defn update-closest-point [points p]
   (let [indexed-dist

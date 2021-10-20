@@ -6,8 +6,6 @@
     [cheshire.core :as json]
     [igoki.inferrence :as inferrence]
     [igoki.sgf :as sgf]
-    [igoki.ui :as ui]
-    [igoki.util :as util]
     [igoki.sound.announce :as announce]
     [igoki.sound.sound :as snd])
 
@@ -333,6 +331,6 @@
   (def player (:body (me auth)))
   #_(def game (:body (client/get (str url "/api/v1/games/3374557") (ogs-headers auth))))
   #_(def ctx (atom {}))
-  (connect-record ui/ctx socket "9567247" auth)
+  (connect-record igoki.main/ctx socket "9567247" auth)
   (socket-emit socket "game/connect" {:game_id (:id game) :player_id (:id player) :chat false})
   (socket-emit socket "game/move" {:game_id (:id game) :move "rg" :player_id (:id player) :auth (:auth game)}))

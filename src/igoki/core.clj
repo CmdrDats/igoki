@@ -1,21 +1,21 @@
 (ns igoki.core
   (:require
-    [igoki.ui]
     [igoki.ui.main :as ui.main]
-    [igoki.calibration]
+    [igoki.camera :as camera]
     [igoki.view]
-    [igoki.game]
-    [igoki.ui :as ui]
-    [clojure.tools.logging :as log])
+    [igoki.game :as game])
   (:gen-class))
 
 (nu.pattern.OpenCV/loadShared)
 
+(defonce ctx (atom {}))
 (defn start []
-  (ui/read-loop ui/ctx 0)
-  (ui.main/main-frame)
-  #_(ui/start (ui/transition ui/ctx :goban)
-    #(ui/stop-read-loop ui/ctx)))
+  ;; TODO: these are gross. refactor out these init steps.
+  ;; The spice should just flow.
+  (camera/start-calibration ctx)
+  (game/init ctx)
+
+  (ui.main/main-frame ctx))
 
 (defn -main [& args]
   (start))
