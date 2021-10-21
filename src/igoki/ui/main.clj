@@ -3,6 +3,7 @@
     [seesaw.core :as s]
     [igoki.ui.game :as ui.game]
     [igoki.ui.calibration :as calibration]
+    [igoki.ui.ogs :as ogs]
     [igoki.projector :as projector]
     [igoki.game :as game]
     [igoki.simulated :as sim]
@@ -41,7 +42,7 @@
     :tabs
     [{:title "OGS"
       :tip "Online-go.com integration"
-      :content "OGS"}
+      :content (ogs/ogs-panel ctx)}
      {:title "Simulation"
       :tip "Simulation (dev tools)"
       :content
@@ -135,6 +136,7 @@
         (s/border-panel
           :north (button-bar ctx)
           :center (primary-splits ctx))]
+    #_(ogs/ogs-panel ctx)
     (s/left-right-split
       (file-component)
       b

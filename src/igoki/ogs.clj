@@ -4,10 +4,12 @@
     [clojure.tools.logging :as log]
     [clojure.string :as str]
     [cheshire.core :as json]
+    [igoki.util.crypto :as crypto]
     [igoki.inferrence :as inferrence]
     [igoki.sgf :as sgf]
     [igoki.sound.announce :as announce]
-    [igoki.sound.sound :as snd])
+    [igoki.sound.sound :as snd]
+    [clojure.edn :as edn])
 
   (:import
     (io.socket.client Socket IO Ack IO$Options)
@@ -16,7 +18,8 @@
     (java.util Date)
     (java.text SimpleDateFormat)
     (org.slf4j.bridge SLF4JBridgeHandler)
-    (java.util.logging LogManager Level)))
+    (java.util.logging LogManager Level)
+    (java.util.concurrent CountDownLatch TimeUnit)))
 
 ;; http://docs.ogs.apiary.io/
 ;; https://ogs.readme.io/docs/real-time-api
@@ -68,6 +71,14 @@
     (str url "/api/v1/me/games/")
     (ogs-headers auth)))
 
+(defn overview
+  [auth]
+  (:body
+    (client/get
+      (str url "/api/v1/ui/overview")
+      (ogs-headers auth))))
+
+
 (defn game-detail
   [auth id]
   (client/get
@@ -106,16 +117,28 @@
     (doseq [[k v] msg]
       (.put m (name k) v))
     (.emit sock event
-           (into-array JSONObject [m]))))
+      (into-array JSONObject [m]))))
 
 (defn socket-callback [sock event msg callback-fn]
   (let [m (JSONObject.)]
     (doseq [[k v] msg]
       (.put m (name k) v))
     (.emit sock event
-           (into-array JSONObject [m])
-           (proxy [Ack] []
-             (call [xs] (apply callback-fn (seq xs)))))))
+      (into-array JSONObject [m])
+      (proxy [Ack] []
+        (call [xs] (apply callback-fn (seq xs)))))))
+
+(defn socket-blocking [sock event msg callback-fn]
+  (let [m (JSONObject.)
+        response (promise)]
+    (doseq [[k v] msg]
+      (.put m (name k) v))
+    (.emit sock event
+      (into-array JSONObject [m])
+      (proxy [Ack] []
+        (call [xs]
+          (deliver response (seq xs)))))
+    (deref response 5000 :timeout)))
 
 (defn setup-socket []
   (let [sock (IO/socket "https://online-go.com/"
@@ -300,8 +323,93 @@
     (swap! ctx assoc
       :ogs {:socket socket :gameid gameid :players (if player2 [player player2] [player])})))
 
+(defn save-settings [{:keys [client-id client-secret username password remember]}]
+  (let [settings
+        {:client-id client-id
+         :client-secret client-secret
+         :username username
+         :remember remember}
+        settings
+        (if remember
+          (assoc settings :password password)
+          settings)]
+    (spit "ogs.edn"
+      (crypto/encrypt
+        (pr-str settings)))))
 
+(defn load-settings []
+  (try
+    (edn/read-string
+      (crypto/decrypt
+        (slurp "ogs.edn")))
+    (catch Exception e {})))
 
+(defn disconnect [ctx]
+  (let [ogs (:ogs @ctx)]
+    (when (:socket ogs)
+      (.disconnect (:socket ogs)))
+    (swap! ctx dissoc :ogs)))
+
+(defn connect
+  [ctx {:keys [client-id client-secret username password] :as settings}
+   progress-fn]
+  (disconnect ctx)
+  (save-settings settings)
+  (progress-fn :saved)
+
+  (let [auth
+        (try
+          (ogs-auth
+            {:client_id client-id
+             :client_secret client-secret
+             :username username
+             :password password})
+          (catch Exception e nil))
+
+        _ (progress-fn :logged-in)
+        authconfig (when auth (:body (config auth)))
+        _ (progress-fn :authconfig)
+        socket (when authconfig (setup-socket))
+        _ (progress-fn :socket)
+        player
+        (when socket (:body (me auth)))
+        _ (progress-fn :player-info)
+        overview
+        (when socket
+          (overview auth))
+        _ (progress-fn :overview)]
+
+    (cond
+      (nil? auth)
+      {:success false :message "Authentication Failure?"}
+
+      (nil? authconfig)
+      {:success false :message "Could not fetch config"}
+
+      (nil? socket)
+      {:success false :message "Could not connect websocket"}
+
+      (nil? player)
+      {:success false :message "Could not fetch player info"}
+
+      :else
+      (do
+        (socket-emit socket "authenticate"
+          {:auth (:chat_auth authconfig)
+           :player_id (:id (:user authconfig))
+           :username (:username (:user authconfig))})
+
+        (progress-fn :socket-auth)
+
+        (swap! ctx assoc :ogs
+          {:settings settings
+           :auth auth
+           :authconfig authconfig
+           :player player
+           :socket socket
+           :overview overview})
+
+        {:success true}))))
 
 (comment
   (.on Socket/EVENT_CONNECT

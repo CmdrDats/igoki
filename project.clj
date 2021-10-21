@@ -8,6 +8,7 @@
   :dependencies
   [[org.clojure/clojure "1.10.3"]
    #_[com.google.guava/guava "20.0"]
+   [clj-http "3.12.3"]
    [seesaw "1.5.0"]
    [org.openpnp/opencv "4.5.1-2"]
    [cheshire "5.10.1"]
