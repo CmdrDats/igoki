@@ -31,6 +31,17 @@
   (def cm (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 2 :threads 3 :insecure? true})))
 
 
+(defn display-rank [ranking]
+  (cond
+    (nil? ranking)
+    "??"
+
+    (< ranking 30)
+    (str (int (- 30 (Math/floor ranking))) "k")
+
+    :else
+    (str (int (inc (- (Math/floor ranking) 30))) "d")))
+
 (defn ogs-auth
   [conn]
   (client/post
@@ -416,8 +427,6 @@
        (proxy [Emitter$Listener] []
          (call [xs] (apply socket-connect (seq xs)))))
 
-  (SLF4JBridgeHandler/install)
-  (.setLevel (.getLogger (LogManager/getLogManager) "") Level/FINEST)
   ;; Get clientid and secret by auth2 client here: https://online-go.com/developer
   ;; Get app password from user profile
 

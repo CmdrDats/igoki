@@ -4,9 +4,15 @@
     [igoki.camera :as camera]
     [igoki.view]
     [igoki.game :as game])
-  (:gen-class))
+  (:gen-class)
+  (:import
+    (org.slf4j.bridge SLF4JBridgeHandler)
+    (nu.pattern OpenCV)
+    (java.util.logging LogManager Level)))
 
-(nu.pattern.OpenCV/loadShared)
+(OpenCV/loadShared)
+(SLF4JBridgeHandler/install)
+(.setLevel (.getLogger (LogManager/getLogManager) "") Level/INFO)
 
 (defonce ctx (atom {}))
 (defn start []

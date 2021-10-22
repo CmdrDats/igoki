@@ -12,7 +12,8 @@
 (s/native!)
 
 (defn file-component []
-  (s/listbox
+  nil
+  #_(s/listbox
     :model
     ["File 1"
      "File 2"
