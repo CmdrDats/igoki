@@ -2,7 +2,6 @@
   (:require
     [igoki.ui.main :as ui.main]
     [igoki.camera :as camera]
-    [igoki.view]
     [igoki.game :as game])
   (:gen-class)
   (:import

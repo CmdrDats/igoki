@@ -169,11 +169,18 @@
   (when-not (or (nil? rate-per-sec) (zero? rate-per-sec))
     (swap! *sketch* assoc :frame-rate rate-per-sec)))
 
-(defn width []
-  (.getWidth panel))
+(defn width
+  ([]
+   (.getWidth panel))
+  ([sketch-atom]
+   (.getWidth (:panel @sketch-atom))))
 
-(defn height []
-  (.getHeight panel))
+
+(defn height
+  ([]
+   (.getHeight panel))
+  ([sketch-atom]
+   (.getHeight (:panel @sketch-atom))))
 
 (defn color
   ([g]

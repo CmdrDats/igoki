@@ -11,7 +11,7 @@
     (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)))
 
 (defonce proj-ctx
-  (atom nil))
+  (atom {}))
 
 (defn update-projmat [ctx]
   (let [{:keys [homography board-homography sketch] :as projcontext} @proj-ctx
@@ -74,7 +74,7 @@
                  nil)))
 
 
-          (Imgproc/warpPerspective projmat newflat (.inv board-homography) (Size. (.width sketch) (.height sketch)))
+          (Imgproc/warpPerspective projmat newflat (.inv board-homography) (Size. (lq/width sketch) (lq/height sketch)))
           (swap! proj-ctx assoc :proj-img (util/mat-to-pimage newflat (:bufimg proj-img)))
 
           #_(doseq [[x y] (util/mat->seq target)]
@@ -89,7 +89,7 @@
   (doseq [[x y w h] board]
     (lq/rect x y w h)))
 
-(defn checker [x y width height xblocks yblocks]
+(defn checkerboard [x y width height xblocks yblocks]
   (let [bw (/ width xblocks)
         bh (/ height yblocks)]
     {:setup {:x x :y y :width width :height height :xblocks xblocks :yblocks yblocks}
@@ -115,7 +115,7 @@
       (util/vec->mat corners-mat (reverse corners))
       corners-mat)))
 
-(defn look-for-checkerboard [proj-ctx camera]
+(defn look-for-checkerboard [proj-ctx camera checker]
   (util/with-release [gray (Mat.)]
     (let [corners (MatOfPoint2f.)
           crit (TermCriteria. (bit-or TermCriteria/EPS TermCriteria/MAX_ITER) 30 0.1)]
@@ -132,7 +132,7 @@
           (fix-checker-orientation corners)
           (swap! proj-ctx assoc :corners corners))))))
 
-(defn update-homography [proj-ctx existing-corners]
+(defn update-homography [proj-ctx existing-corners checker]
   (util/with-release
     [target (MatOfPoint2f.)]
     (let [target (util/vec->mat target (:points checker))
@@ -163,19 +163,21 @@
         (println "Board Homography updated")
         (swap! proj-ctx assoc :board-homography board-homography)))))
 
-(defn draw [ctx proj-ctx]
+(defn draw [proj-ctx ctx]
   (lq/frame-rate 10)
   (lq/background 0 0 0)
   (lq/rect 0 0 (lq/width) (lq/height))
 
   (let [[w h] [(lq/width) (lq/height)]
         [gw gh] [(/ w 2) (/ h 2)]
-        checker (checker (- gw (/ gw 2)) (- gh (/ gh 2)) gw gh 10 8)
+        checker (checkerboard (- gw (/ gw 2)) (- gh (/ gh 2)) gw gh 10 8)
 
         {:keys [camera goban] :as context} @ctx
         {:keys [homography board-homography proj-img] :as projcontext} @proj-ctx
         existing-corners (:corners projcontext)
         img (:bufimg proj-img)]
+
+    (println (pr-str (:raw camera)))
 
     (lq/background 255 255 255)
     (lq/rect 0 0 (lq/width) (lq/height))
@@ -198,10 +200,10 @@
     ;; There's no way this should be happening in the draw call.
     (cond
       (and (not existing-corners) (:raw camera))
-      (look-for-checkerboard proj-ctx camera)
+      (look-for-checkerboard proj-ctx camera checker)
 
       (and existing-corners (not homography))
-      (update-homography proj-ctx existing-corners)
+      (update-homography proj-ctx existing-corners checker)
 
       (and homography (= 4 (count (:points goban))) (not board-homography))
       (update-board-homography ctx proj-ctx homography))
