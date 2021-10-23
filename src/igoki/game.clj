@@ -64,11 +64,19 @@
 (defn board-updated [_ ctx _ board]
   #_(println "Board updated.")
   (swap! captured-boardlist conj board)
-  (let [{{:keys [kifu-board dirty] :as game} :kifu} @ctx
+  (let [{{:keys [kifu-board dirty] :as game} :kifu
+         ogs :ogs} @ctx
+
         nodes (sgf/current-branch-node-list (:current-branch-path game) (:moves game))
         lastmove (last nodes)
         [[_ _ mo mn :as mv] :as diff] (board-diff kifu-board board)
-        history-game (if (and lastmove (> (count diff) 0)) (get (board-history game) board))]
+
+        ;; Disabled temporarily for issues with online integration.
+        ;; TODO: This causes issues for online integration, obviously, so will
+        ;; need to check if undo/move is all
+        history-game
+        (when-not (:gameid ogs)
+          (if (and lastmove (> (count diff) 0)) (get (board-history game) board)))]
     (cond
       (and (empty? diff) dirty)
       (do
@@ -79,9 +87,6 @@
       (println "Not actioning board updates until clean state is reached")
 
       ;; Special case to undo last move
-      ;; Disabled temporarily for issues with online integration.
-      ;; TODO: This causes issues for online integration, obviously, so will
-      ;; need to check if undo/move is all
       history-game
       (do
         (snd/play-sound :undo)

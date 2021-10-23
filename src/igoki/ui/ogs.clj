@@ -1,9 +1,7 @@
 (ns igoki.ui.ogs
   (:require
     [seesaw.core :as s]
-    [seesaw.font :as f]
     [seesaw.mig :as sm]
-    [seesaw.graphics :as sg]
     [seesaw.color :as sc]
     [igoki.ogs :as ogs]
     [igoki.ui.util :as ui.util]
@@ -11,18 +9,24 @@
   (:import
     (java.awt.event KeyEvent)
     (java.awt Graphics2D)
-    (java.awt.geom Ellipse2D$Double)))
+    (java.awt.geom Ellipse2D$Double)
+    (javax.swing DefaultListCellRenderer)))
 
 (defn paint-game-panel [ctx game c ^Graphics2D g]
   (.setColor g (sc/color "#dcb35c"))
   (let [[w h] [(.getWidth c) (.getHeight c)]
         board-width (:width game)
+        ;; TODO: Need to do a few fixes for non-square boards....
         board-height (:height game)
         cellsize (/ h (+ board-width 2))
         grid-start (+ cellsize (/ cellsize 2))
         board-size (* cellsize (dec board-width))
         extent (+ grid-start board-size)
-        tx (+ h (/ cellsize 2))]
+        tx (+ h (/ cellsize 2))
+
+        constructed (:constructed game)
+        kifu-board (get-in constructed [:kifu :kifu-board])
+        ]
     (.fillRect g 0 0 w h)
 
     (.setColor g (sc/color :black))
@@ -33,32 +37,84 @@
 
     ;; Draw star points
     (doseq [[x y] (util/star-points board-width)]
-      (let [e (Ellipse2D$Double. (+ grid-start (- (* x cellsize) 2.5))
-                (+ grid-start (- (* cellsize y) 2.5)) 5 5)]
-        (.fill g e)))))
+      (let [e (Ellipse2D$Double. (+ grid-start (- (* x cellsize) 1.5))
+                (+ grid-start (- (* cellsize y) 1.5)) 4 4)]
+        (.fill g e)))
 
-(defn game-panel [ctx game]
+
+    (doseq [y (range board-height)]
+      (doseq [x (range board-width)]
+        (let [stone (nth (nth kifu-board y) x)]
+          (when stone
+            (let [e (Ellipse2D$Double. (+ grid-start (- (* x cellsize) 4))
+                      (+ grid-start (- (* cellsize y) 4)) 8 8)]
+              (.setColor g (sc/color (if (= stone :w) :white :black)))
+              (.fill g e)
+              (when (= stone :w)
+                (.setColor g (sc/color :black))
+                (.draw g e)))))))))
+
+(defn game-panel [ctx game selected?]
   (let [black (:black game)
         white (:white game)]
     (sm/mig-panel
-      :constraints ["center"]
+      :background (if selected? :steelblue nil)
+      :constraints [""]
       :items
-      [[(str (:username black) " [" (ogs/display-rank (:ranking black)) "]") "wrap, left, gapbottom 10"]
-       [(s/canvas
+      [[(s/canvas
           :size [200 :by 200]
-          :paint (partial #'paint-game-panel ctx game)) "wrap"]
-       [(str (:username white) " [" (ogs/display-rank (:ranking white)) "]") "wrap, right, gaptop 10"]])))
+          :paint (partial #'paint-game-panel ctx game)) "left, spany"]
+       [(str (:username black) " [" (ogs/display-rank (:ranking black)) "]") "wrap, gapleft 10"]
+       [(str (:username white) " [" (ogs/display-rank (:ranking white)) "]") "wrap, gapleft 10"]])))
 
-(defn game-list-panel [ctx]
-  (s/scrollable
-    (sm/mig-panel
-      :constraints ["center" "" ""]
-      :items
-      (map
-        (fn [g] [(game-panel ctx g) "wrap"])
-        (get-in @ctx [:ogs :overview :active_games])))
-    :vscroll :always
-    :hscroll :never))
+(defn game-list-panel [ctx parent-panel]
+  (let [setup-model
+        #(map
+           (fn [g]
+            (assoc g :constructed
+              (ogs/initialize-game {} (:json g))))
+           (get-in @ctx [:ogs :overview :active_games]))
+
+        gamelist
+        (s/listbox
+          :id :ogs-game-list
+          :model (setup-model)
+          :renderer
+          (proxy [DefaultListCellRenderer] []
+            (getListCellRendererComponent [component value index selected? foxus?]
+              (game-panel ctx value selected?))))
+
+        container
+        (s/border-panel
+          :south
+          (s/flow-panel
+            :align :center
+            :items
+            [(s/button :text "Refresh" :id :ogs-refresh)
+             (s/button :text "Connect to selected" :id :ogs-connect-selected)])
+          :center
+          (s/scrollable gamelist
+            :vscroll :always))]
+
+    (s/listen
+      (s/select container [:#ogs-connect-selected])
+      :action
+      (fn [e]
+        (let [game (s/value gamelist)
+              ogs (:ogs @ctx)]
+          (ogs/connect-record ctx (:socket ogs)
+            (str (:id game)) (:auth ogs)))))
+
+    (s/listen
+      (s/select container [:#ogs-refresh])
+      :action
+      (fn [e]
+        (ogs/refresh-games ctx)
+        (s/config!
+          (s/select container [:#ogs-game-list])
+          :model (setup-model))))
+
+    container))
 
 (defn ogs-login-panel [ctx]
   (let [settings (ogs/load-settings)
@@ -103,8 +159,7 @@
                    (if (:success result)
                      (str "Connected.")
                      (:message result)))
-                 (s/remove! panel login-panel)
-                 (s/config! panel :center (game-list-panel ctx))))
+                 (s/replace! panel login-panel (game-list-panel ctx panel))))
             (.setDaemon true)
             (.start)))]
     (s/value! login-panel settings)

@@ -231,12 +231,13 @@
   ["gamedata" "clock" "phase" "undo_requested" "undo_accepted" "move" "conditional_moves"
    "removed_stones" "removed_stones_accepted" "chat" "error" "reset"])
 
-(defn disconnect [ctx]
+(defn disconnect-record [ctx]
   (let [ogs (:ogs @ctx)]
-    (doseq [en game-events]
-      (.off (:socket ogs) (str "game/" (:gameid ogs) "/" en)))
-    (remove-watch ctx (str "ogs." (:gameid ogs)))
-    (socket-emit (:socket ogs) "game/disconnect" {:game_id (:gameid ogs)})))
+    (when (:gameid ogs)
+      (doseq [en game-events]
+        (.off (:socket ogs) (str "game/" (:gameid ogs) "/" en)))
+      (remove-watch ctx (str "ogs." (:gameid ogs)))
+      (socket-emit (:socket ogs) "game/disconnect" {:game_id (:gameid ogs)}))))
 
 (defn check-submit-move [ctx old new]
   (let [ogspath (-> new :ogs :current-branch-path)
@@ -278,6 +279,8 @@
 
 
 (defn connect-record [ctx socket gameid auth & [auth2]]
+  ;; Disconnect any existing first.
+  (disconnect-record ctx)
   (let [game (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth)))
         _ (log/info "GAME INFO!!!!!!!!!!!! " game)
         player {:info (:body (me auth)) :auth (:auth game)}
@@ -289,7 +292,8 @@
             socket (action eventname)
             #(do
               (log/info eventname ":" %)
-              (swap! ctx update-in [:ogs :event-stream] (fnil conj []) {:eventname eventname :data %}))))]
+              (swap! ctx update-in [:ogs :event-stream]
+                (fnil conj []) {:eventname eventname :data %}))))]
     (doseq [en game-events]
       (listen en))
 
@@ -316,7 +320,7 @@
 
           (= "finished" (:phase data))
           (do
-            (disconnect ctx)
+            (disconnect-record ctx)
             (let [game {:sgf          (:body (game-sgf auth gameid))
                         :event-stream (:event-stream (:ogs @ctx))
                         :gameid       gameid
@@ -360,6 +364,10 @@
     (when (:socket ogs)
       (.disconnect (:socket ogs)))
     (swap! ctx dissoc :ogs)))
+
+(defn refresh-games [ctx]
+  (swap! ctx assoc-in [:ogs :overview]
+    (overview (get-in @ctx [:ogs :auth]))))
 
 (defn connect
   [ctx {:keys [client-id client-secret username password] :as settings}

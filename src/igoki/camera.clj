@@ -48,7 +48,7 @@
                  ;; TODO: this chows memory - better to have a hook on update for each specific
                  ;; view - this will only be needed on the first screen.
                  :pimg (util/mat-to-pimage frame (get-in % [:pimg :bufimg]))))))
-        (Thread/sleep (or (-> @ctx :camera :read-delay) 50))
+        (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
         (catch Exception e
           (println "exception thrown")
           (.printStackTrace e))))))
