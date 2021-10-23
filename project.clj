@@ -1,4 +1,4 @@
-(defproject igoki "0.3"
+(defproject igoki "0.4"
   :description "Igoki, physical Go board/OGS interface"
   :url "http://github.com/CmdrDats/igoki"
   :license
