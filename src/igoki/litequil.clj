@@ -1,7 +1,7 @@
 (ns igoki.litequil
   (:require [seesaw.core :as s])
   (:import
-    (javax.swing JPanel SwingUtilities)
+    (javax.swing JPanel SwingUtilities JFrame)
     (java.awt Graphics2D Dimension Color Image BasicStroke RenderingHints Font Polygon)
     (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent)
     (java.awt.geom Ellipse2D$Double Rectangle2D)
@@ -31,6 +31,7 @@
         target-time (/ 1000 frame-rate)
         now (System/currentTimeMillis)
         time-sleep (- target-time (- now (or last-frametime now)))]
+    #_(println "Sleep time: " time-sleep)
     (when (pos? time-sleep)
       (Thread/sleep time-sleep))
 
@@ -49,6 +50,7 @@
                  #'g2d local-g2d}
                 (draw)))))]
     (.setFocusable local-panel true)
+
     (swap! sketch-atom assoc :panel local-panel)
 
     (.addMouseListener local-panel
@@ -88,7 +90,7 @@
             (and (.isVisible (.getAncestor event))
               (not (:started @sketch-atom)))
 
-            (swap! sketch-atom assoc :started true)
+            (swap! sketch-atom assoc :started true :stopped false)
 
             (when setup
               (with-bindings
@@ -108,9 +110,10 @@
 
               (.setDaemon true)
               (.start))))
+
         (ancestorRemoved [event]
           (println "CLOSED!!!")
-          (swap! sketch-atom assoc :stopped true)
+          (swap! sketch-atom assoc :stopped true :started false)
           (when close
             (close)))
 
@@ -122,7 +125,7 @@
 
 (defn sketch [options]
   (let [{:keys [title size draw setup close]} options
-        local-frame
+        ^JFrame local-frame
         (s/frame
           :title title
           :icon "igoki48.png"
@@ -147,14 +150,13 @@
           (swap! sketch-atom assoc :stopped true)
           (when close
             (close)))))
-
     (doto local-frame
-      (.pack)
-      (.setVisible true))
+      (.setExtendedState JFrame/MAXIMIZED_BOTH)
+      (.setVisible true)
+      )
 
     (.grabFocus local-panel)
-
-    sketch-atom))
+    (swap! sketch-atom assoc :frame local-frame)))
 
 (defn smooth []
   (doto g2d

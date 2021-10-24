@@ -4,10 +4,12 @@
     [igoki.ui.game :as ui.game]
     [igoki.ui.calibration :as calibration]
     [igoki.ui.ogs :as ogs]
+    [igoki.ui.log :as logging]
     [igoki.projector :as projector]
     [igoki.game :as game]
     [igoki.simulated :as sim]
-    [igoki.camera :as camera]))
+    [igoki.camera :as camera])
+  (:import (javax.swing JFrame)))
 
 (s/native!)
 
@@ -56,10 +58,12 @@
     :tabs
     [{:title "Tree"
       :tip "SGF Move tree"
-      :content "Move tree"}
-     {:title "Log"
+      :content "Move tree will be here, in time."}
+     #_{:title "Log"
       :tip "Output log (dev tools)"
-      :content "output log"}]))
+      :content
+      (logging/log-panel ctx)
+      }]))
 
 (defn primary-splits [ctx]
   (let [cl
@@ -153,6 +157,7 @@
           :size [1024 :by 768]
           :menubar (main-menu ctx)
           :on-close :exit)]
+    (.setExtendedState frame JFrame/MAXIMIZED_BOTH)
     (-> frame s/show!)
     (s/config! frame :content (frame-content ctx))
     (reset! app-frame frame))

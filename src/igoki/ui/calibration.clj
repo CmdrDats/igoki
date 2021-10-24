@@ -42,7 +42,7 @@
 
 (defn construct [ctx]
   (lq/smooth)
-  (lq/frame-rate 20)
+  (lq/frame-rate 5)
   (lq/background 200))
 
 (defn convert-point [bufimg [px py]]

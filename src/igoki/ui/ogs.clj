@@ -12,6 +12,44 @@
     (java.awt.geom Ellipse2D$Double)
     (javax.swing DefaultListCellRenderer)))
 
+(declare game-list-panel)
+(defn game-info-panel [ctx]
+  (let [{:keys [game_name players json]} (get-in @ctx [:ogs :game])
+        {:keys [black white]} players
+
+        panel
+        (sm/mig-panel
+          :constraints ["center"]
+          :items
+          [["Game Details" "wrap, span, center, gapbottom 20"]
+           ["Game Name:" "align label"]
+           [(str game_name) "wrap"]
+           ["Black: " "align label"]
+           [(ogs/str-player black) "wrap"]
+           ["White: " "align label"]
+           [(ogs/str-player white) "wrap"]])
+
+        container
+        (s/border-panel
+          :south
+          (s/flow-panel
+            :align :center
+            :items
+            [(s/button :text "Disconnect" :id :ogs-game-disconnect)])
+
+          :center
+          (s/scrollable panel :vscroll :always))]
+
+    (s/listen (s/select container [:#ogs-game-disconnect])
+      :action
+      (fn [e]
+        (ogs/disconnect-record ctx)
+        (s/replace!
+          (.getParent container) container (game-list-panel ctx))))
+
+    container))
+
+
 (defn paint-game-panel [ctx game c ^Graphics2D g]
   (.setColor g (sc/color "#dcb35c"))
   (let [[w h] [(.getWidth c) (.getHeight c)]
@@ -64,10 +102,11 @@
       [[(s/canvas
           :size [200 :by 200]
           :paint (partial #'paint-game-panel ctx game)) "left, spany"]
-       [(str (:username black) " [" (ogs/display-rank (:ranking black)) "]") "wrap, gapleft 10"]
-       [(str (:username white) " [" (ogs/display-rank (:ranking white)) "]") "wrap, gapleft 10"]])))
+       [(ogs/str-player black) "wrap, gapleft 10"]
+       [(ogs/str-player white) "wrap, gapleft 10"]])))
 
-(defn game-list-panel [ctx parent-panel]
+(declare ogs-login-panel)
+(defn game-list-panel [ctx]
   (let [setup-model
         #(map
            (fn [g]
@@ -84,14 +123,18 @@
             (getListCellRendererComponent [component value index selected? foxus?]
               (game-panel ctx value selected?))))
 
+        status-label (s/label :text "" :id :ogs-connect-status)
         container
         (s/border-panel
           :south
           (s/flow-panel
             :align :center
             :items
-            [(s/button :text "Refresh" :id :ogs-refresh)
-             (s/button :text "Connect to selected" :id :ogs-connect-selected)])
+            [(s/button :text "Disconnect" :id :ogs-disconnect)
+             [40 :by 10]
+             (s/button :text "Refresh" :id :ogs-refresh)
+             (s/button :text "Connect to selected" :id :ogs-connect-selected)
+             status-label])
           :center
           (s/scrollable gamelist
             :vscroll :always))]
@@ -101,9 +144,14 @@
       :action
       (fn [e]
         (let [game (s/value gamelist)
-              ogs (:ogs @ctx)]
-          (ogs/connect-record ctx (:socket ogs)
-            (str (:id game)) (:auth ogs)))))
+              ogs (:ogs @ctx)
+
+              {:keys [success msg]}
+              (ogs/connect-record ctx (:socket ogs)
+                (str (:id game)) (:auth ogs))]
+          (if success
+            (s/replace! (.getParent container) container (game-info-panel ctx))
+            (s/config! status-label :text msg)))))
 
     (s/listen
       (s/select container [:#ogs-refresh])
@@ -114,6 +162,13 @@
           (s/select container [:#ogs-game-list])
           :model (setup-model))))
 
+    (s/listen
+      (s/select container [:#ogs-disconnect])
+      :action
+      (fn [e]
+        (ogs/disconnect ctx)
+        (s/replace!
+          (.getParent container) container (ogs-login-panel ctx))))
     container))
 
 (defn ogs-login-panel [ctx]
@@ -144,7 +199,7 @@
            [(s/label :id :progress :text "Progress")]
            [(s/button :text "Connect" :id :save) "tag ok, span, split 3, sizegroup bttn, gaptop 15"]])
 
-        panel (s/border-panel :id :ogs-panel :center login-panel)
+
         login
         (fn []
           (doto
@@ -159,7 +214,8 @@
                    (if (:success result)
                      (str "Connected.")
                      (:message result)))
-                 (s/replace! panel login-panel (game-list-panel ctx panel))))
+                 (s/replace! (.getParent login-panel) login-panel (game-list-panel ctx))))
+
             (.setDaemon true)
             (.start)))]
     (s/value! login-panel settings)
@@ -183,9 +239,11 @@
     (s/listen
       (s/select login-panel [:#save])
       :action (fn [e] (login)))
-    panel))
+    login-panel))
 
 
 
 (defn ogs-panel [ctx]
-  (ogs-login-panel ctx))
+  (let [login-panel (ogs-login-panel ctx)
+        panel (s/border-panel :id :ogs-panel :center login-panel)]
+    panel))

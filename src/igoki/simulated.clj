@@ -2,13 +2,15 @@
   (:require
     [igoki.litequil :as lq]
     [igoki.util :as util]
-    [igoki.ui.util :as ui.util])
+    [igoki.ui.util :as ui.util]
+    [seesaw.core :as s])
   (:import
     (org.opencv.core Mat Point Scalar MatOfPoint MatOfByte)
     (de.schlichtherle.truezip.fs FsEntryNotFoundException)
     (java.awt.event MouseEvent)
     (org.opencv.imgproc Imgproc)
-    (org.opencv.imgcodecs Imgcodecs)))
+    (org.opencv.imgcodecs Imgcodecs)
+    (javax.swing JComboBox)))
 
 ;; This view simulates a camera for testing igoki's behaviour without having a board and camera handy
 (defonce simctx (atom {:sketchconfig {:framerate 5 :size [640 480]}}))
@@ -88,14 +90,18 @@
 
 (defn simulate []
   (let [context @simctx]
-
-    (if (= (:mode context) :replay)
+    (cond
+      (= (:mode context) :replay)
       (when (-> context :camera :raw)
         (swap! simctx
-          update :camera assoc
+          update
+          :camera assoc
           :raw (-> context :camera :raw)
-          :pimg (util/mat-to-pimage (-> context :camera :raw)
-                  (-> context :camera :pimg :bufimg))))
+          :pimg
+          (util/mat-to-pimage (-> context :camera :raw)
+            (-> context :camera :pimg :bufimg))))
+
+      :else
       (when (-> context :sim :background)
         (let [m (.clone (-> context :sim :background))]
           (draw-board m)
@@ -165,25 +171,14 @@
   (swap! ctx assoc :mode :replay :replay {:file file :index 0})
   (step-file-index ctx identity))
 
-(defn key-pressed [ctx e]
+(defn set-board-size [ctx size]
+  (swap! ctx assoc-in [:sim :size] size))
+
+(defn key-pressed [simctx e]
+  ;; TODO: Add these are buttons on the panel.
   (case (lq/key-code e)
-    9
-    (swap!
-      ctx update-in [:sim :size]
-      (fn [s]
-        (case s 19 9 9 13 19)))
-    ;; A
-    65 (swap! ctx update :sim alternate-mode)
-    ;; C - clear mode
-    67 (swap! ctx update :sim set-mode :erase)
-    ;; W
-    87 (swap! ctx update :sim set-mode :white)
-    ;; B
-    66 (swap! ctx update :sim set-mode :black)
-    ;; R
-    82 (reset-board ctx (-> @ctx :sim :size))
     ;; Left
-    37 (step-file-index simctx dec)
+    37
     ;; Right
     39 (step-file-index simctx inc)
     ;; L
@@ -194,7 +189,7 @@
 
 (defn setup [ctx]
   (lq/smooth)
-  (lq/frame-rate (or (-> @ctx :sketchconfig :framerate) 5))
+  (lq/frame-rate 20)
   (lq/background 200))
 
 (defn paint [ctx]
@@ -212,23 +207,14 @@
 
       (nil? pimg)
       (lq/shadow-text "Image not built yet, please wait..." 10 25)
+
       (= mode :replay)
       (do
         (lq/image (:bufimg pimg) 0 0 (lq/width) (lq/height))
-        (lq/shadow-text "Esc: Back to simulation" tx 50)
-        (lq/shadow-text (str "Arrows: Forward/back (" index ")") tx 75)
-        (lq/shadow-text "L: Load captured zip" tx 100))
+        (lq/shadow-text (str "Frame " index) 10 25))
 
       :else
-      (do
-        (lq/image (:bufimg pimg) 0 0 (lq/width) (lq/height))
-        (lq/shadow-text "Tab: Cycle Size" tx 50)
-        (lq/shadow-text "B: Black " tx 75)
-        (lq/shadow-text "W: White" tx 100)
-        (lq/shadow-text "A: Alternating" tx 125)
-        (lq/shadow-text "C: Clear" tx 150)
-        (lq/shadow-text "R: Reset board. " tx 175)
-        (lq/shadow-text "L: Load zip. " tx 200)))))
+      (lq/image (:bufimg pimg) 0 0 (lq/width) (lq/height)))))
 
 (defn start-simulation [ctx]
   (swap! simctx
@@ -241,15 +227,114 @@
 
   (doto
     (Thread.
-      #(when-not
-        (-> @simctx :stopped)
+      #(when-not (-> @simctx :stopped)
         (let [{{:keys [raw pimg]} :camera} @simctx]
-          ;; TODO: this needs to write to a different 'camera' view so it doesn't clash with camera input.
           (swap! ctx update :camera assoc :raw raw :pimg pimg)
           (Thread/sleep (or (-> @ctx :camera :read-delay) 500))
           (recur))))
     (.setDaemon true)
     (.start)))
+
+(defn set-board-mode [mode]
+  (case mode
+    "Alternating"
+    (swap! simctx update :sim alternate-mode)
+
+    "Black"
+    (swap! simctx update :sim set-mode :black)
+
+    "White"
+    (swap! simctx update :sim set-mode :white)
+
+    "Clear"
+    (swap! simctx update :sim set-mode :erase)))
+
+(defn button-panel [simctx]
+  (let [mode (:mode @simctx)
+
+        panel
+        (s/flow-panel
+          :hgap 15
+          :items
+          (cond
+            (= mode :replay)
+            [(s/button
+               :id :sim-back
+               :text "Back to Simulation")
+
+             [20 :by 10]
+             (s/button
+               :id :sim-zip-left
+               :text "<"
+               :listen
+               [:action
+                (fn [e]
+                  (step-file-index simctx dec))])
+
+             [10 :by 10]
+             (s/button
+               :id :sim-zip-right
+               :text ">"
+               :listen
+               [:action
+                (fn [e]
+                  (step-file-index simctx inc))])]
+            :else
+            ["Size: "
+             (s/combobox
+               :listen
+               [:action
+                (fn [e]
+                  (let [sel (.getSelectedIndex ^JComboBox (.getSource e))]
+                    (set-board-size simctx (nth [9 13 19] sel))))]
+               :model ["9x9" "13x13" "19x19"]
+               :selected-index 2)
+             [20 :by 10]
+             "Place Mode: "
+             (s/combobox
+               :listen
+               [:action
+                (fn [e]
+                  (set-board-mode (s/value (.getSource e))))]
+               :model ["Alternating" "Black" "White" "Clear"])
+
+             [20 :by 10]
+             (s/button
+               :text "Reset"
+               :listen
+               [:action
+                (fn [e]
+                  (when
+                    (s/confirm "Are you sure?" :confirm-type :yes-no)
+                    (reset-board simctx (-> @simctx :sim :size))))])
+             [40 :by 10]
+             (s/button
+               :id :sim-load-zip
+               :text "Load Captured ZIP")]))]
+
+    (cond
+      (= mode :replay)
+      (s/listen (s/select panel [:#sim-back])
+        :action
+        (fn [e]
+          (swap! simctx
+            (fn [c]
+              (->
+                c
+                (dissoc :replay)
+                (assoc :mode :alt))))
+          (s/replace! (.getParent panel) panel (button-panel simctx))))
+
+      :else
+      (s/listen (s/select panel [:#sim-load-zip])
+        :action
+        (fn [e]
+          (ui.util/load-dialog
+            (fn [f]
+              (load-zip simctx (.getAbsolutePath f))
+              (s/replace! (.getParent panel) panel (button-panel simctx)))
+            (str (System/getProperty "user.dir") "/capture")))))
+    panel))
 
 (defn simulation-panel [ctx]
   (let [sketch
@@ -257,9 +342,14 @@
           {:draw (partial #'paint simctx)
            :setup (partial #'setup simctx)
            :mouse-pressed (partial #'mouse-pressed simctx)
-           :key-pressed (partial #'key-pressed simctx)})]
+           :key-pressed (partial #'key-pressed simctx)})
+
+        buttons (button-panel simctx)
+        ]
     (swap! simctx assoc :sketch sketch)
-    (:panel sketch)))
+    (s/border-panel
+      :center (:panel sketch)
+      :south buttons)))
 
 (defn stop []
   (swap! simctx assoc :stopped true))

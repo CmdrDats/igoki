@@ -16,10 +16,7 @@
     (io.socket.emitter Emitter$Listener)
     (org.json JSONObject)
     (java.util Date)
-    (java.text SimpleDateFormat)
-    (org.slf4j.bridge SLF4JBridgeHandler)
-    (java.util.logging LogManager Level)
-    (java.util.concurrent CountDownLatch TimeUnit)))
+    (java.text SimpleDateFormat)))
 
 ;; http://docs.ogs.apiary.io/
 ;; https://ogs.readme.io/docs/real-time-api
@@ -31,7 +28,7 @@
   (def cm (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 2 :threads 3 :insecure? true})))
 
 
-(defn display-rank [ranking]
+(defn display-rank [ranking pro?]
   (cond
     (nil? ranking)
     "??"
@@ -40,7 +37,10 @@
     (str (int (- 30 (Math/floor ranking))) "k")
 
     :else
-    (str (int (inc (- (Math/floor ranking) 30))) "d")))
+    (str (int (inc (- (Math/floor ranking) 30))) (if pro? "p" "d"))))
+
+(defn str-player [{:keys [username ranking rank professional]}]
+  (str username " [" (display-rank (or rank ranking) professional) "]"))
 
 (defn ogs-auth
   [conn]
@@ -196,18 +196,18 @@
 (defn initialize-game [c game]
   (let [initial-node
         (cond->
-          {:branches     []
+          {:branches []
            :player-start [(case (:initial_player game) "white" "W" "B")]
-           :application  ["Igoki"]
-           :file-format  ["4"]
-           :gametype     ["1"]
-           :size         [(:width game) (:height game)]
-           :date         [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date. (* 1000 (:start_time game))))]
-           :game-name    [(:game_name game)]
-           :black-rank   [(-> game :players :black :rank)]
-           :black-name   [(-> game :players :black :name)]
-           :white-rank   [(-> game :players :white :rank)]
-           :white-name   [(-> game :players :white :name)]}
+           :application ["Igoki"]
+           :file-format ["4"]
+           :gametype ["1"]
+           :size [(:width game) (:height game)]
+           :date [(.format (SimpleDateFormat. "YYYY-MM-dd") (Date. (* 1000 (:start_time game))))]
+           :game-name [(:game_name game)]
+           :black-rank [(-> game :players :black :rank)]
+           :black-name [(-> game :players :black :name)]
+           :white-rank [(-> game :players :white :rank)]
+           :white-name [(-> game :players :white :name)]}
           (not (str/blank? (-> game :initial_state :white)))
           (assoc :add-white (map (partial apply str) (partition 2 (-> game :initial_state :white))))
           (not (str/blank? (-> game :initial_state :black)))
@@ -215,17 +215,17 @@
 
         game-setup
         (inferrence/reconstruct
-          {:moves               initial-node
+          {:moves initial-node
            :current-branch-path [[]]
-           :movenumber          0})
+           :movenumber 0})
         game-setup (reduce add-move game-setup (:moves game))]
     (->
       c
       (update :kifu merge game-setup)
       (update :ogs assoc
-              :gameinfo game
-              :current-branch-path (:current-branch-path game-setup)
-              :movenumber (:movenumber game-setup)))))
+        :gameinfo game
+        :current-branch-path (:current-branch-path game-setup)
+        :movenumber (:movenumber game-setup)))))
 
 (def game-events
   ["gamedata" "clock" "phase" "undo_requested" "undo_accepted" "move" "conditional_moves"
@@ -280,63 +280,74 @@
 
 (defn connect-record [ctx socket gameid auth & [auth2]]
   ;; Disconnect any existing first.
-  (disconnect-record ctx)
-  (let [game (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth)))
-        _ (log/info "GAME INFO!!!!!!!!!!!! " game)
-        player {:info (:body (me auth)) :auth (:auth game)}
-        player2 (if auth2 {:info (:body (me auth2)) :auth (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth2)))})
-        action #(str "game/" gameid "/" %)
-        listen
-        (fn [eventname]
-          (socket-listener
-            socket (action eventname)
-            #(do
-              (log/info eventname ":" %)
-              (swap! ctx update-in [:ogs :event-stream]
-                (fnil conj []) {:eventname eventname :data %}))))]
-    (doseq [en game-events]
-      (listen en))
+  (try
+    (disconnect-record ctx)
+    (catch Exception e
+      (.printStackTrace e)))
 
-    (socket-listener
-      socket (action "move")
-      (fn [data]
-        (snd/play-sound :click)
-        (swap! ctx play-move data)
-        (let [{:keys [ogs kifu]} @ctx]
-          (println "announcing move :"
-                   (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
-                   (igoki.inferrence/print-boards (-> ogs :game :kifu-board)))
-          (announce/comment-move
-            (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
-            (-> ogs :game :kifu-board)))))
+  (try
+    (let [game (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth)))
+          player {:info (:body (me auth)) :auth (:auth game)}
+          player2 (if auth2 {:info (:body (me auth2)) :auth (:body (client/get (str url "/api/v1/games/" gameid) (ogs-headers auth2)))})
+          action #(str "game/" gameid "/" %)
+          listen
+          (fn [eventname]
+            (socket-listener
+              socket (action eventname)
+              #(do
+                 (log/info eventname ":" %)
+                 (swap! ctx update-in [:ogs :event-stream]
+                   (fnil conj []) {:eventname eventname :data %}))))]
+      (doseq [en game-events]
+        (listen en))
 
-    (socket-listener
-      socket (action "gamedata")
-      (fn [data]
-        (cond
-          (= "play" (:phase data))
-          (swap! ctx initialize-game data)
+      (socket-listener
+        socket (action "move")
+        (fn [data]
+          (snd/play-sound :click)
+          (swap! ctx play-move data)
+          (let [{:keys [ogs kifu]} @ctx]
+            (println "announcing move :"
+              (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
+              (igoki.inferrence/print-boards (-> ogs :game :kifu-board)))
+            (announce/comment-move
+              (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
+              (-> ogs :game :kifu-board)))))
+
+      (socket-listener
+        socket (action "gamedata")
+        (fn [data]
+          (cond
+            (= "play" (:phase data))
+            (swap! ctx initialize-game data)
 
 
-          (= "finished" (:phase data))
-          (do
-            (disconnect-record ctx)
-            (let [game {:sgf          (:body (game-sgf auth gameid))
-                        :event-stream (:event-stream (:ogs @ctx))
-                        :gameid       gameid
-                        :auth         auth}]
-              (spit (str "resources/ogs-game." gameid ".edn")
-                    (pr-str game)))))))
+            (= "finished" (:phase data))
+            (do
+              (disconnect-record ctx)
+              (let [game {:sgf (:body (game-sgf auth gameid))
+                          :event-stream (:event-stream (:ogs @ctx))
+                          :gameid gameid
+                          :auth auth}]
+                (spit (str "resources/ogs-game." gameid ".edn")
+                  (pr-str game)))))))
 
-    (socket-emit socket "game/connect" {:game_id gameid :player_id (:id player) :chat true})
+      (socket-emit socket "game/connect" {:game_id gameid :player_id (:id player) :chat true})
 
-    (add-watch
-      ctx (str "ogs." gameid)
-      (fn [_ c o n]
-        (check-submit-move c o n)))
+      (add-watch
+        ctx (str "ogs." gameid)
+        (fn [_ c o n]
+          (check-submit-move c o n)))
 
-    (swap! ctx assoc
-      :ogs {:socket socket :gameid gameid :players (if player2 [player player2] [player])})))
+      (swap! ctx update :ogs assoc
+        :socket socket
+        :gameid gameid
+        :players (if player2 [player player2] [player])
+        :game (:gamedata game))
+      {:success true})
+    (catch Exception e
+      (.printStackTrace e)
+      {:success false :msg (.getMessage e)})))
 
 (defn save-settings [{:keys [client-id client-secret username password remember]}]
   (let [settings

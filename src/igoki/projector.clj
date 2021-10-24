@@ -8,7 +8,8 @@
   (:import
     (org.opencv.calib3d Calib3d)
     (org.opencv.imgproc Imgproc)
-    (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)))
+    (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)
+    (javax.swing JFrame)))
 
 (defonce proj-ctx
   (atom {}))
@@ -229,7 +230,8 @@
         (lq/sketch
           {:title "Move on board in camera view (place paper on board for contrast)"
            :draw (partial #'draw proj-ctx ctx)
-           :size (or (-> @proj-ctx :sketchconfig :size) [1280 720])})]
+           :size (or (-> @proj-ctx :sketchconfig :size) [1280 720])})
+        ^JFrame frame (:frame @sketch)]
     (swap! proj-ctx assoc :sketch sketch))
 
 

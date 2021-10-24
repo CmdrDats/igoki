@@ -24,8 +24,10 @@
 
         image
         (cond
-          (and bimg (= type (.getType bimg))
-            (= (.getWidth bimg) (.width frame)) (= (.getHeight bimg) (.height frame)))
+          (and bimg
+            (= type (.getType bimg))
+            (= (.getWidth bimg) (.width frame))
+            (= (.getHeight bimg) (.height frame)))
           bimg
 
           :else
