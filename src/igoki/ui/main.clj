@@ -4,39 +4,12 @@
     [igoki.ui.game :as ui.game]
     [igoki.ui.calibration :as calibration]
     [igoki.ui.ogs :as ogs]
-    [igoki.ui.log :as logging]
-    [igoki.projector :as projector]
     [igoki.game :as game]
     [igoki.simulated :as sim]
     [igoki.camera :as camera])
   (:import (javax.swing JFrame)))
 
 (s/native!)
-
-(defn file-component []
-  nil
-  #_(s/listbox
-    :model
-    ["File 1"
-     "File 2"
-     "File 3"]))
-
-(defn button-bar [ctx]
-  (s/flow-panel
-    :hgap 15
-    :align :left
-    :items
-    [(s/button :text "Projector Window"
-       :listen
-       [:action
-        (fn [e]
-          (projector/start-cframe ctx))])
-     (s/toggle :text "Dev Tools")
-     (s/toggle :text "Show Branches"
-       :listen
-       [:action
-        (fn [e]
-          (game/toggle-branches ctx (s/value (.getSource e))))])]))
 
 (defn ogs-panel [ctx]
   (s/tabbed-panel
@@ -137,16 +110,8 @@
               (System/exit 0))))])]))
 
 (defn frame-content [ctx]
-  (let [b
-        (s/border-panel
-          :north (button-bar ctx)
-          :center (primary-splits ctx))]
-    #_(ogs/ogs-panel ctx)
-    (s/left-right-split
-      (file-component)
-      b
-      :resize-weight 0
-      :divider-location 0.1)))
+  (s/border-panel
+    :center (primary-splits ctx)))
 
 (defonce app-frame (atom nil))
 (defn main-frame [ctx]

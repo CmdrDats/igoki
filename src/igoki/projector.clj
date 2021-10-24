@@ -178,8 +178,6 @@
         existing-corners (:corners projcontext)
         img (:bufimg proj-img)]
 
-    (println (pr-str (:raw camera)))
-
     (lq/background 255 255 255)
     (lq/rect 0 0 (lq/width) (lq/height))
     (lq/background 0 0 0)
@@ -230,8 +228,7 @@
         (lq/sketch
           {:title "Move on board in camera view (place paper on board for contrast)"
            :draw (partial #'draw proj-ctx ctx)
-           :size (or (-> @proj-ctx :sketchconfig :size) [1280 720])})
-        ^JFrame frame (:frame @sketch)]
+           :size (or (-> @proj-ctx :sketchconfig :size) [1280 720])})]
     (swap! proj-ctx assoc :sketch sketch))
 
 

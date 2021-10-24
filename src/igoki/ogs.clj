@@ -248,9 +248,6 @@
     ;; When either the kifu path or the ogspath changes - check for submission
     (when-not (and (= oldpath newpath)
                    (= (-> old :ogs :current-branch-path) ogspath))
-      (log/info "ogspath: " ogspath)
-      (log/info "oldpath: " oldpath)
-      (log/info "newpath: " newpath)
       (log/info (:auth gameinfo))
       (let [flatogspath (mapcat identity ogspath)
             flatnewpath (mapcat identity newpath)]
@@ -310,7 +307,8 @@
             (println "announcing move :"
               (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
               (igoki.inferrence/print-boards (-> ogs :game :kifu-board)))
-            (announce/comment-move
+            ;; TODO: Make this optional - I think it can get super irritating if you don't want it.
+            #_(announce/comment-move
               (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
               (-> ogs :game :kifu-board)))))
 

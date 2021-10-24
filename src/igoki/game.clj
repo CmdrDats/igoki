@@ -244,7 +244,7 @@
        (update-in [:kifu] inferrence/reconstruct))))
 
 (defn move-forward [ctx]
-  (let [{:keys [movenumber current-branch-path moves]} (:kifu ctx)
+  (let [{:keys [movenumber current-branch-path moves]} (:kifu @ctx)
         path (vec (take movenumber (mapcat identity current-branch-path)))
         {:keys [branches] :as node} (last (sgf/current-branch-node-list [path] moves))
         new-branch-path (if (<= (count path) movenumber) [(conj path 0)] current-branch-path)]
@@ -256,7 +256,7 @@
       (swap! ctx update-in [:kifu]
         #(->
            %
-           (update movenumber (fnil inc 1))
+           (update :movenumber (fnil inc 1))
            (assoc :dirty true :current-branch-path new-branch-path)
            (inferrence/reconstruct))))))
 

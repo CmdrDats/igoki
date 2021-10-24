@@ -3,7 +3,8 @@
     [seesaw.core :as s]
     [igoki.camera :as camera]
     [igoki.litequil :as lq]
-    [igoki.util :as util])
+    [igoki.util :as util]
+    [igoki.projector :as projector])
   (:import
     (javax.swing JComboBox)))
 
@@ -38,7 +39,13 @@
           "Simulated"]
          (for [x (range 5)]
            (str "Camera " (inc x))))
-       :selected-index 0)]))
+       :selected-index 0)
+     [20 :by 10]
+     (s/button :text "Projector Window"
+       :listen
+       [:action
+        (fn [e]
+          (projector/start-cframe ctx))])]))
 
 (defn construct [ctx]
   (lq/smooth)

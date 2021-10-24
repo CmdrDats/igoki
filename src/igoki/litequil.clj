@@ -151,12 +151,14 @@
           (when close
             (close)))))
     (doto local-frame
+      (.pack)
       (.setExtendedState JFrame/MAXIMIZED_BOTH)
       (.setVisible true)
       )
 
     (.grabFocus local-panel)
-    (swap! sketch-atom assoc :frame local-frame)))
+    (swap! sketch-atom assoc :frame local-frame)
+    sketch-atom))
 
 (defn smooth []
   (doto g2d

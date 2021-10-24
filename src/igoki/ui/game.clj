@@ -4,7 +4,8 @@
     [igoki.litequil :as lq]
     [igoki.sgf :as sgf]
     [igoki.ui.util :as ui.util]
-    [igoki.game :as game])
+    [igoki.game :as game]
+    [seesaw.core :as s])
   (:import
     (java.io File)))
 
@@ -51,11 +52,7 @@
         lastmove (last actionlist)
         canvas-size (max 250 (min (lq/width) (lq/height)))]
 
-    (lq/shadow-text (str "Recording: Img #" (:camidx game)) tx 25)
-    (when (:filename game)
-      (lq/shadow-text (:filename game) tx 50))
-    (lq/shadow-text (str "Move " (inc (or movenumber 0)) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play") tx 75)
-    (lq/shadow-text "<P> Pass" tx 225)
+
 
 
     (when flattened-pimage
@@ -265,16 +262,46 @@
           (+ grid-start (* y cellsize)) (- cellsize 3) (- cellsize 3))))))
 
 
-(defn key-typed [ctx e]
-  (case (lq/key-code e)
-    37 (game/move-backward ctx)
-    39 (game/move-forward ctx)
-    80 (game/pass ctx)
-    (println "Key code not handled: " (lq/key-code e))))
-
-
 (defn game-panel [ctx]
-  (:panel
-    (lq/sketch-panel
-      {:draw (partial #'draw ctx)
-       :key-typed (partial #'key-typed ctx)})))
+  (let [panel
+        (:panel
+          (lq/sketch-panel
+            {:draw (partial #'draw ctx)}))
+
+        container
+        (s/border-panel
+          :south
+          (s/flow-panel
+            :align :center
+            :items
+            [(s/label :text "" :id :record-status)
+             (s/button :text "<"
+               :listen
+               [:action (fn [e] (game/move-backward ctx))])
+             (s/button :text ">"
+               :listen
+               [:action (fn [e] (game/move-forward ctx))])
+             (s/button :text "Pass"
+               :listen
+               [:action (fn [e] (game/pass ctx))])
+
+             [20 :by 10]
+             (s/toggle :text "Show Branches"
+               :listen
+               [:action
+                (fn [e]
+                  (game/toggle-branches ctx (s/value (.getSource e))))])
+
+             [20 :by 10]
+             (s/label :text "" :id :game-status)])
+          :center panel)]
+
+    (util/add-watch-path ctx :kifu
+      [:kifu]
+      (fn [k r o {:keys [movenumber constructed] :as game}]
+        (s/config! (s/select container [:#record-status]) :text
+          (str "Img:" (:camidx game) " at " (:filename game)))
+        (s/config! (s/select container [:#game-status]) :text
+          (str "Move " (inc (or movenumber 0)) ", " (if (= (:player-turn constructed) :black) "Black" "White") " to play"))))
+
+    container))
