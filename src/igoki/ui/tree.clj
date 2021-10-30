@@ -5,7 +5,9 @@
     [clojure.pprint :as ppr]
     [clojure.tools.logging :as log]
     [seesaw.color :as sc])
-  (:import (java.awt Graphics2D)))
+  (:import
+    (java.awt Graphics2D)
+    (javax.swing JPanel)))
 
 
 (defn prerender-branch
@@ -72,15 +74,24 @@
   (doseq [n (:branches node)]
     (paint-tree ctx n c g)))
 
+(defn paint-tree-atom [ctx tree-atom c g]
+  (paint-tree ctx @tree-atom c g))
+
 (defn rendered-tree-panel [ctx]
-  #_(s/flow-panel :id :rendered-tree
-    :items [(s/label :text "hi" :bounds [10 10 100 100])
-            (s/button :text "fdsafdsafdfd")])
   (let [prerendered (prerender-branch 0 (get-in @ctx [:kifu :moves]))
+        tree-atom (atom prerendered)
         xyz
         (s/canvas
-          :paint (partial #'paint-tree ctx prerendered)
+          :paint (partial #'paint-tree-atom ctx tree-atom)
           :size [(:width prerendered) :by (:height prerendered)])]
+    (add-watch ctx ::tree-panel
+      (fn [k r o n]
+        (when (not= (-> o :kifu :moves) (-> n :kifu :moves))
+          (let [rendered (prerender-branch 0 (get-in n [:kifu :moves]))]
+            (s/config! xyz :size [(:width rendered) :by (:height rendered)])
+            (reset! tree-atom rendered)
+            (.repaint ^JPanel xyz)))))
+
     (s/scrollable
       xyz
       :id :rendered-tree
@@ -91,15 +102,6 @@
   (let [tree (rendered-tree-panel ctx)
         container
         (s/border-panel
-          :center tree
-          :south
-          (s/flow-panel
-            :items
-            [(s/button :text "Refresh" :id :tree-refresh)]))]
-    (s/listen (s/select container [:#tree-refresh])
-      :action
-      (fn [e]
-        (s/replace! container (s/select container [:#rendered-tree])
-          (rendered-tree-panel ctx))))
+          :center tree)]
 
     container))

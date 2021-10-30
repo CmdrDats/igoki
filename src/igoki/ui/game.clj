@@ -43,7 +43,7 @@
   (let [{{:keys [submit kifu-board constructed movenumber] :as game} :kifu
          {:keys [pimg flattened-pimage]} :camera
          board :board
-         {:keys [size ]} :goban} @ctx
+         {:keys [size ] :or {size 19}} :goban} @ctx
         cellsize (/ (lq/height) (+ size 2))
         grid-start (+ cellsize (/ cellsize 2))
         board-size (* cellsize (dec size))
@@ -284,7 +284,7 @@
                :listen
                [:action
                 (fn [e]
-                  (swap! ctx :debug-capture (s/value (.getSource e))))])
+                  (swap! ctx assoc :debug-capture (s/value (.getSource e))))])
 
              (s/button :text "<"
                :listen
