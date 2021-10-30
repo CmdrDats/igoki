@@ -5,7 +5,9 @@
     [igoki.sgf :as sgf]
     [igoki.ui.util :as ui.util]
     [igoki.game :as game]
-    [seesaw.core :as s])
+    [seesaw.core :as s]
+    [seesaw.color :as sc]
+    [igoki.sound.announce :as announce])
   (:import
     (java.io File)))
 
@@ -147,7 +149,7 @@
 
     ;; TODO: This should go out to its own panel.
     (when (:comment lastmove)
-      (lq/color 255)
+      (lq/color 0)
       (lq/text-size 12)
       (lq/text (first (:comment lastmove)) tx 240 (- (lq/width) tx) (lq/height)
         {:align [:left :top]}))
@@ -180,6 +182,7 @@
           (+ grid-start (* y cellsize)) (/ cellsize 1.5) (/ cellsize 1.5))
         (lq/background (if (= stone :b) 255 0))
 
+        (lq/color 0)
         (lq/text
           text
           (+ grid-start (* x cellsize))
@@ -292,6 +295,29 @@
                 (fn [e]
                   (game/toggle-branches ctx (s/value (.getSource e))))])
 
+             [20 :by 10]
+             (s/label :text "Announce ")
+             (s/combobox
+               :listen
+               [:action
+                (fn [e]
+                  (announce/set-announce-player ctx
+                    (case (s/value (.getSource e))
+                      "Black" :black
+                      "White" :white
+                      "Both" :both
+                      nil)))]
+               :model ["None" "Black" "White" "Both"])
+             (s/label :text " in ")
+             (s/combobox
+               :listen
+               [:action
+                (fn [e]
+                  (announce/set-announce-language ctx
+                    (case (s/value (.getSource e))
+                      "English" :en
+                      "Japanese" :jp)))]
+               :model ["English" "Japanese"])
              [20 :by 10]
              (s/label :text "" :id :game-status)])
           :center panel)]

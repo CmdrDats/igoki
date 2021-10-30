@@ -3,7 +3,8 @@
     [igoki.util :as util]
     [igoki.sgf :as sgf]
     [igoki.inferrence :as inferrence]
-    [igoki.sound.sound :as snd])
+    [igoki.sound.sound :as snd]
+    [igoki.sound.announce :as announce])
   (:import
     (java.io File ByteArrayInputStream)
     (java.util Date UUID)
@@ -140,6 +141,12 @@
           (if (and new (not= (:kifu-board new) (:kifu-board game)))
             (do
               (snd/play-sound :click)
+
+              (announce/comment-move ctx
+                (last
+                  (sgf/current-branch-node-list
+                    (take (:movenumber new) (:current-branch-path new)) (:moves new)))
+                (:constructed new))
               (reset! captured-boardlist [])
               (swap! ctx assoc :kifu (assoc (dissoc new :submit) :cam-update true)))
             (swap! ctx update :kifu #(assoc (dissoc % :submit) :cam-update true))))

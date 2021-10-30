@@ -44,10 +44,12 @@
   (cond
     ;; Linux support
     (not= -1
-      (.read
-        (.getInputStream
-          (.exec (Runtime/getRuntime)
-            (into-array ["which" "xdg-open"])))))
+      (try
+        (.read
+          (.getInputStream
+            (.exec (Runtime/getRuntime)
+              (into-array ["which" "xdg-open"]))))
+        (catch Exception e -1)))
     (.exec (Runtime/getRuntime) (into-array ["xdg-open" url]))
 
     ;; If can browse

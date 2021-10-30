@@ -13,17 +13,20 @@
         clip))))
 
 (defn sound [file]
-  (let [clip (get-clip file)
-        latch (CountDownLatch. 1)
-        listener (proxy [LineListener] []
-                   (update [^LineEvent e]
-                     (when (= (.getType e) LineEvent$Type/STOP)
-                       (.countDown latch))))]
-    (.addLineListener clip listener)
-    (.setFramePosition clip 0)
-    (.start clip)
-    (.await latch)
-    (.removeLineListener clip listener)))
+  (try
+    (let [clip (get-clip file)
+          latch (CountDownLatch. 1)
+          listener
+          (proxy [LineListener] []
+            (update [^LineEvent e]
+              (when (= (.getType e) LineEvent$Type/STOP)
+                (.countDown latch))))]
+      (.addLineListener clip listener)
+      (.setFramePosition clip 0)
+      (.start clip)
+      (.await latch)
+      (.removeLineListener clip listener))
+    (catch Exception e)))
 
 (def sounds
   {:click  "public/sounds/click.wav"

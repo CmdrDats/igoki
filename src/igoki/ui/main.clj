@@ -4,6 +4,7 @@
     [igoki.ui.game :as ui.game]
     [igoki.ui.calibration :as calibration]
     [igoki.ui.ogs :as ogs]
+    [igoki.ui.tree :as tree]
     [igoki.game :as game]
     [igoki.simulated :as sim]
     [igoki.camera :as camera])
@@ -31,7 +32,8 @@
     :tabs
     [{:title "Tree"
       :tip "SGF Move tree"
-      :content "Move tree will be here, in time."}
+      :content
+      (tree/tree-panel ctx)}
      #_{:title "Log"
       :tip "Output log (dev tools)"
       :content

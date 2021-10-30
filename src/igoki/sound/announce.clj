@@ -3,7 +3,11 @@
     [clojure.string :as str]
     [igoki.sgf :as sgf]
     [clojure.java.io :as io]
-    [igoki.sound.sound :as snd]))
+    [igoki.sound.sound :as snd])
+  (:import (java.util.concurrent ThreadPoolExecutor TimeUnit LinkedBlockingQueue)))
+
+;; Japanese words generated via google translate
+;; Enlglish words generated via https://www.naturalreaders.com/online/
 
 (comment
   ;; Words..
@@ -31,22 +35,52 @@
   ikken takagakari, ogeima takagakari, niken takagakari"
   )
 
-(defn announce [parts]
+(def sound-executor
+  (ThreadPoolExecutor. 1 1 60 TimeUnit/MINUTES (LinkedBlockingQueue. 24)))
+
+(defn announce [lang parts]
   (println "Announce: " parts)
-  (doto (Thread.
-          (fn []
-            (doseq [p (remove #(or (nil? %) (str/blank? %)) parts)]
-              (case p
-                "," (Thread/sleep 250)
-                "-" (Thread/sleep 500)
-                (snd/sound (str "public/sounds/japanese/" p ".wav"))))))
-    (.setDaemon true)
-    (.start)))
+  (.submit sound-executor
+    (fn []
+      (doseq [p (remove #(or (nil? %) (str/blank? %)) parts)]
+        (case p
+          "," (Thread/sleep 250)
+          "-" (Thread/sleep 500)
+          (snd/sound (str "public/sounds/" (name (or lang :en)) "/" p ".wav")))))))
 
 (def soundmapping
-  {1 "Ichi" 2 "Ni" 3 "San" 4 "Yon" 5 "Go" 6 "Roku" 7 "Nana" 8 "Hachi" 9 "Kyu" 10 "Ju"
-   11 "Ju-ichi" 12 "Ju-ni" 13 "Ju-san" 14 "Ju-yon" 15 "Ju-go" 16 "Ju-roku"
-   17 "Ju-nana" 18 "Ju-hachi" 19 "Ju-kyu"})
+  {:en
+   {:players {:white "white" :black "black"}
+    :coords
+    {:join nil
+     :x
+     (->>
+       (range 1 20)
+       (map
+         (fn [i]
+           (let [c (char (+ 64 i (if (> i 8) 1 0)))]
+             [i (str c)])))
+       (into {}))
+
+     :y
+     (->>
+       (range 1 20)
+       (map
+         (fn [i] [i (str "post" i)]))
+       (into {}))}}
+   :jp
+   {:players {:white "Shiro" :black "Kuro"}
+    :coords
+    {:join "no"
+     :x
+     {1 "Ichi" 2 "Ni" 3 "San" 4 "Yon" 5 "Go" 6 "Roku" 7 "Nana" 8 "Hachi" 9 "Kyu" 10 "Ju"
+      11 "Ju-ichi" 12 "Ju-ni" 13 "Ju-san" 14 "Ju-yon" 15 "Ju-go" 16 "Ju-roku"
+      17 "Ju-nana" 18 "Ju-hachi" 19 "Ju-kyu"}
+
+     :y
+     {1 "Ichi" 2 "Ni" 3 "San" 4 "Yon" 5 "Go" 6 "Roku" 7 "Nana" 8 "Hachi" 9 "Kyu" 10 "Ju"
+      11 "Ju-ichi" 12 "Ju-ni" 13 "Ju-san" 14 "Ju-yon" 15 "Ju-go" 16 "Ju-roku"
+      17 "Ju-nana" 18 "Ju-hachi" 19 "Ju-kyu"}}}})
 
 (def named-points
   {[3 3]   ["Hidariue" "Sansan"]
@@ -84,11 +118,65 @@
         "Migiue"
         "Migishita"))))
 
-(defn comment-move [node board]
-  (let [{:keys [black white]} node
-        position (first (or black white))
+(defn lookup-sound [language path]
+  (get-in soundmapping (concat [language] path)))
+
+(defn comment-move [ctx node board]
+  (let [{:keys [player language] :or {language :en}} (:announce @ctx)
+        {:keys [black white]} node
+        moves (or black white)
+        position (first moves)
         [x y :as p] (map inc (sgf/convert-sgf-coord position))
-        named (named-points p)
-        opening [(board-area p) (opening-point (normalize p))]]
-    (announce (concat [(if black "Kuro" "Shiro") "," (soundmapping x) "no" (soundmapping y) ","] (or named opening)))))
+        #_#_named (named-points p)
+        #_#_opening [(board-area p) (opening-point (normalize p))]]
+
+    (println "Announce:"
+      [
+       ;; There shouldn't be black _and_ white moves to announce, else we'll just bombard
+       (not (and black white))
+
+       ;; There should also only be one move to announce, else, again, we'll bombard.
+       (= 1 (count moves))
+
+       ;; And the user should have requested which players to announce, specifically.
+       (or
+         (and white (:white player))
+         (and black (:black player)))])
+
+    (println (concat
+               [player language] #_(or named opening)))
+
+    (when
+      (and
+        ;; There shouldn't be black _and_ white moves to announce, else we'll just bombard
+        (not (and black white))
+
+        ;; There should also only be one move to announce, else, again, we'll bombard.
+        (= 1 (count moves))
+
+        ;; And the user should have requested which players to announce, specifically.
+        (or
+          (and white (:white player))
+          (and black (:black player))))
+
+      (announce
+        language
+        (concat
+          (when (> (count player) 1)
+            [(lookup-sound language [:players (if black :black :white)])
+             ","])
+          [(lookup-sound language [:coords :x x])
+           (lookup-sound language [:coords :join])
+           (lookup-sound language [:coords :y y])] #_(or named opening))))))
+
+(defn set-announce-player [ctx player]
+  (swap! ctx assoc-in [:announce :player]
+    (case player
+      :black #{:black}
+      :white #{:white}
+      :both #{:black :white}
+      #{})))
+
+(defn set-announce-language [ctx langkey]
+  (swap! ctx assoc-in [:announce :language] langkey))
 

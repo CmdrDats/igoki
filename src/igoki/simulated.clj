@@ -25,8 +25,8 @@
    (int (/ (+ (- my grid-start) (/ cell-size 2)) cell-size))])
 
 (defn grid-spec [m]
-  (let [size (-> @simctx :sim :size)
-        cellsize (/ (.rows m) (+ size 2))
+  (let [size (or (-> @simctx :sim :size) 19)
+        cellsize (max (/ (.rows m) (+ size 2)) 25)
         grid-start (+ cellsize (/ cellsize 2))]
     [cellsize grid-start]))
 
@@ -45,8 +45,8 @@
       (Imgproc/circle m (Point. x y) (/ cellsize 2) bcolor 2))))
 
 (defn draw-board [^Mat m]
- (try
-    (when (and m (.rows m))
+  (try
+    (when (and m (pos? (.rows m)))
       #_(.setTo m (Scalar. 92 179 220))
       (let [{{:keys [size board next]} :sim} @simctx
             [cellsize grid-start] (grid-spec m)
