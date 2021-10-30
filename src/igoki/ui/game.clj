@@ -279,6 +279,13 @@
             :align :center
             :items
             [(s/label :text "" :id :record-status)
+             (s/toggle :text "Debug ZIP" :id :record-debug
+               :selected? false
+               :listen
+               [:action
+                (fn [e]
+                  (swap! ctx :debug-capture (s/value (.getSource e))))])
+
              (s/button :text "<"
                :listen
                [:action (fn [e] (game/move-backward ctx))])

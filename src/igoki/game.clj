@@ -110,6 +110,7 @@
   (let [{{{:keys [latch board] :as submit} :submit
           :keys [filename camidx last-dump] :as game} :kifu
          {:keys [raw]} :camera
+         debug-capture :debug-capture
          cboard :board} @ctx
 
         updatelist @captured-boardlist
@@ -157,7 +158,8 @@
     (when (or (get-in @ctx [:kifu :cam-update])
             (nil? last-dump)
             (> (- t last-dump) 20e9))
-      (dump-camera filename camidx raw updatelist)
+      (when debug-capture
+        (dump-camera filename camidx raw updatelist))
       (swap! ctx update :kifu
         #(-> %
              (assoc :cam-update false :last-dump t)
@@ -208,15 +210,16 @@
     (when-not (.exists (File. "capture"))
       (.mkdir (File. "capture")))
 
-    (util/zip-add-file-string
-      (:filename new-game)
-      (str camidx ".config.edn")
-      (pr-str
-        {:board (:board context)
-         :goban (:goban context)
-         :view (dissoc (:view context) :homography)
-         :kifu new-game}))
-    (dump-camera (:filename new-game) camidx (-> context :camera :raw) [board])
+    (when (:debug-capture ctx)
+      (util/zip-add-file-string
+        (:filename new-game)
+        (str camidx ".config.edn")
+        (pr-str
+          {:board (:board context)
+           :goban (:goban context)
+           :view (dissoc (:view context) :homography)
+           :kifu new-game}))
+      (dump-camera (:filename new-game) camidx (-> context :camera :raw) [board]))
     (swap! ctx assoc :kifu new-game :filename "game.sgf")))
 
 
