@@ -74,10 +74,11 @@
     (lq/text-font "helvetica-20pt")
 
     (doseq [x (range size)]
-      (let [coord (+ grid-start (* x cellsize))]
-        (lq/text (str (inc x)) coord (- grid-start (/ cellsize 2))
+      (let [coord (+ grid-start (* x cellsize))
+            letter (char (+ 65 x (if (> x 7) 1 0)))]
+        (lq/text (str letter) coord (- grid-start (/ cellsize 2))
           {:align [:center :bottom]})
-        (lq/text (str (inc x)) coord (+ extent (/ cellsize 2))
+        (lq/text (str letter) coord (+ extent (/ cellsize 2))
           {:align [:center :top]})
 
         (lq/text (str (inc x))
