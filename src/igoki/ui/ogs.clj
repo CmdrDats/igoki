@@ -185,7 +185,7 @@
            ["Client Secret: " "align label"]
            [(s/password :id :client-secret :columns 24) "wrap"]
            ["Client Type: " "align label"]
-           ["Secret" "wrap"]
+           ["Confidential" "wrap"]
            ["Authorization Grant Type: " "align label"]
            ["Password" "wrap"]
            ["" "span, center, gapbottom 15"]

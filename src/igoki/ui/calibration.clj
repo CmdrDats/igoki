@@ -4,9 +4,11 @@
     [igoki.camera :as camera]
     [igoki.litequil :as lq]
     [igoki.util :as util]
-    [igoki.projector :as projector])
+    [igoki.projector :as projector]
+    [clojure.java.io :as io]
+    [igoki.ui.util :as ui.util])
   (:import
-    (javax.swing JComboBox)))
+    (javax.swing JComboBox BorderFactory)))
 
 (defn calibration-options [ctx]
   (s/flow-panel
@@ -45,7 +47,17 @@
        :listen
        [:action
         (fn [e]
-          (projector/start-cframe ctx))])]))
+          (projector/start-cframe ctx))])
+     [20 :by 10]
+     (s/button
+       :id :kofi-button
+       :icon (io/resource "kofi.png")
+       :border (BorderFactory/createEmptyBorder)
+       :focusable? false
+       :listen
+       [:action
+        (fn [e]
+          (ui.util/open "https://ko-fi.com/cmdrdats"))])]))
 
 (defn construct [ctx]
   (lq/smooth)
@@ -152,6 +164,7 @@
 
 (defn calibration-panel [ctx]
   (s/border-panel
+    :id :calibration-panel
     :south
     (calibration-options ctx)
     :center

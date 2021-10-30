@@ -3,8 +3,10 @@
     [igoki.litequil :as lq]
     [igoki.util :as util]
     [igoki.ui.util :as ui.util]
-    [seesaw.core :as s])
+    [seesaw.core :as s]
+    [clojure.java.io :as io])
   (:import
+    (java.io File)
     (org.opencv.core Mat Point Scalar MatOfPoint MatOfByte)
     (de.schlichtherle.truezip.fs FsEntryNotFoundException)
     (java.awt.event MouseEvent)
@@ -217,12 +219,20 @@
       (lq/image (:bufimg pimg) 0 0 (lq/width) (lq/height)))))
 
 (defn start-simulation [ctx]
-  (swap! simctx
-    (fn [s]
-      (->
-        s
-        (assoc :stopped false)
-        (update :sim assoc :background (Imgcodecs/imread "./resources/wooden-background.jpg")))))
+  (try
+    ;; This tmp song and dance because Imgcodes takes a filename string :'/
+    (let [tmp (File/createTempFile "background" "jpg")]
+      (io/copy (io/input-stream (io/resource "wooden-background.jpg")) tmp)
+
+      (swap! simctx
+        (fn [s]
+          (->
+            s
+            (assoc :stopped false)
+            (update :sim assoc :background (Imgcodecs/imread (.getAbsolutePath tmp)))))))
+    (catch Exception e
+      (.printStackTrace e)))
+
   (reset-board simctx 19)
 
   (doto
