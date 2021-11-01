@@ -1,4 +1,4 @@
-(ns igoki.ogs
+(ns igoki.integration.ogs
   (:require
     [clj-http.client :as client]
     [clojure.tools.logging :as log]
@@ -7,7 +7,6 @@
     [igoki.util.crypto :as crypto]
     [igoki.inferrence :as inferrence]
     [igoki.sgf :as sgf]
-    [igoki.sound.announce :as announce]
     [igoki.sound.sound :as snd]
     [clojure.edn :as edn])
 

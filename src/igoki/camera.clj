@@ -179,19 +179,29 @@
 
 (def loader (ImageLoader. 10 10 3))
 
+(defn ref-size-vec [size]
+  [(* block-size (inc size)) (* block-size (inc size))])
+
 (defn ref-size [size]
   (Size. (* block-size (inc size)) (* block-size (inc size))))
+
+(defn eval-spot [img]
+  (let [^INDArray d (.asMatrix loader img)
+        _ (.divi d 255.0)
+        d (.reshape d (int-array [1 300]))
+        ^INDArray o (.output ^MultiLayerNetwork net d)]
+    (for [i (range 3)]
+      (try
+        (.getFloat o (int i))
+        (catch Exception e
+          (.printStackTrace e))))))
 
 (defn eval-net [flat px py]
   (let [smat (.submat flat (Rect. (- px (/ block-size 2)) (- py (/ block-size 2)) 10 10))
         img (util/mat-to-buffered-image smat nil)
-        ^INDArray d (.asMatrix loader img)
-        _ (.divi d 255.0)
-        d (.reshape d (int-array [1 300]))
-        ^INDArray o (.output ^MultiLayerNetwork net d)]
+        result (eval-spot img)]
     (.release smat)
-    (for [i (range 3)]
-      (.getFloat o (int i)))))
+    result))
 
 (defn read-board [ctx]
   (let [{{:keys [homography samplepoints]} :view

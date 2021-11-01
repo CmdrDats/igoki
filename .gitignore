@@ -16,3 +16,4 @@ resources/samples
 /.idea
 /igoki.iml
 /ogs.edn
+/win-build/

@@ -1,8 +1,5 @@
 (ns igoki.scratch.scratch
   (:require
-    [igoki.camera]
-    [igoki.view]
-    [igoki.game]
     [igoki.util :as util :refer [-->]])
   (:import
     (org.opencv.objdetect CascadeClassifier)
@@ -13,7 +10,6 @@
     (javax.imageio ImageIO)
     (javax.swing JFrame JPanel)
     (org.opencv.imgproc Imgproc)
-    (org.opencv.calib3d Calib3d)
     (java.awt.event KeyEvent MouseListener MouseEvent)
     (org.opencv.imgcodecs Imgcodecs)
     (org.opencv.videoio VideoCapture Videoio)))
@@ -104,7 +100,7 @@
   (let [gridsize (Math/ceil (Math/sqrt (count images)))
         gw (/ (.getWidth frame) gridsize)]
     (doseq [[c {:keys [mat title]}] (map-indexed vector images)]
-      (if-let [image (if (pos? (.width mat)) (util/mat-to-buffered-image mat))]
+      (if-let [image (if (pos? (.width mat)) (util/mat-to-buffered-image mat nil))]
         (let [ratio (if image (/ (.getHeight image) (.getWidth image)))
               x (* (mod c gridsize) gw)
               y (* (Math/floor (/ c gridsize)) ratio gw)]
@@ -115,7 +111,7 @@
 (defn render [^JFrame frame ^Graphics g]
   (let [{:keys [images selected] :as state} @appstate
         {:keys [mat title] :as im} (get images selected)
-        image (if (and im (pos? (.getWidth frame))) (util/mat-to-buffered-image mat))
+        image (if (and im (pos? (.getWidth frame))) (util/mat-to-buffered-image mat nil))
         ratio (if image (/ (.getHeight image) (.getWidth image)))]
     (.setRenderingHints g (RenderingHints. RenderingHints/KEY_INTERPOLATION RenderingHints/VALUE_INTERPOLATION_BICUBIC))
     (if (or (= selected -1) (nil? image))
@@ -154,7 +150,7 @@
       (.setLocation x y)
       (.setVisible true))))
 
-(defn highlight-faces [image]
+#_(defn highlight-faces [image]
   (let [face-detector (CascadeClassifier. (.getAbsolutePath (clojure.java.io/file "resources/lbpcascade_frontalface.xml")))
         face-detections (MatOfRect.)]
     (.detectMultiScale face-detector image face-detections)
@@ -193,7 +189,7 @@
         [0 nil] (concat [(last m)] m)))))
 
 (defn find-goban [gray-img colour]
-  (let [sorted (:goban-corners @appstate)
+  #_(let [sorted (:goban-corners @appstate)
         s (map-indexed vector sorted)
         c (--> gray-img (Imgproc/Canny 100 50 3 false))]
     (update-image-mat! 5 c "Contours")
@@ -263,7 +259,7 @@
         sorted)))
 
 
-(defn old-process [w calibration frame]
+#_(defn old-process [w calibration frame]
   (do
     #_(highlight-faces frame)
     (let [fil (Mat.) m (Mat.) m2 (Mat.) edges (Mat.) hough (Mat.) hough-img (Mat.)
@@ -382,7 +378,7 @@
 
 (defn refresh-camera [w camera frame]
   (Thread/sleep 100)
-  (let [{:keys [frozen calib-corners calibration input] :as state} @appstate
+  #_(let [{:keys [frozen calib-corners calibration input] :as state} @appstate
         read (if frozen true (if (= input :camera) (.read camera frame) false))
         frame (if (= input :camera) frame input)]
     (cond
@@ -541,7 +537,7 @@
           avg (avg-theta lines)]
       #_(println "=================================================")
       (swap! ctx update-in [:linedump] conj (map remove-outliers (group-lines avg lines)))
-      (doseq [[k ls] (map remove-outliers (group-lines avg lines))
+      #_(doseq [[k ls] (map remove-outliers (group-lines avg lines))
               [[_ gx gy] gls] (group-by (partial line-group [(/ (.cols bilat) 2) (/ (.rows bilat) 2)]) ls)]
 
         #_(println [x1 y1 x2 y2 t])

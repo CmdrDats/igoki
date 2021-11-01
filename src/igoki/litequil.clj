@@ -218,14 +218,17 @@
 (defn fillrect [x y w h]
   (.fillRect g2d x y w h))
 
-(defn ellipse [x y w h]
-  (let [e (Ellipse2D$Double. (- x (/ w 2)) (- y (/ h 2)) w h)
-        bg (.getBackground g2d)
-        c (.getColor g2d)]
-    (.setColor g2d bg)
-    (.fill g2d e)
-    (.setColor g2d c)
-    (.draw g2d e)))
+(defn ellipse
+  ([g2d x y w h]
+   (let [e (Ellipse2D$Double. (- x (/ w 2)) (- y (/ h 2)) w h)
+         bg (.getBackground g2d)
+         c (.getColor g2d)]
+     (.setColor g2d bg)
+     (.fill g2d e)
+     (.setColor g2d c)
+     (.draw g2d e)))
+  ([x y w h]
+   (ellipse g2d x y w h)))
 
 (defn triangle [x1 y1 x2 y2 x3 y3]
   (let [t (doto (Polygon.)

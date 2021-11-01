@@ -5,9 +5,11 @@
     [igoki.ui.calibration :as calibration]
     [igoki.ui.ogs :as ogs]
     [igoki.ui.tree :as tree]
+    [igoki.ui.robot :as robot]
     [igoki.game :as game]
     [igoki.simulated :as sim]
-    [igoki.camera :as camera])
+    [igoki.camera :as camera]
+    [igoki.ui.util :as ui.util])
   (:import (javax.swing JFrame)))
 
 (s/native!)
@@ -20,7 +22,10 @@
     [{:title "OGS"
       :tip "Online-go.com integration"
       :content (ogs/ogs-panel ctx)}
-     {:title "Simulation"
+     {:title "Manual"
+      :tip "Manual screen integration"
+      :content (robot/robot-panel ctx)}
+     {:title "Screen"
       :tip "Simulation (dev tools)"
       :content
       (sim/simulation-panel ctx)}]))
@@ -109,7 +114,24 @@
                 :type :warning
                 :option-type :yes-no)
               (camera/stop-read-loop ctx)
-              (System/exit 0))))])]))
+              (System/exit 0))))])
+
+     (s/menu :text "Help"
+       :items
+       [(s/action
+          :name "Website"
+          :handler
+          (fn [e]
+            (ui.util/open "https://github.com/cmdrdats/igoki")))
+        (s/action
+          :name "Update"
+          :handler
+          (fn [e]
+            (ui.util/open "https://github.com/CmdrDats/igoki/releases")))
+
+        :separator
+        (str "Version: " (System/getProperty "igoki.version"))])
+     ]))
 
 (defn frame-content [ctx]
   (s/border-panel

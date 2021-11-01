@@ -3,7 +3,7 @@
     [seesaw.core :as s]
     [seesaw.mig :as sm]
     [seesaw.color :as sc]
-    [igoki.ogs :as ogs]
+    [igoki.integration.ogs :as ogs]
     [igoki.ui.util :as ui.util]
     [igoki.util :as util])
   (:import
