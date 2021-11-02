@@ -195,7 +195,7 @@
            (add-initial-points
              {:branches []
               :player-start ["B"]
-              :application ["Igoki"]
+              :application [(str "igoki v" (System/getProperty "igoki.version"))]
               :file-format ["4"]
               :gametype ["1"]
               :size [size]

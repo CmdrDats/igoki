@@ -8,7 +8,8 @@
     [igoki.inferrence :as inferrence]
     [igoki.sgf :as sgf]
     [igoki.sound.sound :as snd]
-    [clojure.edn :as edn])
+    [clojure.edn :as edn]
+    [igoki.sound.announce :as announce])
 
   (:import
     (io.socket.client Socket IO Ack IO$Options)
@@ -197,7 +198,7 @@
         (cond->
           {:branches []
            :player-start [(case (:initial_player game) "white" "W" "B")]
-           :application ["Igoki"]
+           :application [(str "igoki v" (System/getProperty "igoki.version"))]
            :file-format ["4"]
            :gametype ["1"]
            :size [(:width game) (:height game)]
@@ -209,6 +210,7 @@
            :white-name [(-> game :players :white :name)]}
           (not (str/blank? (-> game :initial_state :white)))
           (assoc :add-white (map (partial apply str) (partition 2 (-> game :initial_state :white))))
+
           (not (str/blank? (-> game :initial_state :black)))
           (assoc :add-black (map (partial apply str) (partition 2 (-> game :initial_state :black)))))
 
@@ -305,7 +307,10 @@
           (let [{:keys [ogs kifu]} @ctx]
             (println "announcing move :"
               (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
-              (igoki.inferrence/print-boards (-> ogs :game :kifu-board))))))
+              (igoki.inferrence/print-boards (-> ogs :game :kifu-board)))
+            (announce/comment-move ctx
+              (last (sgf/current-branch-node-list (take (:movenumber ogs) (:current-branch-path ogs)) (:moves kifu)))
+              (-> ogs :game :kifu-board)))))
 
       (socket-listener
         socket (action "gamedata")

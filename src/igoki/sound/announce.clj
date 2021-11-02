@@ -130,22 +130,6 @@
         #_#_named (named-points p)
         #_#_opening [(board-area p) (opening-point (normalize p))]]
 
-    (println "Announce:"
-      [
-       ;; There shouldn't be black _and_ white moves to announce, else we'll just bombard
-       (not (and black white))
-
-       ;; There should also only be one move to announce, else, again, we'll bombard.
-       (= 1 (count moves))
-
-       ;; And the user should have requested which players to announce, specifically.
-       (or
-         (and white (:white player))
-         (and black (:black player)))])
-
-    (println (concat
-               [player language] #_(or named opening)))
-
     (when
       (and
         ;; There shouldn't be black _and_ white moves to announce, else we'll just bombard

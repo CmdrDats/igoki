@@ -5,7 +5,8 @@
     [igoki.litequil :as lq]
     [igoki.util :as util]
     [igoki.integration.robot :as i.robot]
-    [igoki.camera :as camera])
+    [igoki.camera :as camera]
+    [seesaw.mig :as sm])
   (:import
     (java.awt.event MouseEvent)
     (javax.swing JFrame)
@@ -143,7 +144,9 @@
       ;; Recording started, full transparent and red border.
       (do
         (.setBackground g2d (sc/color 0 0 0 0))
-        (.setColor g2d (sc/color :red))
+        (.setColor g2d
+          (sc/color (if (= :paused (:started robot)) :red :green)))
+
         (.drawRect g2d 0 0 (dec (.getWidth framesize)) (dec (.getHeight framesize)))
         ;; DEBUG: Show what we're interpreting from
         #_(when (:scaled robot)
@@ -172,8 +175,8 @@
                   #_(.drawString g2d (str [x y]) (int (* x cellwidth)) (int (+ 10 (* y cellheight))))
                   #_[b e w]
                   #_(cond
-                      (> b 0.5) :black
-                      (> w 0.3) :white))
+                      (> b 0.5) :b
+                      (> w 0.3) :w))
                 (catch Exception e)))))
 
         ;; DEBUG - show the board state
@@ -184,7 +187,7 @@
               (when stone
                 (.setStroke g2d (BasicStroke. 3))
                 (.setColor g2d (sc/color :red))
-                (.setBackground g2d (sc/color stone))
+                (.setBackground g2d (sc/color (if (= stone :b) :black :white)))
                 #_(.drawString g2d (str (vec (map #(int (* 10 %)) stone)))
                   (int (+ gridx-start (* x cellwidth)))
                   (int (+ gridy-start (* y cellheight))))
@@ -211,13 +214,23 @@
             (+ gridx-start (* x cellwidth))
             (+ gridy-start (* y cellheight)) 6 6))))))
 
+;; Because, gosh, life is too short to be managing this state manually.
+;; I really miss Rum/React.
 (defn refresh-button-states [ctx container]
   (let [{:keys [robot]} @ctx
         states
         [[:#robot-open-button (not (:frame robot))]
          [:#robot-close-button (:frame robot)]
-         [:#robot-start-capture (and (:frame robot) (not (:started robot)))]
-         [:#robot-stop-capture (and (:frame robot) (:started robot))]]]
+         [:#robot-game-detail (and (:frame robot) (not (:started robot)))]
+         [:#robot-start-capture
+          (and (:frame robot) (not (:started robot)))]
+         [:#robot-stop-capture
+          (and (:frame robot) (:started robot))]
+         [:#robot-pause-capture
+          (and (:frame robot) (true? (:started robot)))]
+         [:#robot-unpause-capture
+          (and (:frame robot) (= :paused (:started robot)))]]]
+
     (doseq [[id state] states]
       ((if state s/show! s/hide!)
        (s/select container [id])))))
@@ -264,7 +277,22 @@
         frame (:frame robot)
         bounds [(.getX frame) (.getY frame) (.getWidth frame) (.getHeight frame)]]
 
-    (i.robot/start-capture ctx bounds)
+    (i.robot/start-capture ctx bounds
+      (s/value (s/select container [:#robot-game-detail])))
+    (refresh-button-states ctx container)
+    (.repaint frame)))
+
+(defn robot-pause-capture [ctx container]
+  (let [{:keys [robot]} @ctx
+        frame (:frame robot)]
+    (i.robot/pause-capture ctx)
+    (refresh-button-states ctx container)
+    (.repaint frame)))
+
+(defn robot-unpause-capture [ctx container]
+  (let [{:keys [robot]} @ctx
+        frame (:frame robot)]
+    (i.robot/unpause-capture ctx)
     (refresh-button-states ctx container)
     (.repaint frame)))
 
@@ -275,41 +303,98 @@
     (refresh-button-states ctx container)
     (.repaint frame)))
 
+(defn game-setup-panel [ctx container]
+  (sm/mig-panel
+    :id :robot-game-detail
+    :visible? false
+    :constraints ["center" "" ""]
+    :items
+    [["Game Setup" "span, center, gapbottom 15"]
+     ["Next Player (NB!): " "align label"]
+     [(s/combobox
+        :id :initial-player
+        :model ["Black" "White"]) "wrap"]
+
+     ["igoki player: " "align label"]
+     [(s/combobox
+        :id :robot-player
+        :model ["None" "Black" "White"]) "wrap"]
+
+     ["Game Details (optional)" "span, center, gapbottom 15"]
+     ["Game name:" "align label"]
+     [(s/text :id :game-name :columns 64) "wrap"]
+     ["Black Player " "span, center, gapbottom 15"]
+     ["Name: " "align label"]
+     [(s/text :id :black-name :columns 32) "wrap"]
+     ["Rank: " "align label"]
+     [(s/text :id :black-rank :columns 10) "wrap"]
+
+     ["White Player " "span, center, gapbottom 15"]
+     ["Name: " "align label"]
+     [(s/text :id :white-name :columns 32) "wrap"]
+     ["Rank: " "align label"]
+     [(s/text :id :white-rank :columns 10) "wrap"]]))
+
 (defn robot-panel [ctx]
   (let [container (s/border-panel)]
     (s/config! container :center
-      (s/flow-panel
-        :items
-        [(s/button
-           :id :robot-open-button
-           :text "Open capture frame"
-           :visible? true
-           :listen
-           [:action
-            (fn [e]
-              (robot-capture-frame ctx container))])
+      (s/border-panel
+        :north
+        (s/flow-panel
+          :items
+          [(s/button
+             :id :robot-open-button
+             :text "Open capture frame"
+             :visible? true
+             :listen
+             [:action
+              (fn [e]
+                (robot-capture-frame ctx container))])
 
-         (s/button
-           :id :robot-close-button
-           :text "Close capture frame"
-           :visible? false
-           :listen
-           [:action
-            (fn [e] (robot-close-frame ctx container))])
+           (s/button
+             :id :robot-close-button
+             :text "Close capture frame"
+             :visible? false
+             :listen
+             [:action
+              (fn [e] (robot-close-frame ctx container))])])
 
-         (s/button
-           :id :robot-start-capture
-           :text "Start Recording"
-           :visible? false
-           :listen
-           [:action
-            (fn [e] (robot-start-capture ctx container))])
+        :center
+        (game-setup-panel ctx container)
 
-         (s/button
-           :id :robot-stop-capture
-           :text "Stop Recording"
-           :visible? false
-           :listen
-           [:action
-            (fn [e] (robot-stop-capture ctx container))])]))
+        :south
+        (s/flow-panel
+          :items
+          [(s/button
+             :id :robot-start-capture
+             :text "Start Recording"
+             :visible? false
+             :listen
+             [:action
+              (fn [e] (robot-start-capture ctx container))])
+
+           (s/button
+             :id :robot-pause-capture
+             :text "Pause Recording"
+             :visible? false
+             :listen
+             [:action
+              (fn [e] (robot-pause-capture ctx container))])
+
+           (s/button
+             :id :robot-unpause-capture
+             :text "Unpause Recording"
+             :visible? false
+             :listen
+             [:action
+              (fn [e] (robot-unpause-capture ctx container))])
+
+           (s/button
+             :id :robot-stop-capture
+             :text "Stop Recording"
+             :visible? false
+             :listen
+             [:action
+              (fn [e] (robot-stop-capture ctx container))])])
+        ))
     container))
