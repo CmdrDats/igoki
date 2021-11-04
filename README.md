@@ -241,6 +241,8 @@ report back.
  Alternatively, if you are doing development on this project, fire up a `lein repl` and it'll
  be all setup to connect an IDE repl to it.
 
+use Launch4j to build the exe, if you want that.
+
  
 ## License
 
