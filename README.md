@@ -52,6 +52,9 @@ And that's really it, you're good to go.
 Head on over to the [Releases](https://github.com/CmdrDats/igoki/releases) for a universal
 java binary that should run most anywhere-ish. You will need a Java runtime installed in order to run it though:
 
+- For Windows (64bit only), the 0.7 release has a wrapper executable + Java runtime bundled - download the `igoki-windows.zip` **and** the
+`igoki.jar` files - extract the `zip` and place the `jar` file in the same folder, then run the `igoki.exe`
+
 - I have tested with both Java 1.8 and Java 17 - you can head on over to [jdk.java.net](https://jdk.java.net/17/) to 
   download or [java.com](java.com) for java 1.8, though I'll be working off latest Java SDK.
 - Once Java is installed, you should be able to double-click the `igoki.jar` and it should run.
