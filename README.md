@@ -52,17 +52,17 @@ And that's really it, you're good to go.
 Head on over to the [Releases](https://github.com/CmdrDats/igoki/releases) for a universal
 java binary that should run most anywhere-ish. You will need a Java runtime installed in order to run it though:
 
- - I use OpenJDK 1.8 - you can head on over to [Redhat](https://developers.redhat.com/products/openjdk/download) to download Windows binaries -
-   an MSI file will likely be simplest
- - You might be able to get away with the latest version of Java - there's no real reason it shouldn't
-   work. I just haven't tested it.
- - Once Java is installed, you should be able to double-click the `igoki.jar` and it should run.
- - Failing that, on windows you can try:
-     - win-r, type `cmd`, hit enter
-     - type `cd Downloads` and hit enter (unless you put it somewhere else than in downloads)
-     - type `java -jar igoki.jar` and hit enter.
-     - It should start. if not, you should get some kind of error. Ping me with a new issue on github
-       with that message if that is the case.
+- I have tested with both Java 1.8 and Java 17 - you can head on over to [jdk.java.net](https://jdk.java.net/17/) to 
+  download or [java.com](java.com) for java 1.8, though I'll be working off latest Java SDK.
+- Once Java is installed, you should be able to double-click the `igoki.jar` and it should run.
+- Failing that, on windows you can try:
+    - win-r, type `cmd`, hit enter
+    - type `cd Downloads` and hit enter (unless you put it somewhere else than in downloads)
+    - type `java -jar igoki.jar` and hit enter.
+    - It should start. if not, you should get some kind of error. Ping me with a new issue on github
+      with that message if that is the case.
+- On linux/osx, if you can `java -version` and it gives you the Java version, then you can just:
+    - `cd` to the installation folder and `java -jar igoki.jar` 
 
 ## Process
 
@@ -70,8 +70,9 @@ To get going, you'll go through the following steps:
 
 1. Setup camera, select the board corners and check that it's reading alright.
 2. For Online-Go: Setup API keys, then username/password to login
-3. For Game Review: Load SGF file
-4. For Game recording... just play and Save SGF when you're done!
+3. For Manual integration: Setup frame, enter details, start recording
+4. For Game Review: Load SGF file
+5. For Game recording... just play and Save SGF when you're done!
 
 ---
 
@@ -173,7 +174,7 @@ a previous game state like the one you've gone to, and automatically jump to tha
 if it can. If you play a different way, it'll start branching in the SGF. Quite handy for reviewing and
 recording variations, I would say!
 
-### Play online
+### Play online on online-go.com
 
 ![OGS](doc/images/ogs.png)
 
@@ -192,6 +193,36 @@ If that's successful, you'll see the game list:
 
 Just click on one and `Connect to selected` - and you should be good to go - Start playing!
 
+### Play online using manual screen capture (very early implementation)
+
+As a stopgap to interact with most other Go clients or programs, you can setup a manual frame
+to capture and relay mouse clicks directly on screen.
+
+To set this up, click on the `Manual` tab at the bottom of the screen, then click the
+`Open capture frame` button. This will create a floating window that you can drag and align with the game
+board you want to integrate with.
+
+Because igoki won't be able to tell move order or anything, you need to let it know who the next
+player is that needs to go, and who it will be simulating mouse clicks for. There is a few
+more options mostly for the saved SGF at the end:
+
+![Manual integration](doc/images/manual.png)
+
+You can pause the capturing or stop it at any time.
+
+A few notes and tips:
+
+[Sabaki](https://sabaki.yichuanshen.de/) highlights the last move quite strongly, the strong black mark
+on the white stone confuses igoki's neural net. I found I get better mileage when I make the sabaki window
+quite small if that is a problem.
+
+[Katrain](https://github.com/sanderland/katrain) on windows really wants to have focus before the move
+is made, this makes testing with the simulation mode somewhat tricky (it doesn't work unless I jimmy a double click of sorts xD)
+- You might find this is the case with different platforms - so focus the app after setup before you start playing.
+
+On jdk 8, there's a bug where the first 'mouse move' command doesn't go to remotely the right place,
+so I've just worked around it by telling it to move the mouse 5 times. hopefully that's enough to coerce it, but please
+report back.
 
 ## Usage
  

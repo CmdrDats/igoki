@@ -224,9 +224,11 @@
               ;; the mouse in the right place... what?!
               (doseq [_ (range 5)]
                 (.mouseMove robot mx my))
+              (Thread/sleep 10)
               (.mousePress ^Robot robot InputEvent/BUTTON1_DOWN_MASK)
+              (Thread/sleep 10)
               (.mouseRelease ^Robot robot InputEvent/BUTTON1_DOWN_MASK)
-
+              (Thread/sleep 10)
               (doseq [_ (range 5)]
                 (.mouseMove robot (.getX mouse) (.getY mouse))))))))))
 

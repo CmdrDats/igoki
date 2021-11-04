@@ -66,8 +66,7 @@
 (SLF4JBridgeHandler/install)
 (.setLevel (.getLogger (LogManager/getLogManager) "") Level/INFO)
 
-(def hide-splash
-  (splash! (io/resource "splash.png") :duration 30000))
+
 
 (defonce ctx (atom {}))
 (defn start []
@@ -79,5 +78,6 @@
   (ui.main/main-frame ctx))
 
 (defn -main [& args]
-  (start)
-  (hide-splash))
+  (let [hide-splash (splash! (io/resource "splash.png") :duration 30000)]
+    (start)
+    (hide-splash)))
