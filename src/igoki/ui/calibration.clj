@@ -8,7 +8,8 @@
     [clojure.java.io :as io]
     [igoki.ui.util :as ui.util])
   (:import
-    (javax.swing JComboBox BorderFactory)))
+    (javax.swing JComboBox BorderFactory)
+    (java.awt Cursor)))
 
 (defn calibration-options [ctx]
   (s/flow-panel
@@ -133,7 +134,7 @@
     (let [[cx cy] size
           p
           [(/ (* (lq/mouse-x) cx) (lq/width))
-           (/ (* (- (lq/mouse-y) 5) cy) (lq/height))]
+           (/ (* (lq/mouse-y) cy) (lq/height))]
 
           points (get-in @ctx [:goban :points])
           points (util/update-closest-point points p)]
@@ -144,7 +145,7 @@
     (let [[cx cy] size
           p
           [(/ (* (lq/mouse-x) cx) (lq/width))
-           (/ (* (- (lq/mouse-y) 5) cy) (lq/height))]
+           (/ (* (lq/mouse-y) cy) (lq/height))]
 
           points (get-in @ctx [:goban :points])
           points
@@ -163,15 +164,16 @@
     (println "Unhandled key-down: " (lq/key-code e))))
 
 (defn calibration-panel [ctx]
-  (s/border-panel
-    :id :calibration-panel
-    :south
-    (calibration-options ctx)
-    :center
-    (:panel
-      (lq/sketch-panel
-        {:setup (partial #'construct ctx)
-         :draw (partial #'draw ctx)
-         :mouse-dragged (partial #'mouse-dragged ctx)
-         :mouse-pressed (partial #'mouse-pressed ctx)
-         :key-typed (partial #'key-typed ctx)}))))
+  (let [panel
+        (:panel
+          (lq/sketch-panel
+            {:setup (partial #'construct ctx)
+             :draw (partial #'draw ctx)
+             :mouse-dragged (partial #'mouse-dragged ctx)
+             :mouse-pressed (partial #'mouse-pressed ctx)
+             :key-typed (partial #'key-typed ctx)}))]
+    (.setCursor panel (Cursor/getPredefinedCursor Cursor/CROSSHAIR_CURSOR))
+    (s/border-panel
+      :id :calibration-panel
+      :south (calibration-options ctx)
+      :center panel)))

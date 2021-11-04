@@ -221,7 +221,7 @@
         states
         [[:#robot-open-button (not (:frame robot))]
          [:#robot-close-button (:frame robot)]
-         [:#robot-game-detail (and (:frame robot) (not (:started robot)))]
+         [:#robot-game-detail-panel (and (:frame robot) (not (:started robot)))]
          [:#robot-start-capture
           (and (:frame robot) (not (:started robot)))]
          [:#robot-stop-capture
@@ -277,10 +277,17 @@
         frame (:frame robot)
         bounds [(.getX frame) (.getY frame) (.getWidth frame) (.getHeight frame)]]
 
-    (i.robot/start-capture ctx bounds
+    ;; Get the actual frame out the way before
+    (.setVisible frame false)
+    #_(Thread/sleep 10)
+
+    (i.robot/start-capture ctx (.getDevice (.getGraphicsConfiguration frame)) bounds
       (s/value (s/select container [:#robot-game-detail])))
+
+    (.setVisible frame true)
     (refresh-button-states ctx container)
-    (.repaint frame)))
+    (.repaint frame)
+    ))
 
 (defn robot-pause-capture [ctx container]
   (let [{:keys [robot]} @ctx
@@ -304,36 +311,39 @@
     (.repaint frame)))
 
 (defn game-setup-panel [ctx container]
-  (sm/mig-panel
-    :id :robot-game-detail
+  (s/scrollable
+    (sm/mig-panel
+      :constraints ["center" "" ""]
+      :id :robot-game-detail
+      :items
+      [["Game Setup" "span, center, gapbottom 15"]
+       ["Next Player (NB!): " "align label"]
+       [(s/combobox
+          :id :initial-player
+          :model ["Black" "White"]) "wrap"]
+
+       ["igoki player: " "align label"]
+       [(s/combobox
+          :id :robot-player
+          :model ["None" "Black" "White" "Both"]) "wrap"]
+
+       ["Game Details (optional)" "span, center, gapbottom 15"]
+       ["Game name:" "align label"]
+       [(s/text :id :game-name :columns 64) "wrap"]
+       ["Black Player " "span, center, gapbottom 15"]
+       ["Name: " "align label"]
+       [(s/text :id :black-name :columns 32) "wrap"]
+       ["Rank: " "align label"]
+       [(s/text :id :black-rank :columns 10) "wrap"]
+
+       ["White Player " "span, center, gapbottom 15"]
+       ["Name: " "align label"]
+       [(s/text :id :white-name :columns 32) "wrap"]
+       ["Rank: " "align label"]
+       [(s/text :id :white-rank :columns 10) "wrap"]])
+    :id :robot-game-detail-panel
     :visible? false
-    :constraints ["center" "" ""]
-    :items
-    [["Game Setup" "span, center, gapbottom 15"]
-     ["Next Player (NB!): " "align label"]
-     [(s/combobox
-        :id :initial-player
-        :model ["Black" "White"]) "wrap"]
-
-     ["igoki player: " "align label"]
-     [(s/combobox
-        :id :robot-player
-        :model ["None" "Black" "White"]) "wrap"]
-
-     ["Game Details (optional)" "span, center, gapbottom 15"]
-     ["Game name:" "align label"]
-     [(s/text :id :game-name :columns 64) "wrap"]
-     ["Black Player " "span, center, gapbottom 15"]
-     ["Name: " "align label"]
-     [(s/text :id :black-name :columns 32) "wrap"]
-     ["Rank: " "align label"]
-     [(s/text :id :black-rank :columns 10) "wrap"]
-
-     ["White Player " "span, center, gapbottom 15"]
-     ["Name: " "align label"]
-     [(s/text :id :white-name :columns 32) "wrap"]
-     ["Rank: " "align label"]
-     [(s/text :id :white-rank :columns 10) "wrap"]]))
+    :hscroll :never))
 
 (defn robot-panel [ctx]
   (let [container (s/border-panel)]

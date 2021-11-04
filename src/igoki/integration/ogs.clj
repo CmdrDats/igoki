@@ -189,9 +189,9 @@
       c
       (assoc :kifu game)
       (update :ogs assoc
-              :game ogsgame
-              :current-branch-path newpath
-              :movenumber newmovenumber))))
+        :game ogsgame
+        :current-branch-path newpath
+        :movenumber newmovenumber))))
 
 (defn initialize-game [c game]
   (let [initial-node
@@ -249,31 +249,40 @@
     ;; When either the kifu path or the ogspath changes - check for submission
     (when-not (and (= oldpath newpath)
                    (= (-> old :ogs :current-branch-path) ogspath))
-      (log/info (:auth gameinfo))
+
       (let [flatogspath (mapcat identity ogspath)
             flatnewpath (mapcat identity newpath)]
-        (when (and
-                (> (count flatnewpath) (count flatogspath))
-                (= flatogspath (take (count flatogspath) flatnewpath)))
-          (let [{:keys [black white]} (first (drop (inc (count flatogspath)) (sgf/current-branch-node-list newpath (-> new :kifu :moves))))
+        (when
+          (and
+            (> (count flatnewpath) (count flatogspath))
+            (= flatogspath (take (count flatogspath) flatnewpath)))
+
+          (let [{:keys [black white]}
+                (->>
+                  (sgf/current-branch-node-list newpath (-> new :kifu :moves))
+                  (drop (inc (count flatogspath)))
+                  (first))
                 player (first (filter #(= (:id (:info %)) (get gameinfo (if black :black_player_id :white_player_id))) players))]
             (cond
               (and black player)
               (do
                 (log/info "Submitting Black move: " black player)
                 (socket-emit (-> new :ogs :socket)
-                             "game/move" {:game_id   (:game_id gameinfo)
-                                          :move      (first black)
-                                          :player_id (-> player :info :id)
-                                          :auth      (:auth player)}))
+                  "game/move"
+                  {:game_id (:game_id gameinfo)
+                   :move (first black)
+                   :player_id (-> player :info :id)
+                   :auth (:auth player)}))
+
               (and white player)
               (do
                 (log/info "Submitting White move: " white player)
                 (socket-emit (-> new :ogs :socket)
-                             "game/move" {:game_id   (:game_id gameinfo)
-                                          :move      (first white)
-                                          :player_id (-> player :info :id)
-                                          :auth      (:auth player)})))))))))
+                  "game/move"
+                  {:game_id (:game_id gameinfo)
+                   :move (first white)
+                   :player_id (-> player :info :id)
+                   :auth (:auth player)})))))))))
 
 
 (defn connect-record [ctx socket gameid auth & [auth2]]
@@ -323,10 +332,11 @@
             (= "finished" (:phase data))
             (do
               (disconnect-record ctx)
-              (let [game {:sgf (:body (game-sgf auth gameid))
-                          :event-stream (:event-stream (:ogs @ctx))
-                          :gameid gameid
-                          :auth auth}]
+              (let [game
+                    {:sgf (:body (game-sgf auth gameid))
+                     :event-stream (:event-stream (:ogs @ctx))
+                     :gameid gameid
+                     :auth auth}]
                 (spit (str "resources/ogs-game." gameid ".edn")
                   (pr-str game)))))))
 

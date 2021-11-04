@@ -7,13 +7,16 @@
     [clojure.string :as str]
     [igoki.inferrence :as inferrence]
     [igoki.sound.sound :as snd]
-    [igoki.sound.announce :as announce])
+    [igoki.sound.announce :as announce]
+    [clojure.tools.logging :as log])
   (:import
-    (java.awt Robot Rectangle)
+    (java.awt Robot Rectangle GraphicsDevice Point MouseInfo)
     (java.awt.image BufferedImage)
     (org.nd4j.linalg.exception ND4JIllegalStateException)
     (java.util Date)
-    (java.text SimpleDateFormat)))
+    (java.text SimpleDateFormat)
+    (java.awt.event InputEvent)
+    (javax.swing JWindow)))
 
 
 ; BufferedImage before = getBufferedImage(encoded);
@@ -175,10 +178,62 @@
             (take (:movenumber new) (:current-branch-path new)) (:moves new)))
         (:constructed new)))))
 
-(defn start-capture [ctx bounds game-detail]
+
+(defn check-submit-move [ctx old new]
+  (let [robot (get-in new [:robot :robot])
+        {:keys [robot-player]} (get-in new [:robot :game-detail])
+        oldpath (-> old :kifu :current-branch-path)
+        newpath (-> new :kifu :current-branch-path)
+        ]
+    ;; When either the kifu path or the ogspath changes - check for submission
+    (when (not= oldpath newpath)
+      (let [{:keys [black white]}
+            (->>
+              (sgf/current-branch-node-list newpath (-> new :kifu :moves))
+              (last))
+            move (first (or black white))]
+        (when
+          (or
+            (and move (= robot-player "Both"))
+            (and black (= robot-player "Black"))
+            (and white (= robot-player "White")))
+          (do
+            (log/info "Submitting mouse click at: " move)
+            (let [frame ^JWindow (get-in new [:robot :frame])
+
+                  size (get-in new [:goban :size])
+                  _ (println "size: " size)
+                  cellwidth (int (/ (.getWidth frame) size))
+                  cellheight (int (/ (.getHeight frame) size))
+                  _ (println "cell: " [cellwidth cellheight])
+                  [x y] (sgf/convert-sgf-coord move)
+                  _ (println "coords: " [x y])
+                  ;; Turns out this may not be needed? let's hope.
+                  #_#_reference-point
+                  (.getLocation
+                    (.getBounds
+                      (.getGraphicsConfiguration frame)))
+                  frame-location (.getLocationOnScreen frame)
+                  mx (int (+ (.getX frame-location) (* cellwidth x) (/ cellwidth 2)))
+                  my (int (+ (.getY frame-location) (* cellheight y) (/ cellheight 2)))
+                  mouse (.getLocation (MouseInfo/getPointerInfo))]
+              (println "ref: " )
+              (println "m" [mx my])
+              (.getGraphicsConfiguration frame)
+              ;; This doseq is due to a bug in older jre 8 - where it takes a few tries to get
+              ;; the mouse in the right place... what?!
+              (doseq [_ (range 5)]
+                (.mouseMove robot mx my))
+              (.mousePress ^Robot robot InputEvent/BUTTON1_DOWN_MASK)
+              (.mouseRelease ^Robot robot InputEvent/BUTTON1_DOWN_MASK)
+
+              (doseq [_ (range 5)]
+                (.mouseMove robot (.getX mouse) (.getY mouse))))))))))
+
+(defn start-capture [ctx ^GraphicsDevice screen bounds game-detail]
   (try
     (swap! ctx update :robot assoc
-      :started true :robot (Robot.) :bounds bounds
+      :started true :robot (Robot. screen) :bounds bounds
       :game-detail game-detail)
 
     (read-frame ctx)
@@ -187,18 +242,30 @@
 
     (add-watch ctx ::robot-capture
       (fn [k r o n]
-        ;; See if there's a new board state in the capture
-        (let [oldboard (get-in o [:robot :board])
-              newboard (get-in n [:robot :board])]
-          (when
-            (and
-              (true? (get-in o [:robot :started]))
-              (not= oldboard newboard))
-            (infer-board-play ctx n)))
+        (try
+          ;; See if there's a new board state in the capture
+          (let [oldboard (get-in o [:robot :board])
+                newboard (get-in n [:robot :board])]
 
-        ;; See if there's a new board state that we need to infer
+            ;; See if there's a new board state that we need to infer
+            (when
+              (and
+                (true? (get-in o [:robot :started]))
+                (not= oldboard newboard))
+              (infer-board-play ctx n)))
+          (catch Exception e
+            (.printStackTrace e)))))
 
-        ))
+    (add-watch ctx ::robot-submit
+      (fn [k r o n]
+        ;; See if we need to submit a click
+        (try
+          (check-submit-move ctx o n)
+
+          ;; Any exception shouldn't bubble up and kill stuff.
+          (catch Exception e
+            (.printStackTrace e)))))
+
     (doto
       (Thread. (partial #'read-robot-loop ctx))
       (.setDaemon true)
