@@ -9,13 +9,15 @@
     [igoki.game :as game]
     [igoki.simulated :as sim]
     [igoki.camera :as camera]
-    [igoki.ui.util :as ui.util])
+    [igoki.ui.util :as ui.util]
+    [igoki.ui.projector :as ui.projector])
   (:import (javax.swing JFrame)))
 
 (s/native!)
 
 (defn ogs-panel [ctx]
   (s/tabbed-panel
+    :minimum-size [10 :by 10]
     :placement :bottom
     :overflow :scroll
     :tabs
@@ -25,6 +27,9 @@
      {:title "Manual"
       :tip "Manual screen integration"
       :content (robot/robot-panel ctx)}
+     {:title "Projector"
+      :type "Projector setup/settings"
+      :content (ui.projector/projector-panel ctx)}
      {:title "Screen"
       :tip "Simulation (dev tools)"
       :content
@@ -32,6 +37,7 @@
 
 (defn tree-panel [ctx]
   (s/tabbed-panel
+    :minimum-size [10 :by 10]
     :placement :bottom
     :overflow :scroll
     :tabs

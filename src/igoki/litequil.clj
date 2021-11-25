@@ -3,7 +3,7 @@
   (:import
     (javax.swing JPanel SwingUtilities JFrame)
     (java.awt Graphics2D Dimension Color Image BasicStroke RenderingHints Font Polygon)
-    (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent)
+    (java.awt.event MouseListener MouseEvent MouseMotionListener KeyListener KeyEvent WindowStateListener)
     (java.awt.geom Ellipse2D$Double Rectangle2D)
     (javax.swing.event AncestorListener AncestorEvent)))
 
@@ -52,6 +52,8 @@
     (.setFocusable local-panel true)
 
     (swap! sketch-atom assoc :panel local-panel)
+
+
 
     (.addMouseListener local-panel
       (proxy [MouseListener] []

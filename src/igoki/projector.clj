@@ -4,12 +4,12 @@
     [igoki.game :as game]
     [igoki.sgf :as sgf]
     [igoki.litequil :as lq]
-    [igoki.camera :as camera])
+    [igoki.camera :as camera]
+    [seesaw.core :as s])
   (:import
     (org.opencv.calib3d Calib3d)
     (org.opencv.imgproc Imgproc)
-    (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)
-    (javax.swing JFrame)))
+    (org.opencv.core Mat Size MatOfPoint2f TermCriteria Core Point Scalar CvType)))
 
 (defonce proj-ctx
   (atom {}))
@@ -21,6 +21,7 @@
         existing-corners (:corners projcontext)
         size (Size. 9 7)
         lastmove (game/find-last-move ctx)]
+
     (when board-homography
       (util/with-release
         [target (MatOfPoint2f.)
@@ -51,9 +52,10 @@
                 m (or black white)]
             (doseq [coord m]
               (let [[x y] (sgf/convert-sgf-coord coord)
-                    [px py] (nth (nth sample-points y) x)]
-                (Imgproc/circle projmat (Point. px py) 5 (Scalar. 0 255 0)
-                  (if black 1 -1)))))
+                    [px py] (when (and x y) (nth (nth sample-points y) x))]
+                (when (and px py)
+                  (Imgproc/circle projmat (Point. px py) 5 (Scalar. 0 255 0)
+                    (if black 1 -1))))))
 
           (when (:show-branches kifu)
             (doseq
@@ -125,11 +127,12 @@
             (Calib3d/findChessboardCorners gray (:size checker) corners
               (+ Calib3d/CALIB_CB_ADAPTIVE_THRESH
                 Calib3d/CALIB_CB_NORMALIZE_IMAGE
-                Calib3d/CALIB_CB_FAST_CHECK))]
+                Calib3d/CALIB_CB_ASYMMETRIC_GRID
+                Calib3d/CALIB_CB_EXHAUSTIVE))]
         (.println System/out (str "Checking: " found))
         (when found
           (println "Found corners.")
-          (Imgproc/cornerSubPix gray corners (Size. 11 11) (Size. -1 -1) crit)
+          #_(Imgproc/cornerSubPix gray corners (Size. 3 3) (Size. -1 -1) crit)
           (fix-checker-orientation corners)
           (swap! proj-ctx assoc :corners corners))))))
 
@@ -174,64 +177,85 @@
         checker (checkerboard (- gw (/ gw 2)) (- gh (/ gh 2)) gw gh 10 8)
 
         {:keys [camera goban] :as context} @ctx
-        {:keys [homography board-homography proj-img] :as projcontext} @proj-ctx
+        {:keys [homography board-homography calibrate? proj-img] :as projcontext} @proj-ctx
         existing-corners (:corners projcontext)
         img (:bufimg proj-img)]
 
     (lq/background 255 255 255)
     (lq/rect 0 0 (lq/width) (lq/height))
     (lq/background 0 0 0)
-    (when-not homography
-      (draw-checkerboard checker))
 
-    ;; Draw screen intersection points
-    #_(do
+    (when calibrate?
+      (draw-checkerboard checker)
+
+      ;; Draw screen intersection points
+      #_(do
         (lq/color 255 0 0)
         (doseq [[x y] (:points checker)]
           (lq/ellipse x y 5 5)))
 
-    #_(lq/image (-> @proj-ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
-
-
-    (when proj-img
-      (lq/image img 0 0 (.getWidth img) (.getHeight img)))
-
-    ;; There's no way this should be happening in the draw call.
-    (cond
-      (and (not existing-corners) (:raw camera))
-      (look-for-checkerboard proj-ctx camera checker)
-
-      (and existing-corners (not homography))
-      (update-homography proj-ctx existing-corners checker)
-
-      (and homography (= 4 (count (:points goban))) (not board-homography))
-      (update-board-homography ctx proj-ctx homography))
+      #_(lq/image (-> @proj-ctx :pattern) (- (/ (q/width) 2) 180) (- (/ (q/height) 2) 200) 300 400)
 
 
 
-    #_(when existing-corners
+
+      ;; There's no way this should be happening in the draw call.
+
+      (cond
+        (:raw camera)
+        (look-for-checkerboard proj-ctx camera checker))
+
+
+
+      ;; Draw the found checkerboard for acceptance..
+      (when (and existing-corners)
         (util/with-release [clone (.clone (:raw camera))]
           (Calib3d/drawChessboardCorners clone (:size checker) existing-corners true)
-          (swap! ui/ctx update :camera
+          (swap! ctx update :camera
             assoc :pimg
             (util/mat-to-pimage clone
-              (-> context :camera :pimg :bufimg)))))))
+              (-> context :camera :pimg :bufimg))))))
+
+    (when-not calibrate?
+      (cond
+        (and existing-corners (not homography))
+        (update-homography proj-ctx existing-corners checker)
+
+        (and homography (= 4 (count (:points goban))) (not board-homography))
+        (update-board-homography ctx proj-ctx homography)
+
+        proj-img
+        (lq/image img 0 0 (.getWidth img) (.getHeight img))))))
 
 (defn reset-ctx []
   (reset! proj-ctx {:sketch (:sketch @proj-ctx)}))
 
+(defn show-calibration []
+  (swap! proj-ctx assoc :calibrate? true))
 
-(defn start-cframe [ctx]
+(defn accept-calibration [ctx]
+  (swap! proj-ctx assoc :calibrate? false)
+  (swap! ctx assoc-in [:projector :setting-up] false))
+
+(defn stop-cframe [ctx close-fn]
+  (let [{:keys [sketch]} @proj-ctx]
+    (when (and sketch (:frame @sketch))
+      (.dispose (:frame @sketch))))
   (reset! proj-ctx {})
+  (swap! ctx dissoc :projector)
+  (when close-fn
+    (close-fn)))
+
+(defn start-cframe [ctx close-fn]
+  (stop-cframe ctx close-fn)
 
   (let [sketch
         (lq/sketch
           {:title "Move on board in camera view (place paper on board for contrast)"
            :draw (partial #'draw proj-ctx ctx)
            :size (or (-> @proj-ctx :sketchconfig :size) [1280 720])})]
-    (swap! proj-ctx assoc :sketch sketch))
-
-
+    (swap! proj-ctx assoc :sketch sketch :calibrate? false))
+  (swap! ctx assoc :projector {:setting-up true})
   (doto
     (Thread.
       ^Runnable
@@ -241,10 +265,15 @@
             (update-projmat ctx)
             (catch Exception e
               (.printStackTrace e)))
-          (Thread/sleep 500))))
+          (Thread/sleep 500))
+        (when close-fn
+          (close-fn))))
     (.setDaemon true)
     (.start))
   #_(when (:sketch @proj-ctx)
      (doto (:sketch @proj-ctx)
        #_(.setExtendedState JFrame/MAXIMIZED_BOTH)
        #_(.setUndecorated true))))
+
+
+

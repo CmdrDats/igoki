@@ -227,8 +227,8 @@
                     (fn [[px py]]
                       (let [[b e w] (eval-net new-flat px py)]
                         (cond
-                          (> b 0.5) :b
-                          (> w 0.7) :w)))
+                          (> b 0.6) :b
+                          (> w 0.8) :w)))
                     row))
                 samplepoints)]
           (->
@@ -240,8 +240,9 @@
             (assoc :board board)))))))
 
 (defn read-stones [ctx]
-  (let [{:keys [samplepoints homography]} (:view @ctx)]
-    (when homography
+  (let [{:keys [view projector]} @ctx
+        {:keys [samplepoints homography]} view]
+    (when (and homography (not (:setting-up projector)))
       ;; TODO: this multiple swap thing, no good.
       (swap! ctx read-board)
 

@@ -9,7 +9,7 @@
     [igoki.ui.util :as ui.util])
   (:import
     (javax.swing JComboBox BorderFactory)
-    (java.awt Cursor)))
+    (java.awt Cursor Insets)))
 
 (defn calibration-options [ctx]
   (s/flow-panel
@@ -44,16 +44,12 @@
            (str "Camera " (inc x))))
        :selected-index 0)
      [20 :by 10]
-     (s/button :text "Projector Window"
-       :listen
-       [:action
-        (fn [e]
-          (projector/start-cframe ctx))])
+
      [20 :by 10]
      (s/button
        :id :kofi-button
        :icon (io/resource "kofi.png")
-       :border (BorderFactory/createEmptyBorder)
+       :text "Support me on Ko-fi"
        :focusable? false
        :listen
        [:action
@@ -69,7 +65,7 @@
   [(/ (* px (lq/width)) (.getWidth bufimg))
    (/ (* py (lq/height)) (.getHeight bufimg))])
 
-(def pn ["A19" "T19" "T1" "A1"])
+(def pn ["A1" "T1" "T19" "A19"])
 
 (defn draw [ctx]
   (lq/background 128 64 78)
@@ -174,6 +170,7 @@
              :key-typed (partial #'key-typed ctx)}))]
     (.setCursor panel (Cursor/getPredefinedCursor Cursor/CROSSHAIR_CURSOR))
     (s/border-panel
+      :minimum-size [10 :by 10]
       :id :calibration-panel
       :south (calibration-options ctx)
       :center panel)))

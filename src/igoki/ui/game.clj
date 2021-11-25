@@ -7,7 +7,8 @@
     [igoki.game :as game]
     [seesaw.core :as s]
     [seesaw.color :as sc]
-    [igoki.sound.announce :as announce])
+    [igoki.sound.announce :as announce]
+    [seesaw.mig :as sm])
   (:import
     (java.io File)))
 
@@ -274,60 +275,67 @@
 
         container
         (s/border-panel
+          :minimum-size [10 :by 10]
           :south
-          (s/flow-panel
-            :align :center
+          (sm/mig-panel
+            :constraints ["center"]
             :items
-            [(s/label :text "" :id :record-status)
-             (s/toggle :text "Debug ZIP" :id :record-debug
-               :selected? false
-               :listen
-               [:action
-                (fn [e]
-                  (swap! ctx assoc :debug-capture (s/value (.getSource e))))])
-
-             (s/button :text "<"
-               :listen
-               [:action (fn [e] (game/move-backward ctx))])
-             (s/button :text ">"
-               :listen
-               [:action (fn [e] (game/move-forward ctx))])
-             (s/button :text "Pass"
-               :listen
-               [:action (fn [e] (game/pass ctx))])
-
-             [20 :by 10]
-             (s/toggle :text "Show Branches"
-               :listen
-               [:action
-                (fn [e]
-                  (game/toggle-branches ctx (s/value (.getSource e))))])
-
-             [20 :by 10]
-             (s/label :text "Announce ")
-             (s/combobox
-               :listen
-               [:action
-                (fn [e]
-                  (announce/set-announce-player ctx
-                    (case (s/value (.getSource e))
-                      "Black" :black
-                      "White" :white
-                      "Both" :both
-                      nil)))]
-               :model ["None" "Black" "White" "Both"])
-             (s/label :text " in ")
-             (s/combobox
-               :listen
-               [:action
-                (fn [e]
-                  (announce/set-announce-language ctx
-                    (case (s/value (.getSource e))
-                      "English" :en
-                      "Japanese" :jp)))]
-               :model ["English" "Japanese"])
-             [20 :by 10]
-             (s/label :text "" :id :game-status)])
+            [[(s/label :text "" :id :record-status) "spanx, wrap"]
+             [(s/toggle :text "Debug ZIP" :id :record-debug
+                :selected? false
+                :listen
+                [:action
+                 (fn [e]
+                   (swap! ctx assoc :debug-capture (s/value (.getSource e))))])
+              ""]
+             [(s/button :text "<"
+                :listen
+                [:action (fn [e] (game/move-backward ctx))])
+              ""]
+             [(s/button :text ">"
+                :listen
+                [:action (fn [e] (game/move-forward ctx))])
+              ""]
+             [[20 :by 10] ""]
+             [(s/button :text "Pass"
+                :listen
+                [:action (fn [e] (game/pass ctx))])
+              ""]
+             [[20 :by 10] ""]
+             [(s/toggle :text "Show Branches"
+                :listen
+                [:action
+                 (fn [e]
+                   (game/toggle-branches ctx (s/value (.getSource e))))])
+              "wrap"]
+             [[20 :by 10] "grow"]
+             [(s/label :text "Announce ") ""]
+             [(s/combobox
+                :listen
+                [:action
+                 (fn [e]
+                   (announce/set-announce-player ctx
+                     (case (s/value (.getSource e))
+                       "Black" :black
+                       "White" :white
+                       "Both" :both
+                       nil)))]
+                :model ["None" "Black" "White" "Both"])
+              ""]
+             [(s/label :text " in ") ""]
+             [(s/combobox
+                :listen
+                [:action
+                 (fn [e]
+                   (announce/set-announce-language ctx
+                     (case (s/value (.getSource e))
+                       "English" :en
+                       "Japanese" :jp)))]
+                :model ["English" "Japanese"])
+              ""]
+             [[20 :by 10] ""]
+             [(s/label :text "" :id :game-status) ""]
+             ])
           :center panel)]
 
     (util/add-watch-path ctx :kifu

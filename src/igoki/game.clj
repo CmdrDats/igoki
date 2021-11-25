@@ -47,7 +47,7 @@
       ctx
       (fn [c]
         (-> c
-            (update :kifu assoc :submit {:latch 1 :board board})
+            (update :kifu assoc :submit {:latch 2 :board board})
             ;; TODO: this read-delay.. whaat?? this should be a 'accept-delay' at this level.
             (update :camera assoc :read-delay 300))))))
 
@@ -135,7 +135,7 @@
       :else
       (do
         ;; TODO: Sound playing shouldn't happen here, surely?
-        (snd/play-sound :submit)
+        ;;(snd/play-sound :submit)
         (println "Debounce success - move submitted")
 
         (let [new (inferrence/infer-moves game updatelist (last updatelist))]
