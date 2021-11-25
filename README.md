@@ -140,22 +140,24 @@ If you want to announce your moves while you're playing, set those up in the gam
 Connect up your projector and get it working in your OS as an extended display - 
 some guidance if you need, for windows or OSX: [At this link](https://www.bu.edu/comtech/faculty-staff/classroom-av/instructor-station-desktop-mirroring/)
 
-Once that is setup, make sure the projector is pointed at and covering your entire board with a tiny bit
+Once that is setup, make sure the projector is pointed at and covering your entire board with a bit
 of space to spare.
 
-Now click the `Projector Window` button in the camera panel - this should open a new
-maximized window with a checkerboard pattern:
+Now click the `Projector` tab (next to OGS) - you'll see a 'Projector Window button'. Click that,
+and it should open a new blank window - move that to your projector monitor and maximize it. 
+
+Then, click the 'Calibration Grid' button and you'll have something like this showing:
 
 ![Projector Checkerboard](doc/images/projector-checker.png)
 
-This is used to pick up the orientation of the camera vs the plane of your game board. Move that
-window over to the projector screen and maximize it - the checkerboard should fit on your game board.
+the checkerboard should ideally fit on your game board and be in the camera frame
 
 Get a blank white sheet of paper and place it so that the checkerboard pattern is fully on the page - 
-this will let the camera correctly see the checkerboard pattern.
+this will let the camera correctly see the checkerboard pattern easiest.
 
-If all goes well, the checkerboard pattern will disappear and the background of the window will go black.
-It's all ready to roll!
+You should see the corners of the checkerboard highlighted in many colours in the camera window - if it looks like it's aligned correctly, hit the 'Accept Calibration' button.
+
+The window should go black and it's all ready to roll!
 
 ### Announcer
 
